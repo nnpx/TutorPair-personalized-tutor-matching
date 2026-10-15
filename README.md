@@ -1,0 +1,186 @@
+# TutorPair — Cloud-Based Tutor Matching Platform
+
+> A cloud-native platform connecting G1–G12 students with verified private tutors in Thailand through structured profiles, admin verification, and a rule-based weighted matchmaking system.
+
+---
+
+## 🏗️ Architecture Overview
+
+* **Monorepo Layout**: Managed via npm workspaces (`packages/shared`, `apps/server`, `apps/client`).
+* **Frontend**: React 18, Vite, TypeScript, TanStack Query v5, React Hook Form, Zustand $\rightarrow$ Deployed to **AWS Amplify Hosting**.
+* **Backend**: Node.js, Express.js, TypeScript, Drizzle ORM, PostgreSQL $\rightarrow$ Deployed to **Amazon ECS Fargate** via Docker.
+* **Database**: **Amazon RDS for PostgreSQL 16** (or local PostgreSQL via Docker).
+* **Storage**: **Amazon S3** (Private bucket with PUT/GET Presigned URLs for certificates, CVs, and photos).
+* **Authentication**: **AWS Cognito** + Google OAuth 2.0 with JWT verification (`aws-jwt-verify`).
+* **Notifications**: Database-backed async email worker using **Amazon SES**.
+
+Detailed architectural documentation is available in the [`docs/`](./docs/README.md) directory:
+* [Architecture Decisions](./docs/ARCHITECTURE.md)
+* [Project Structure](./docs/PROJECT_STRUCTURE.md)
+* [Backend Developer Guide](./docs/BACKEND_GUIDE.md)
+* [Frontend Developer Guide](./docs/FRONTEND_GUIDE.md)
+* [Authentication & Role Sync Flow](./docs/AUTH_FLOW.md)
+* [S3 Presigned URL Strategy](./docs/S3_DOCUMENTS.md)
+* [Notifications Architecture](./docs/NOTIFICATIONS.md)
+* [Database & Migration Guide](./docs/DATABASE.md)
+
+---
+
+## 📋 Prerequisites
+
+Before running the project locally, ensure you have:
+* **Node.js**: `v20.x` or later (tested on `v24.x`)
+* **npm**: `v10.x` or later
+* **Docker & Docker Compose**: (for local PostgreSQL 16 database)
+
+---
+
+## 🚀 Quick Start Guide
+
+### 1. Install Dependencies
+Run from the repository root to install all dependencies across all workspaces:
+```bash
+npm install
+```
+
+### 2. Build the Shared Package
+Compile `@tutorpair/shared` (enums, schemas, types) so both backend and frontend can import it:
+```bash
+npm run build:shared
+```
+
+### 3. Start Local PostgreSQL Database
+Spin up the local PostgreSQL 16 container:
+```bash
+docker compose up -d
+```
+*(This starts PostgreSQL on `localhost:5432` with user `postgres` and password `postgres`).*
+
+### 4. Run Migrations & Seed Reference Data
+Apply the initial database schema and seed predefined categories and subjects (Math, IELTS, SAT, etc.):
+```bash
+npm run db:migrate
+npm run db:seed
+```
+
+### 5. Start Development Servers
+
+Open two terminal tabs:
+
+**Terminal 1 — Backend API (Express on Port 4000):**
+```bash
+npm run dev:server
+```
+Health check endpoint: `http://localhost:4000/api/health`
+
+**Terminal 2 — Frontend App (Vite on Port 5173):**
+```bash
+npm run dev:client
+```
+Open your browser at: `http://localhost:5173`
+
+---
+
+## ⚙️ Environment Variables Configuration
+
+Copy `.env.example` to `.env.local` for local development:
+
+```bash
+# Server configuration
+cp .env.example apps/server/.env.local
+
+# Client configuration
+cp .env.example apps/client/.env.local
+```
+
+### Local Development Without AWS (Mock Mode)
+You **do not** need AWS credentials to develop features locally:
+* **Cognito Mock Auth**: In development mode, you can call protected backend endpoints using:
+  ```http
+  Authorization: Bearer mock-token-<user-id>
+  ```
+  The backend will automatically bypass Cognito verification and map `<user-id>` to the database.
+* **Frontend**: Loads without errors even if Cognito environment variables are blank.
+
+### Connecting to Real AWS Services
+When connecting to actual AWS services, fill in:
+* `COGNITO_USER_POOL_ID` and `COGNITO_CLIENT_ID`
+* `S3_BUCKET_NAME`
+* `SES_FROM_EMAIL`
+* `DATABASE_URL` (if pointing to Amazon RDS)
+
+---
+
+## 🛠️ Available Scripts (Root)
+
+| Command | Description |
+|---|---|
+| `npm run build` | Compiles the shared package, backend server, and frontend client |
+| `npm run build:shared` | Compiles `@tutorpair/shared` TypeScript definitions |
+| `npm run build:server` | Compiles `apps/server` TypeScript into `dist/` |
+| `npm run build:client` | Builds `apps/client` for production via Vite |
+| `npm run dev:server` | Starts Express API in watch mode with hot reload |
+| `npm run dev:client` | Starts Vite React frontend on `http://localhost:5173` |
+| `npm run db:generate` | Generates a new SQL migration file after schema changes |
+| `npm run db:migrate` | Runs all pending database migrations against PostgreSQL |
+| `npm run db:seed` | Populates database with default subjects, variants, and categories |
+| `npm run db:studio` | Opens Drizzle Studio GUI in your browser to inspect database tables |
+
+---
+
+## 📂 Repository Structure
+
+```text
+tutorpair/
+├── apps/
+│   ├── client/                  # React (Vite) Frontend -> AWS Amplify Hosting
+│   │   ├── src/
+│   │   │   ├── components/      # UI & form primitives (Button, Card, SliderInput)
+│   │   │   ├── features/        # Feature pages (auth, students, tutors, matching, admin, reviews)
+│   │   │   ├── layouts/         # StudentLayout, TutorLayout, AdminLayout, AuthLayout
+│   │   │   ├── routes/          # ProtectedRoute and route configuration
+│   │   │   ├── services/        # Axios API client configured with Bearer token interceptor
+│   │   │   └── store/           # Zustand client auth store
+│   │   └── vite.config.ts
+│   │
+│   └── server/                  # Node.js/Express Backend -> Docker -> AWS ECS Fargate
+│       ├── src/
+│       │   ├── common/          # Middlewares, errors, responses, asyncHandler
+│       │   ├── config/          # Zod env validation, AWS SDK clients (S3, SES, Cognito)
+│       │   ├── db/              # Drizzle ORM schemas, migrations, client, and seeder
+│       │   ├── modules/         # Feature modules (routes -> controller -> service -> repository)
+│       │   │   ├── auth/
+│       │   │   ├── users/
+│       │   │   ├── students/
+│       │   │   ├── tutors/
+│       │   │   ├── subjects/
+│       │   │   ├── documents/
+│       │   │   ├── admin/
+│       │   │   ├── matching/
+│       │   │   └── reviews/
+│       │   └── workers/         # Background email dispatch worker (30s interval)
+│       ├── Dockerfile           # Production multi-stage Docker build
+│       └── drizzle.config.ts
+│
+├── packages/
+│   └── shared/                  # @tutorpair/shared
+│       └── src/
+│           ├── enums/           # UserRole, VerificationStatus, SubjectCategory, etc.
+│           ├── schemas/         # Zod schemas for all domain requests and forms
+│           └── types/           # Shared TypeScript interfaces & DTOs
+│
+├── docs/                        # Complete technical documentation & guides
+├── docker-compose.yml           # Local PostgreSQL 16 backing container
+└── package.json                 # Monorepo workspace configuration
+```
+
+---
+
+## 📌 Development Conventions
+
+1. **Shared Types First**: If an enum, type, or validation schema is used by both frontend and backend, define it in `packages/shared/` and run `npm run build:shared`. Never duplicate types.
+2. **Error Handling**: Use semantic errors from `common/errors/http-errors.ts` (`NotFoundError`, `BadRequestError`, `ForbiddenError`, `ConflictError`). If a new error is needed, add it to `http-errors.ts` first.
+3. **Async Controllers**: Wrap all controller handlers with `asyncHandler` to eliminate manual `try/catch` boilerplate.
+4. **Cross-Module Rule**: A module's service may import another module's **repository**, but never another module's service (prevents circular dependencies).
+5. **S3 Uploads**: File binaries never stream through Express. Use **S3 Presigned URLs** (`PUT` for upload, `GET` for view).
+6. **Database Changes**: Always run `npm run db:generate` to produce a migration file, commit it to Git, and run `npm run db:migrate`. Never run `drizzle-kit push` on shared/production databases.
