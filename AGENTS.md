@@ -24,6 +24,7 @@ All architectural decisions, coding conventions, database patterns, and security
 | **Monorepo folder structure & directory guide** | [**`docs/PROJECT_STRUCTURE.md`**](./docs/PROJECT_STRUCTURE.md) |
 | **Backend routes, controllers, services, repositories & errors** | [**`docs/BACKEND_GUIDE.md`**](./docs/BACKEND_GUIDE.md) |
 | **Frontend state, forms, UI components & route guards** | [**`docs/FRONTEND_GUIDE.md`**](./docs/FRONTEND_GUIDE.md) |
+| **Frontend UI, styling, Flat Design tokens & aesthetics** | [**`docs/DESIGN_SYSTEM.md`**](./docs/DESIGN_SYSTEM.md) |
 | **Database schemas, Drizzle ORM, & migration workflow** | [**`docs/DATABASE.md`**](./docs/DATABASE.md) |
 | **Authentication, AWS Cognito, role sync, & local mock auth** | [**`docs/AUTH_FLOW.md`**](./docs/AUTH_FLOW.md) |
 | **S3 document uploads, CVs, certificates, & Presigned URLs** | [**`docs/S3_DOCUMENTS.md`**](./docs/S3_DOCUMENTS.md) |
@@ -39,9 +40,11 @@ All architectural decisions, coding conventions, database patterns, and security
    * When changing an enum, schema, or DTO, update `packages/shared` first and run `npm run build:shared`. Never duplicate types across workspaces.
 2. **Follow Existing Module Patterns**:
    * Strictly adhere to the layer rules and conventions in [`docs/BACKEND_GUIDE.md`](./docs/BACKEND_GUIDE.md) and [`docs/FRONTEND_GUIDE.md`](./docs/FRONTEND_GUIDE.md).
-3. **No Direct File Streaming**:
+3. **Strict Flat Design Aesthetic**:
+   * Every frontend page/component must follow [**`docs/DESIGN_SYSTEM.md`**](./docs/DESIGN_SYSTEM.md) — zero drop shadows, no glassmorphism or blur, bold Outfit typography, and solid color-block hierarchy.
+4. **No Direct File Streaming**:
    * File uploads must use S3 Presigned URLs as specified in [`docs/S3_DOCUMENTS.md`](./docs/S3_DOCUMENTS.md).
-4. **Database Changes via Migrations Only**:
+5. **Database Changes via Migrations Only**:
    * Never run `drizzle-kit push` on shared/production environments; always generate and run migrations per [`docs/DATABASE.md`](./docs/DATABASE.md).
-5. **Preserve Local Mock Auth**:
+6. **Preserve Local Mock Auth**:
    * Keep the mock authentication bypass (`Authorization: Bearer mock-token-<user-id>`) functional as described in [`docs/AUTH_FLOW.md`](./docs/AUTH_FLOW.md).

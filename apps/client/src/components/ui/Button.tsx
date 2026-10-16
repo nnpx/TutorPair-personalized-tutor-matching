@@ -1,7 +1,7 @@
 import React from 'react';
 
-interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'danger' | 'outline';
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: 'primary' | 'secondary' | 'outline' | 'outline-white' | 'accent' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
 }
@@ -12,41 +12,72 @@ export const Button: React.FC<ButtonProps> = ({
   size = 'md',
   isLoading = false,
   disabled,
+  className = '',
   style,
   ...props
 }) => {
-  const baseStyles: React.CSSProperties = {
-    display: 'inline-flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 'var(--radius)',
-    border: 'none',
-    fontWeight: 500,
-    transition: 'background-color 0.15s ease',
-    opacity: disabled || isLoading ? 0.6 : 1,
-    cursor: disabled || isLoading ? 'not-allowed' : 'pointer',
-    padding: size === 'sm' ? '0.375rem 0.75rem' : size === 'lg' ? '0.75rem 1.5rem' : '0.5rem 1rem',
-    fontSize: size === 'sm' ? '0.875rem' : size === 'lg' ? '1.125rem' : '1rem',
+  const getVariantClass = () => {
+    switch (variant) {
+      case 'secondary':
+        return 'flat-btn-secondary';
+      case 'outline':
+        return 'flat-btn-outline';
+      case 'outline-white':
+        return 'flat-btn-outline-white';
+      case 'accent':
+        return 'flat-btn-accent';
+      case 'danger':
+        return 'flat-btn-primary'; // Can style with danger color
+      case 'primary':
+      default:
+        return 'flat-btn-primary';
+    }
   };
 
-  const variantStyles: Record<string, React.CSSProperties> = {
-    primary: { backgroundColor: 'var(--primary)', color: '#ffffff' },
-    secondary: { backgroundColor: 'var(--border)', color: 'var(--text-main)' },
-    danger: { backgroundColor: 'var(--danger)', color: '#ffffff' },
-    outline: {
-      backgroundColor: 'transparent',
-      border: '1px solid var(--border)',
-      color: 'var(--text-main)',
-    },
+  const getSizeClass = () => {
+    switch (size) {
+      case 'sm':
+        return 'flat-btn-sm';
+      case 'lg':
+        return 'flat-btn-lg';
+      case 'md':
+      default:
+        return '';
+    }
+  };
+
+  const isDanger = variant === 'danger';
+  const customStyle: React.CSSProperties = {
+    ...(isDanger ? { backgroundColor: 'var(--color-danger)' } : {}),
+    ...(disabled || isLoading ? { opacity: 0.5, cursor: 'not-allowed', transform: 'none' } : {}),
+    ...style,
   };
 
   return (
     <button
       disabled={disabled || isLoading}
-      style={{ ...baseStyles, ...variantStyles[variant], ...style }}
+      className={`flat-btn ${getVariantClass()} ${getSizeClass()} ${className}`}
+      style={customStyle}
       {...props}
     >
-      {isLoading ? 'Loading...' : children}
+      {isLoading ? (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span
+            style={{
+              width: '1rem',
+              height: '1rem',
+              border: '2px solid currentColor',
+              borderTopColor: 'transparent',
+              borderRadius: '50%',
+              display: 'inline-block',
+              animation: 'spin 0.6s linear infinite',
+            }}
+          />
+          Loading...
+        </span>
+      ) : (
+        children
+      )}
     </button>
   );
 };

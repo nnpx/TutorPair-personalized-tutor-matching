@@ -6,6 +6,7 @@ import { TutorLayout } from './layouts/TutorLayout';
 import { AdminLayout } from './layouts/AdminLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { LoginPage } from './features/auth/LoginPage';
+import { LandingPage } from './features/landing/LandingPage';
 import { StudentProfilePage } from './features/students/StudentProfilePage';
 import { MatchingPage, MatchHistoryPage } from './features/matching/MatchingPage';
 import { TutorProfilePage, TutorDocumentsPage } from './features/tutors/TutorPages';
@@ -16,6 +17,9 @@ import { UserRole } from '@tutorpair/shared';
 export const App: React.FC = () => {
   return (
     <Routes>
+      {/* Public Landing Page */}
+      <Route path="/" element={<LandingPage />} />
+
       {/* Public / Auth routes */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
@@ -50,7 +54,7 @@ export const App: React.FC = () => {
       </Route>
 
       {/* Fallback */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 };

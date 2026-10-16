@@ -285,3 +285,5 @@ tutorpair/
    - File binaries **must never** pass through Express route bodies. Use S3 presigned URLs (`PUT` for client upload, `GET` for view).
 5. **Database Migration Standard**:
    - Schema changes in `apps/server/src/db/schema/` must be followed by `npm run db:generate` and committed as SQL migrations.
+6. **Strict Flat Design Standard**:
+   - All frontend user interfaces must adhere strictly to [**`docs/DESIGN_SYSTEM.md`**](./docs/DESIGN_SYSTEM.md) — zero drop shadows, no glassmorphism or blur, Outfit typography, and solid color-block hierarchy.

@@ -1,16 +1,19 @@
 import React from 'react';
 
-export const Spinner: React.FC<{ size?: number }> = ({ size = 24 }) => {
+export const Spinner: React.FC<{ size?: number; color?: string }> = ({
+  size = 28,
+  color = 'var(--color-primary)',
+}) => {
   return (
     <div
       style={{
         display: 'inline-block',
         width: size,
         height: size,
-        border: '3px solid var(--border)',
-        borderTopColor: 'var(--primary)',
+        border: `3px solid var(--color-muted)`,
+        borderTopColor: color,
         borderRadius: '50%',
-        animation: 'spin 0.8s linear infinite',
+        animation: 'spin 0.7s linear infinite',
       }}
     />
   );
@@ -18,25 +21,34 @@ export const Spinner: React.FC<{ size?: number }> = ({ size = 24 }) => {
 
 export const Badge: React.FC<{
   children: React.ReactNode;
-  variant?: 'primary' | 'success' | 'warning' | 'danger';
-}> = ({ children, variant = 'primary' }) => {
-  const colors: Record<string, { bg: string; text: string }> = {
-    primary: { bg: 'var(--primary-light)', text: 'var(--primary)' },
-    success: { bg: '#dcfce7', text: '#15803d' },
-    warning: { bg: '#fef3c7', text: '#b45309' },
-    danger: { bg: '#fee2e2', text: '#b91c1c' },
+  variant?: 'primary' | 'secondary' | 'accent' | 'danger' | 'white';
+  className?: string;
+  style?: React.CSSProperties;
+}> = ({ children, variant = 'primary', className = '', style }) => {
+  const getBadgeClass = () => {
+    switch (variant) {
+      case 'white':
+        return 'flat-badge-white';
+      case 'secondary':
+        return 'flat-badge-secondary';
+      case 'accent':
+        return 'flat-badge-accent';
+      case 'danger':
+        return 'flat-badge-accent'; // or custom danger badge
+      case 'primary':
+      default:
+        return 'flat-badge-primary';
+    }
   };
 
   return (
     <span
+      className={`flat-badge ${getBadgeClass()} ${className}`}
       style={{
-        display: 'inline-block',
-        padding: '0.2rem 0.6rem',
-        borderRadius: '9999px',
-        fontSize: '0.75rem',
-        fontWeight: 600,
-        backgroundColor: colors[variant].bg,
-        color: colors[variant].text,
+        ...(variant === 'danger'
+          ? { backgroundColor: 'var(--color-danger-tint)', color: 'var(--color-danger)' }
+          : {}),
+        ...style,
       }}
     >
       {children}

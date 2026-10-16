@@ -15,6 +15,7 @@ This folder contains all architectural decisions, conventions, and constraints a
 | [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) | Everyone | Full folder structure for both frontend and backend with explanation of each directory |
 | [BACKEND_GUIDE.md](./BACKEND_GUIDE.md) | Backend devs | Module anatomy, cross-module rules, env vars, migration workflow, error handling |
 | [FRONTEND_GUIDE.md](./FRONTEND_GUIDE.md) | Frontend devs | State management, form handling, route guards, folder conventions |
+| [DESIGN_SYSTEM.md](./DESIGN_SYSTEM.md) | Frontend devs & AI Agents | Flat Design philosophy, color tokens, button/card components, zero-shadow rules |
 | [AUTH_FLOW.md](./AUTH_FLOW.md) | Everyone | How AWS Cognito, JWT, and PostgreSQL role sync work end-to-end |
 | [S3_DOCUMENTS.md](./S3_DOCUMENTS.md) | Backend + Frontend devs | Presigned URL upload and view flows with sequence diagrams |
 | [NOTIFICATIONS.md](./NOTIFICATIONS.md) | Backend devs | In-app notification + SES email async polling architecture |

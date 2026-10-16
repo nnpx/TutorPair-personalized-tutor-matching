@@ -39,6 +39,7 @@ Detailed documentation is available in the [`docs/`](./docs/README.md) directory
 * [Project Structure](./docs/PROJECT_STRUCTURE.md)
 * [Backend Developer Guide](./docs/BACKEND_GUIDE.md)
 * [Frontend Developer Guide](./docs/FRONTEND_GUIDE.md)
+* [Flat Design System & Token Spec](./docs/DESIGN_SYSTEM.md)
 * [Authentication & Role Sync Flow](./docs/AUTH_FLOW.md)
 * [S3 Presigned URL Strategy](./docs/S3_DOCUMENTS.md)
 * [Notifications Architecture](./docs/NOTIFICATIONS.md)

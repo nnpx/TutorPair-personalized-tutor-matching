@@ -1,50 +1,116 @@
 import React from 'react';
-import { Outlet, Link } from 'react-router-dom';
+import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
+import { User, FileText, BookOpen, LogOut } from 'lucide-react';
 
 export const TutorLayout: React.FC = () => {
   const { user, clearUser } = useAuthStore();
+  const location = useLocation();
+
+  const navItems = [
+    { label: 'My Profile', path: '/tutor/profile', icon: User },
+    { label: 'Verification Documents', path: '/tutor/documents', icon: FileText },
+    { label: 'Teaching Subjects', path: '/tutor/subjects', icon: BookOpen },
+  ];
 
   return (
-    <div>
+    <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-muted)' }}>
+      {/* Flat Header - Clean White Block, No Shadow */}
       <header
         style={{
-          backgroundColor: 'var(--surface)',
-          borderBottom: '1px solid var(--border)',
-          padding: '1rem 0',
+          backgroundColor: 'var(--bg-canvas)',
+          borderBottom: '2px solid var(--color-border)',
+          padding: '1.25rem 0',
         }}
       >
         <div
-          className="container"
+          className="container-flat"
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
-          <div style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-            <h2 style={{ fontSize: '1.25rem', color: 'var(--primary)', fontWeight: 700 }}>
-              TutorPair (Tutor)
-            </h2>
-            <nav style={{ display: 'flex', gap: '1rem' }}>
-              <Link to="/tutor/profile">My Profile</Link>
-              <Link to="/tutor/documents">Verification Documents</Link>
-              <Link to="/tutor/subjects">Teaching Subjects</Link>
+          <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'center' }}>
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--color-secondary)',
+                  color: 'var(--color-white)',
+                  fontWeight: 800,
+                  fontSize: '1.25rem',
+                }}
+              >
+                TP
+              </span>
+              <div>
+                <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-main)' }}>
+                  Tutor<span style={{ color: 'var(--color-secondary)' }}>Pair</span>
+                </span>
+                <span
+                  style={{
+                    marginLeft: '0.5rem',
+                    fontSize: '0.75rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    backgroundColor: 'var(--color-secondary-tint)',
+                    color: 'var(--color-secondary)',
+                    padding: '0.2rem 0.5rem',
+                    borderRadius: 'var(--radius-md)',
+                  }}
+                >
+                  Tutor Portal
+                </span>
+              </div>
+            </Link>
+
+            <nav style={{ display: 'flex', gap: '0.5rem' }}>
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const isActive = location.pathname === item.path;
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.625rem 1rem',
+                      borderRadius: 'var(--radius-md)',
+                      fontWeight: isActive ? 700 : 600,
+                      color: isActive ? 'var(--color-white)' : 'var(--fg-main)',
+                      backgroundColor: isActive ? 'var(--color-secondary)' : 'transparent',
+                      transition: 'all 0.2s ease',
+                    }}
+                  >
+                    <Icon size={18} strokeWidth={2.2} />
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>{user?.email}</span>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+            <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--fg-main)' }}>
+              {user?.email}
+            </span>
             <button
               onClick={clearUser}
-              style={{
-                background: 'none',
-                border: '1px solid var(--border)',
-                padding: '0.25rem 0.75rem',
-                borderRadius: 'var(--radius)',
-              }}
+              className="flat-btn flat-btn-secondary flat-btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
             >
+              <LogOut size={16} strokeWidth={2.2} />
               Logout
             </button>
           </div>
         </div>
       </header>
-      <main className="container" style={{ padding: '2rem 1rem' }}>
+
+      <main className="container-flat" style={{ padding: '2.5rem 1.5rem' }}>
         <Outlet />
       </main>
     </div>

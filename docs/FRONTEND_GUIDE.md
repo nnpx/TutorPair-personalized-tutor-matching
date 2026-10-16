@@ -1,6 +1,7 @@
 # TutorPair — Frontend Developer Guide
 
-> This guide covers state management patterns, form handling, route guards, folder conventions, and how the frontend communicates with the backend API.
+> This guide covers state management patterns, form handling, route guards, folder conventions, and how the frontend communicates with the backend API.  
+> 🎨 **UI & Visual Design**: All visual styling, tokens, and components MUST follow [**`docs/DESIGN_SYSTEM.md`**](./DESIGN_SYSTEM.md) (Zero drop shadows, Flat Design color blocking, and Outfit typography).
 
 ---
 
