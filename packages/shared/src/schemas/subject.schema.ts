@@ -1,3 +1,7 @@
+/**
+ * NOTE: This is an initial draft / baseline schema.
+ * It can be revised, expanded, or modified when developing this specific module in detail.
+ */
 import { z } from 'zod';
 import { SubjectCategory, LearningGoal } from '../enums/index.js';
 

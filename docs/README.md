@@ -10,6 +10,7 @@ This folder contains all architectural decisions, conventions, and constraints a
 
 | File | Who Should Read | Purpose |
 |---|---|---|
+| [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) | Everyone & AI Agents | Comprehensive domain requirements, 1-5 slider specs, matching logic, and user flows |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Everyone | High-level decisions: why we chose each technology and approach |
 | [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) | Everyone | Full folder structure for both frontend and backend with explanation of each directory |
 | [BACKEND_GUIDE.md](./BACKEND_GUIDE.md) | Backend devs | Module anatomy, cross-module rules, env vars, migration workflow, error handling |

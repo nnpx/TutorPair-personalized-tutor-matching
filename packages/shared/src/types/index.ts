@@ -1,3 +1,8 @@
+/**
+ * NOTE: These interfaces and DTOs are initial baseline drafts.
+ * They can be adjusted, expanded, or restructured as the frontend
+ * and backend modules are developed in detail.
+ */
 import { UserRole, VerificationStatus, NotificationEventType, EmailStatus } from '../enums/index.js';
 
 export interface ApiResponse<T = unknown> {

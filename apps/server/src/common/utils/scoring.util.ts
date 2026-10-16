@@ -1,4 +1,9 @@
 /**
+ * NOTE: This is an initial draft / baseline scoring formula.
+ * It should be reviewed, tested, and fine-tuned by the matching system developer.
+ */
+
+/**
  * Calculates compatibility score between student preferences and tutor profile.
  * Both profiles have:
  * - style_profile: 5 sliders (1 to 5)

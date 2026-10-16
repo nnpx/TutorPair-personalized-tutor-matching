@@ -1,3 +1,7 @@
+/**
+ * NOTE: This is an initial draft / baseline implementation.
+ * It should be reviewed, tested, and revised when integrating S3 presigned URLs with AWS S3.
+ */
 import { PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { s3Client } from '../../config/aws-clients.js';

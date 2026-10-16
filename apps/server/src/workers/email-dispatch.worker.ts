@@ -1,4 +1,9 @@
 /**
+ * NOTE: This is an initial draft / baseline implementation.
+ * It should be reviewed, tested, and revised when developing the notification module.
+ */
+
+/**
  * Background worker that polls PostgreSQL for pending notifications
  * and dispatches emails via Amazon SES.
  */

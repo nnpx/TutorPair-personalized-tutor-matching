@@ -1,3 +1,7 @@
+/**
+ * NOTE: This is an initial draft / baseline implementation.
+ * It should be reviewed, tested, and revised when integrating role-based access control.
+ */
 import { Response, NextFunction } from 'express';
 import { UserRole } from '@tutorpair/shared';
 import { AuthRequest } from './authenticate-jwt.js';

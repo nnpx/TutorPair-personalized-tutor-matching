@@ -1,3 +1,7 @@
+/**
+ * NOTE: This is an initial draft / baseline implementation.
+ * It should be reviewed, tested, and revised when implementing the notification business logic.
+ */
 import { notificationRepository } from './notification.repository.js';
 import { NotificationEventType, EmailStatus } from '@tutorpair/shared';
 

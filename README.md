@@ -4,6 +4,24 @@
 
 ---
 
+## 📖 Project Context & Overview
+
+In Thailand, primary and secondary students (Grades 1–12) face significant hurdles when finding private tutors: tutor details are scattered across informal social media groups, qualifications and test certificates (IELTS, SAT, TGAT) are difficult to verify, and comparing tutors across schedule, budget, learning pace, and personality is tedious and error-prone.
+
+**TutorPair** solves this with a cloud-native platform featuring:
+* **Role-Based Profiles**: Tailored experiences for **Students**, **Tutors**, and **Administrators**.
+* **Admin Document Verification**: Tutors submit degree transcripts, CVs, and score certificates for admin review before appearing in search pools.
+* **Two-Stage Matchmaking**:
+  1. *Hard Filters*: Strictly eliminates tutors who don't match grade level, subject variant, mode (online/onsite), and schedule availability.
+  2. *Weighted Compatibility Scoring*: Ranks tutors using 1–5 slider responses for learning/teaching styles, personality traits, and budget fit.
+* **Top 3 Recommendations & 1-Tutor Commitment**: Students review the top 3 matches and confirm exactly 1 tutor, triggering automated notifications.
+* **Verified 4-Metric Reviews**: Gated reviews (Knowledge, Preparation, Clarity, Punctuality) submitted only by students who confirmed that tutor.
+
+> 🤖 **For AI Agents (Gemini, GPT, Claude, Cursor) & Contributors:**  
+> Read the complete requirements, 1–5 slider mapping, and system specification in [**`PROJECT_CONTEXT.md`**](./PROJECT_CONTEXT.md) (and [**`AGENTS.md`**](./AGENTS.md)).
+
+---
+
 ## 🏗️ Architecture Overview
 
 * **Monorepo Layout**: Managed via npm workspaces (`packages/shared`, `apps/server`, `apps/client`).
@@ -14,7 +32,9 @@
 * **Authentication**: **AWS Cognito** + Google OAuth 2.0 with JWT verification (`aws-jwt-verify`).
 * **Notifications**: Database-backed async email worker using **Amazon SES**.
 
-Detailed architectural documentation is available in the [`docs/`](./docs/README.md) directory:
+Detailed documentation is available in the [`docs/`](./docs/README.md) directory:
+* [AI Agent & Full Project Context](./PROJECT_CONTEXT.md)
+* [Agent Directives](./AGENTS.md)
 * [Architecture Decisions](./docs/ARCHITECTURE.md)
 * [Project Structure](./docs/PROJECT_STRUCTURE.md)
 * [Backend Developer Guide](./docs/BACKEND_GUIDE.md)

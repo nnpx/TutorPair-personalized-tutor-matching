@@ -1,3 +1,7 @@
+/**
+ * NOTE: This is an initial draft / baseline implementation.
+ * It should be reviewed, tested, and revised when integrating with AWS Cognito or test suites.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { cognitoVerifier } from '../../config/aws-clients.js';
 import { UnauthorizedError } from '../errors/http-errors.js';

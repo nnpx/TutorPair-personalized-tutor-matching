@@ -1,3 +1,7 @@
+/**
+ * NOTE: This is an initial draft / baseline implementation.
+ * It should be reviewed, tested, and revised when integrating request validation.
+ */
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
 import { BadRequestError } from '../errors/http-errors.js';
