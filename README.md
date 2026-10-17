@@ -205,3 +205,20 @@ tutorpair/
 4. **Cross-Module Rule**: A module's service may import another module's **repository**, but never another module's service (prevents circular dependencies).
 5. **S3 Uploads**: File binaries never stream through Express. Use **S3 Presigned URLs** (`PUT` for upload, `GET` for view).
 6. **Database Changes**: Always run `npm run db:generate` to produce a migration file, commit it to Git, and run `npm run db:migrate`. Never run `drizzle-kit push` on shared/production databases.
+7. **Git Branch Naming**: All branches must follow the standard Jira format `<type>/mod-<ticket>-<short-description>`:
+
+   ```text
+   <type>/mod-<ticket-number>-<kebab-case-description>
+   ```
+
+   | Prefix | Purpose | Example |
+   |---|---|---|
+   | `feat/` | A new feature or user capability | `feat/mod-1-cascading-subjects` |
+   | `fix/` | A bug fix for an existing issue | `fix/mod-12-auth-token-refresh` |
+   | `refactor/` | Code refactoring without behavioral changes | `refactor/mod-8-repository-queries` |
+   | `style/` | UI styling, CSS tokens, layout polishing | `style/mod-20-flat-design-cards` |
+   | `docs/` | Documentation additions or updates | `docs/mod-3-api-documentation` |
+   | `test/` | Adding or updating unit/integration tests | `test/mod-9-scoring-algorithm` |
+   | `chore/` | Tooling, dependencies, or config changes | `chore/mod-15-update-deps` |
+   | `hotfix/` | Critical emergency patch for production | `hotfix/mod-99-db-pool-leak` |
+
