@@ -15,10 +15,16 @@ import { reviewsRouter } from './modules/reviews/reviews.routes.js';
 export function createApp(): Express {
   const app = express();
 
-  // CORS Configuration
+  // CORS Configuration - allows both port 5173, 5174, etc.
   app.use(
     cors({
-      origin: env.ALLOWED_ORIGIN,
+      origin: (origin, callback) => {
+        if (!origin || origin.startsWith('http://localhost:')) {
+          callback(null, true);
+        } else {
+          callback(null, origin === env.ALLOWED_ORIGIN);
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization'],

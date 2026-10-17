@@ -25,10 +25,18 @@ export async function generateViewPresignedUrl(
   key: string,
   expiresInSeconds = 900 // 15 minutes
 ): Promise<string> {
-  const command = new GetObjectCommand({
-    Bucket: env.S3_BUCKET_NAME,
-    Key: key,
-  });
+  try {
+    const command = new GetObjectCommand({
+      Bucket: env.S3_BUCKET_NAME,
+      Key: key,
+    });
 
-  return getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+    return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+  } catch (err: unknown) {
+    if (env.NODE_ENV === 'development') {
+      // In local development without AWS credentials, return a dummy preview URL
+      return `https://${env.S3_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${encodeURIComponent(key)}?X-Amz-Expires=${expiresInSeconds}&mockSigned=true`;
+    }
+    throw err;
+  }
 }
