@@ -48,3 +48,8 @@ All architectural decisions, coding conventions, database patterns, and security
    * Never run `drizzle-kit push` on shared/production environments; always generate and run migrations per [`docs/DATABASE.md`](./docs/DATABASE.md).
 6. **Preserve Local Mock Auth**:
    * Keep the mock authentication bypass (`Authorization: Bearer mock-token-<user-id>`) functional as described in [`docs/AUTH_FLOW.md`](./docs/AUTH_FLOW.md).
+7. **Mandatory Human Verification via Drizzle Studio**:
+   * Whenever modifying database schemas (`*.schema.ts`), generating migrations, or writing seed data, **you MUST explicitly instruct the human developer to run `npm run db:studio` and inspect `https://local.drizzle.studio`** to visually confirm tables, relations, and data.
+8. **Testing & Verification Mandate**:
+   * Never commit untested code. Write unit tests for formulas/calculations (`scoring.util.ts`, 1–5 slider matching algorithms) and integration tests for API endpoints. **Always tell the user the exact command to run tests (`npm test`) and how to verify the feature.**
+

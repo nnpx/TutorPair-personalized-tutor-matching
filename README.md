@@ -84,7 +84,14 @@ npm run db:migrate
 npm run db:seed
 ```
 
-### 5. Start Development Servers
+### 5. Inspect Database (Drizzle Studio)
+Visually inspect tables, columns, relations, and mock seed data in your browser:
+```bash
+npm run db:studio
+```
+Open: **[https://local.drizzle.studio](https://local.drizzle.studio)**
+
+### 6. Start Development Servers
 
 Open two terminal tabs:
 
@@ -221,4 +228,6 @@ tutorpair/
    | `test/` | Adding or updating unit/integration tests | `test/mod-9-scoring-algorithm` |
    | `chore/` | Tooling, dependencies, or config changes | `chore/mod-15-update-deps` |
    | `hotfix/` | Critical emergency patch for production | `hotfix/mod-99-db-pool-leak` |
+7. **Visual DB Verification with Drizzle Studio**: Whenever making database changes (schema modifications, migrations, or seeding), developers and AI agents must run `npm run db:studio` and inspect **[https://local.drizzle.studio](https://local.drizzle.studio)** to confirm tables, columns, constraints, and data.
+8. **Testing Strategy**: Never commit untested code. Write **unit tests** for mathematical algorithms and business logic (e.g., 1–5 slider matching formulas, compatibility scoring, budget utility in `scoring.util.ts`) and **integration tests** for API endpoints (role validation, error responses). Run `npm test` before submitting changes.
 
