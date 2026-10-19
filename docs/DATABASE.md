@@ -75,13 +75,19 @@ npm run db:migrate
 # Applies all pending .sql files to your local PostgreSQL
 ```
 
-On the next `npm run dev` startup, migrations run automatically to keep local databases in sync.
+**Step 6 — Verify visually with Drizzle Studio (MANDATORY)**
 
-### Why this workflow?
+Whenever you or an AI agent touch the database schema, write queries, or seed data, you **MUST** visually verify the changes in Drizzle Studio:
 
-When another developer pulls your commit, they run `npm run db:migrate` and their local database updates to match. Without migration files, their local database would be out of sync with the code, causing cryptic runtime SQL errors.
+```bash
+npm run db:studio
+```
+Open **[https://local.drizzle.studio](https://local.drizzle.studio)** in your browser to:
+1. Verify new columns, types, and default values exist.
+2. Confirm foreign keys and constraints are properly configured.
+3. Check table rows to ensure seeding or API insertions behave as expected.
 
-In production, migrations run as part of the ECS deployment process before the new container starts serving traffic.
+> 🤖 **Mandate for AI Agents**: Whenever modifying database schemas or data, the AI agent must explicitly instruct the user to run `npm run db:studio` and inspect the result in their browser.
 
 ---
 

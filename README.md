@@ -84,7 +84,14 @@ npm run db:migrate
 npm run db:seed
 ```
 
-### 5. Start Development Servers
+### 5. Inspect Database (Drizzle Studio)
+Visually inspect tables, columns, relations, and mock seed data in your browser:
+```bash
+npm run db:studio
+```
+Open: **[https://local.drizzle.studio](https://local.drizzle.studio)**
+
+### 6. Start Development Servers
 
 Open two terminal tabs:
 
@@ -205,3 +212,22 @@ tutorpair/
 4. **Cross-Module Rule**: A module's service may import another module's **repository**, but never another module's service (prevents circular dependencies).
 5. **S3 Uploads**: File binaries never stream through Express. Use **S3 Presigned URLs** (`PUT` for upload, `GET` for view).
 6. **Database Changes**: Always run `npm run db:generate` to produce a migration file, commit it to Git, and run `npm run db:migrate`. Never run `drizzle-kit push` on shared/production databases.
+7. **Git Branch Naming**: All branches must follow the standard Jira format `<type>/mod-<ticket>-<short-description>`:
+
+   ```text
+   <type>/mod-<ticket-number>-<kebab-case-description>
+   ```
+
+   | Prefix | Purpose | Example |
+   |---|---|---|
+   | `feat/` | A new feature or user capability | `feat/mod-1-cascading-subjects` |
+   | `fix/` | A bug fix for an existing issue | `fix/mod-12-auth-token-refresh` |
+   | `refactor/` | Code refactoring without behavioral changes | `refactor/mod-8-repository-queries` |
+   | `style/` | UI styling, CSS tokens, layout polishing | `style/mod-20-flat-design-cards` |
+   | `docs/` | Documentation additions or updates | `docs/mod-3-api-documentation` |
+   | `test/` | Adding or updating unit/integration tests | `test/mod-9-scoring-algorithm` |
+   | `chore/` | Tooling, dependencies, or config changes | `chore/mod-15-update-deps` |
+   | `hotfix/` | Critical emergency patch for production | `hotfix/mod-99-db-pool-leak` |
+7. **Visual DB Verification with Drizzle Studio**: Whenever making database changes (schema modifications, migrations, or seeding), developers and AI agents must run `npm run db:studio` and inspect **[https://local.drizzle.studio](https://local.drizzle.studio)** to confirm tables, columns, constraints, and data.
+8. **Testing Strategy**: Never commit untested code. Write **unit tests** for mathematical algorithms and business logic (e.g., 1–5 slider matching formulas, compatibility scoring, budget utility in `scoring.util.ts`) and **integration tests** for API endpoints (role validation, error responses). Run `npm test` before submitting changes.
+
