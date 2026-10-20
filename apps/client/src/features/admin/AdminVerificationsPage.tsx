@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../services/api-client';
 import { Spinner } from '../../components/ui/Feedback';
@@ -29,12 +29,13 @@ export const AdminVerificationsPage: React.FC = () => {
   );
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
   const [rejectingTutorId, setRejectingTutorId] = useState<string | null>(null);
+  const [approvingTutor, setApprovingTutor] = useState<{ id: string; name: string } | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [rejectError, setRejectError] = useState<string | null>(null);
   const [documentLoadingId, setDocumentLoadingId] = useState<string | null>(null);
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
 
-  // 1. Fetch Tutors in Verification Queue
+  // 1. Fetch Tutors in Verification Queue (for currently selected status)
   const {
     data: tutors = [],
     isLoading: isQueueLoading,
@@ -49,6 +50,42 @@ export const AdminVerificationsPage: React.FC = () => {
       return res.data.data || [];
     },
   });
+
+  // 1b. Fetch All Tutors to calculate live tab counts for each stage
+  const { data: allTutors = [] } = useQuery<AdminTutorListItemDto[]>({
+    queryKey: ['admin', 'tutors', 'ALL'],
+    queryFn: async () => {
+      const res = await apiClient.get<ApiResponse<AdminTutorListItemDto[]>>(
+        `/api/admin/tutors?status=ALL`
+      );
+      return res.data.data || [];
+    },
+  });
+
+  const stageCounts = useMemo(() => {
+    const counts = {
+      [VerificationStatus.PENDING]: 0,
+      [VerificationStatus.APPROVED]: 0,
+      [VerificationStatus.REJECTED]: 0,
+      ALL: allTutors.length,
+    };
+    allTutors.forEach((t) => {
+      if (t.verification_status && counts[t.verification_status] !== undefined) {
+        counts[t.verification_status]++;
+      }
+    });
+    return counts;
+  }, [allTutors]);
+
+  // FIFO auto-selection: When in PENDING queue and no tutor is actively selected,
+  // automatically select the oldest pending tutor (#1 in line) to review first.
+  useEffect(() => {
+    if (selectedStatus === VerificationStatus.PENDING && tutors.length > 0) {
+      if (!selectedTutorId || !tutors.some((t) => t.user_id === selectedTutorId)) {
+        setSelectedTutorId(tutors[0].user_id);
+      }
+    }
+  }, [selectedStatus, tutors, selectedTutorId]);
 
   // 2. Fetch Selected Tutor Details
   const { data: tutorDetail, isLoading: isDetailLoading } = useQuery<AdminTutorDetailDto>({
@@ -87,6 +124,7 @@ export const AdminVerificationsPage: React.FC = () => {
       await queryClient.refetchQueries({ queryKey: ['admin', 'tutors'] });
       await queryClient.refetchQueries({ queryKey: ['admin', 'tutor-detail', variables.tutorId] });
       setRejectingTutorId(null);
+      setApprovingTutor(null);
       setRejectionReason('');
       setRejectError(null);
       setActionSuccessMessage(
@@ -125,12 +163,6 @@ export const AdminVerificationsPage: React.FC = () => {
       );
     } finally {
       setDocumentLoadingId(null);
-    }
-  };
-
-  const handleApprove = (tutorId: string) => {
-    if (window.confirm('Are you sure you want to approve this tutor application?')) {
-      verifyMutation.mutate({ tutorId, status: VerificationStatus.APPROVED });
     }
   };
 
@@ -188,104 +220,7 @@ export const AdminVerificationsPage: React.FC = () => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
-      {/* ──────────────────────────────────────────────────────────── */}
-      {/* HERO POSTER SECTION (Matches Landing Page Section-Emerald)   */}
-      {/* ──────────────────────────────────────────────────────────── */}
-      <section
-        className="section-block section-emerald"
-        style={{
-          borderRadius: 'var(--radius-lg)',
-          padding: '3rem 2.5rem',
-          position: 'relative',
-          overflow: 'hidden',
-        }}
-      >
-        {/* Subtle Decorative Geometric Shapes (Matching Landing Page) */}
-        <div className="geo-shape geo-circle-lg" style={{ top: '-180px', right: '-120px' }} />
-        <div className="geo-shape geo-square-rot" style={{ bottom: '-140px', left: '-80px' }} />
-
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              backgroundColor: 'rgba(255, 255, 255, 0.2)',
-              padding: '0.4rem 1rem',
-              borderRadius: 'var(--radius-full)',
-              marginBottom: '1rem',
-            }}
-          >
-            <ShieldCheck size={18} color="#ffffff" strokeWidth={2.5} />
-            <span
-              style={{
-                fontSize: '0.8125rem',
-                fontWeight: 800,
-                letterSpacing: '0.05em',
-                textTransform: 'uppercase',
-                color: '#ffffff',
-              }}
-            >
-              Zero Impersonation • Strict Admin Gate
-            </span>
-          </div>
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'flex-end',
-              flexWrap: 'wrap',
-              gap: '1.5rem',
-            }}
-          >
-            <div>
-              <h1
-                style={{
-                  fontSize: '2.75rem',
-                  fontWeight: 800,
-                  lineHeight: 1.15,
-                  color: '#ffffff',
-                  marginBottom: '0.75rem',
-                }}
-              >
-                Tutor Verification <span style={{ color: 'var(--color-accent)' }}>Portal</span>
-              </h1>
-              <p
-                style={{
-                  fontSize: '1.125rem',
-                  lineHeight: 1.6,
-                  color: 'rgba(255, 255, 255, 0.95)',
-                  maxWidth: '680px',
-                }}
-              >
-                Review uploaded CVs, degrees, transcripts, and subject test certificates stored on
-                private Amazon S3. Only approved tutors enter the matchmaking recommendation pool.
-              </p>
-            </div>
-
-            <button
-              onClick={() => refetchQueue()}
-              disabled={isRefetching}
-              className="flat-btn flat-btn-outline-white flat-btn-sm"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                fontWeight: 700,
-              }}
-            >
-              <RefreshCw
-                size={16}
-                style={{ animation: isRefetching ? 'spin 1s linear infinite' : 'none' }}
-              />
-              Refresh Queue
-            </button>
-          </div>
-        </div>
-      </section>
-
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Success Notification Alert */}
       {actionSuccessMessage && (
         <div
@@ -306,47 +241,113 @@ export const AdminVerificationsPage: React.FC = () => {
       )}
 
       {/* ──────────────────────────────────────────────────────────── */}
-      {/* FILTER TABS (Solid 2D Color Blocks)                          */}
+      {/* FILTER TABS & REFRESH ACTION (Same Level)                    */}
       {/* ──────────────────────────────────────────────────────────── */}
       <div
         style={{
           display: 'flex',
-          gap: '0.5rem',
-          backgroundColor: 'var(--color-muted)',
-          padding: '0.5rem',
-          borderRadius: 'var(--radius-md)',
-          width: 'fit-content',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '1rem',
         }}
       >
-        {[
-          { label: 'Pending Review', value: VerificationStatus.PENDING },
-          { label: 'Approved Tutors', value: VerificationStatus.APPROVED },
-          { label: 'Rejected Applications', value: VerificationStatus.REJECTED },
-          { label: 'All Applications', value: 'ALL' },
-        ].map((tab) => {
-          const isActive = selectedStatus === tab.value;
-          return (
-            <button
-              key={tab.value}
-              onClick={() => {
-                setSelectedStatus(tab.value as any);
-                setSelectedTutorId(null);
-              }}
-              style={{
-                padding: '0.625rem 1.375rem',
-                borderRadius: 'var(--radius-md)',
-                fontWeight: isActive ? 800 : 600,
-                fontSize: '0.9375rem',
-                backgroundColor: isActive ? 'var(--color-dark)' : 'transparent',
-                color: isActive ? 'var(--color-white)' : 'var(--fg-main)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {tab.label}
-            </button>
-          );
-        })}
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.5rem',
+            backgroundColor: 'var(--color-muted)',
+            padding: '0.5rem',
+            borderRadius: 'var(--radius-md)',
+            width: 'fit-content',
+          }}
+        >
+          {[
+            {
+              label: 'Pending Review',
+              value: VerificationStatus.PENDING,
+              badgeColor: 'var(--color-secondary)',
+            },
+            {
+              label: 'Approved Tutors',
+              value: VerificationStatus.APPROVED,
+              badgeColor: '#10b981',
+            },
+            {
+              label: 'Rejected Applications',
+              value: VerificationStatus.REJECTED,
+              badgeColor: 'var(--color-danger)',
+            },
+            {
+              label: 'All Applications',
+              value: 'ALL',
+              badgeColor: '#6b7280',
+            },
+          ].map((tab) => {
+            const isActive = selectedStatus === tab.value;
+            const count = stageCounts[tab.value as keyof typeof stageCounts] ?? 0;
+            return (
+              <button
+                key={tab.value}
+                onClick={() => {
+                  setSelectedStatus(tab.value as any);
+                  setSelectedTutorId(null);
+                }}
+                style={{
+                  padding: '0.625rem 1.125rem',
+                  borderRadius: 'var(--radius-md)',
+                  fontWeight: isActive ? 800 : 600,
+                  fontSize: '0.9375rem',
+                  backgroundColor: isActive ? 'var(--color-dark)' : 'transparent',
+                  color: isActive ? 'var(--color-white)' : 'var(--fg-main)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.625rem',
+                }}
+              >
+                <span>{tab.label}</span>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    minWidth: '22px',
+                    height: '22px',
+                    padding: '0 6px',
+                    borderRadius: '9999px',
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    lineHeight: 1,
+                    backgroundColor: isActive ? 'rgba(255, 255, 255, 0.22)' : 'rgba(0, 0, 0, 0.08)',
+                    color: isActive ? 'var(--color-white)' : 'var(--fg-main)',
+                  }}
+                >
+                  {count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <button
+          onClick={() => refetchQueue()}
+          disabled={isRefetching}
+          className="flat-btn flat-btn-secondary flat-btn-sm"
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            fontWeight: 700,
+          }}
+        >
+          <RefreshCw
+            size={16}
+            style={{ animation: isRefetching ? 'spin 1s linear infinite' : 'none' }}
+          />
+          Refresh Queue
+        </button>
       </div>
 
       {/* ──────────────────────────────────────────────────────────── */}
@@ -375,7 +376,7 @@ export const AdminVerificationsPage: React.FC = () => {
                 Queue Inspection
               </span>
               <h3 style={{ fontSize: '1.375rem', fontWeight: 800 }}>
-                Applications Pool ({tutors.length})
+                Applications Pool
               </h3>
             </div>
           </div>
@@ -413,8 +414,9 @@ export const AdminVerificationsPage: React.FC = () => {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {tutors.map((tutor) => {
+              {tutors.map((tutor, index) => {
                 const isSelected = selectedTutorId === tutor.user_id;
+                const isFifoPending = selectedStatus === VerificationStatus.PENDING;
                 return (
                   <div
                     key={tutor.user_id}
@@ -431,10 +433,27 @@ export const AdminVerificationsPage: React.FC = () => {
                       justifyContent: 'space-between',
                       alignItems: 'center',
                       transition: 'all 0.15s ease',
+                      position: 'relative',
                     }}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        {isFifoPending && (
+                          <span
+                            style={{
+                              backgroundColor: index === 0 ? 'var(--color-secondary)' : '#4b5563',
+                              color: 'var(--color-white)',
+                              fontSize: '0.75rem',
+                              fontWeight: 800,
+                              padding: '0.15rem 0.55rem',
+                              borderRadius: 'var(--radius-sm)',
+                              letterSpacing: '0.03em',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {index === 0 ? '★ #1 Next in Line' : `#${index + 1} In Queue`}
+                          </span>
+                        )}
                         <span
                           style={{
                             fontWeight: 800,
@@ -450,7 +469,10 @@ export const AdminVerificationsPage: React.FC = () => {
                       <div style={{ fontSize: '0.9375rem', color: '#4b5563', fontWeight: 500 }}>
                         {tutor.email} •{' '}
                         <strong style={{ color: 'var(--fg-main)' }}>{tutor.tutor_type}</strong> •{' '}
-                        {tutor.hourly_rate} THB/hr
+                        {tutor.hourly_rate} THB/hr •{' '}
+                        <span style={{ color: '#6b7280', fontSize: '0.8125rem' }}>
+                          Submitted: {new Date(tutor.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                        </span>
                       </div>
 
                       {/* Document summary flags */}
@@ -777,9 +799,30 @@ export const AdminVerificationsPage: React.FC = () => {
                             >
                               {sub.subject_name} — {sub.variant_name}
                             </div>
-                            <div style={{ fontSize: '0.85rem', color: '#6b7280', marginTop: '0.2rem' }}>
-                              Category: {sub.category}
-                              {sub.teaching_focus ? ` • Focus: ${sub.teaching_focus}` : ''}
+                            <div
+                              style={{
+                                fontSize: '0.875rem',
+                                color: '#4b5563',
+                                marginTop: '0.35rem',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '0.2rem',
+                              }}
+                            >
+                              <div>
+                                <strong style={{ fontWeight: 800, color: 'var(--fg-main)' }}>
+                                  Category:
+                                </strong>{' '}
+                                {sub.category}
+                              </div>
+                              {sub.teaching_focus && (
+                                <div>
+                                  <strong style={{ fontWeight: 800, color: 'var(--fg-main)' }}>
+                                    Focus:
+                                  </strong>{' '}
+                                  {sub.teaching_focus}
+                                </div>
+                              )}
                             </div>
                           </div>
 
@@ -870,19 +913,16 @@ export const AdminVerificationsPage: React.FC = () => {
                               >
                                 <FileText size={20} strokeWidth={2.5} />
                               </div>
-                              <div>
-                                <span style={{ fontWeight: 800, fontSize: '1rem' }}>
-                                  {doc.document_type.replace(/_/g, ' ')}
-                                </span>
-                                {doc.variant_name && (
-                                  <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
-                                    Required for: <strong>{doc.variant_name}</strong>
-                                  </div>
-                                )}
-                                <div style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '0.15rem' }}>
-                                  {doc.file_size_kb} KB • S3 Key: {doc.file_key}
+                                <div>
+                                  <span style={{ fontWeight: 800, fontSize: '1rem' }}>
+                                    {doc.document_type.replace(/_/g, ' ')}
+                                  </span>
+                                  {doc.variant_name && (
+                                    <div style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
+                                      Required for: <strong>{doc.variant_name}</strong>
+                                    </div>
+                                  )}
                                 </div>
-                              </div>
                             </div>
 
                             <button
@@ -892,7 +932,7 @@ export const AdminVerificationsPage: React.FC = () => {
                               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700 }}
                             >
                               {isDocLoading ? <Spinner size={14} /> : <Eye size={16} strokeWidth={2.5} />}
-                              View (15m Signed URL)
+                              View
                             </button>
                           </div>
                         );
@@ -912,7 +952,12 @@ export const AdminVerificationsPage: React.FC = () => {
                 >
                   <button
                     disabled={verifyMutation.isPending}
-                    onClick={() => handleApprove(tutorDetail.user_id)}
+                    onClick={() =>
+                      setApprovingTutor({
+                        id: tutorDetail.user_id,
+                        name: `${tutorDetail.first_name} ${tutorDetail.last_name}`,
+                      })
+                    }
                     className="flat-btn flat-btn-lg"
                     style={{
                       flex: 1,
@@ -1052,6 +1097,148 @@ export const AdminVerificationsPage: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Flat Design Approval Confirmation Modal */}
+      {approvingTutor && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="approve-modal-title"
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(17, 24, 39, 0.6)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 999,
+            padding: '1.5rem',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !verifyMutation.isPending) {
+              setApprovingTutor(null);
+            }
+          }}
+        >
+          <div
+            className="flat-card"
+            style={{
+              maxWidth: '520px',
+              width: '100%',
+              backgroundColor: 'var(--color-white)',
+              border: '3px solid var(--color-secondary)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '2rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1.25rem',
+              boxShadow: 'none',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div
+                style={{
+                  width: '48px',
+                  height: '48px',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                  color: 'var(--color-secondary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <CheckCircle size={28} strokeWidth={2.5} />
+              </div>
+              <div>
+                <h3
+                  id="approve-modal-title"
+                  style={{
+                    fontSize: '1.375rem',
+                    fontWeight: 800,
+                    color: 'var(--color-text-main)',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  Approve Tutor Application
+                </h3>
+                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                  Action cannot be undone automatically
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                backgroundColor: 'var(--color-bg)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem 1.25rem',
+                border: '1px solid var(--color-border)',
+                fontSize: '0.9375rem',
+                color: 'var(--color-text-main)',
+                lineHeight: 1.6,
+              }}
+            >
+              Are you sure you want to approve{' '}
+              <strong style={{ fontWeight: 800, color: 'var(--color-text-main)' }}>
+                {approvingTutor.name}
+              </strong>
+              ?
+              <ul
+                style={{
+                  margin: '0.75rem 0 0 1.25rem',
+                  padding: 0,
+                  fontSize: '0.875rem',
+                  color: '#4b5563',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.375rem',
+                }}
+              >
+                <li>Profile will be unlocked in the student matchmaking pool.</li>
+                <li>An automated verification confirmation email will be sent.</li>
+              </ul>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
+              <button
+                type="button"
+                disabled={verifyMutation.isPending}
+                className="flat-btn flat-btn-secondary"
+                onClick={() => setApprovingTutor(null)}
+                style={{ minWidth: '100px' }}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={verifyMutation.isPending}
+                onClick={() =>
+                  verifyMutation.mutate({
+                    tutorId: approvingTutor.id,
+                    status: VerificationStatus.APPROVED,
+                  })
+                }
+                className="flat-btn"
+                style={{
+                  backgroundColor: 'var(--color-secondary)',
+                  color: 'var(--color-white)',
+                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  minWidth: '160px',
+                  justifyContent: 'center',
+                }}
+              >
+                <CheckCircle size={18} strokeWidth={2.5} />
+                {verifyMutation.isPending ? 'Approving...' : 'Confirm Approval'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

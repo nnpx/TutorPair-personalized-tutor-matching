@@ -97,4 +97,8 @@ export const adminService = {
       rejection_reason: updated.rejection_reason,
     };
   },
+
+  resetDefaults: async () => {
+    await adminRepository.resetDefaults();
+  },
 };

@@ -7,7 +7,7 @@ import {
   subjectVariants,
   subjects,
 } from '../../db/schema/index.js';
-import { eq, desc, inArray } from 'drizzle-orm';
+import { eq, desc, asc, inArray } from 'drizzle-orm';
 import {
   VerificationStatus,
   DocumentType,
@@ -284,7 +284,14 @@ export const adminRepository = {
         query = query.where(eq(tutors.verification_status, statusFilter));
       }
 
-      const tutorRows = await query.orderBy(desc(users.created_at));
+      // FIFO: Pending reviews must be processed First-In, First-Out (oldest first).
+      // Completed reviews (APPROVED, REJECTED, ALL) show most recently processed first.
+      const sortOrder =
+        statusFilter === VerificationStatus.PENDING
+          ? asc(users.created_at)
+          : desc(users.created_at);
+
+      const tutorRows = await query.orderBy(sortOrder);
 
       if (tutorRows && tutorRows.length > 0) {
         const tutorIds = tutorRows.map((t) => t.user_id);
@@ -354,10 +361,18 @@ export const adminRepository = {
     }
 
     // Return filtered inMemory mock store
-    let filtered = inMemoryTutors;
+    let filtered = [...inMemoryTutors];
     if (statusFilter && statusFilter !== 'ALL') {
-      filtered = inMemoryTutors.filter((t) => t.verification_status === statusFilter);
+      filtered = filtered.filter((t) => t.verification_status === statusFilter);
     }
+
+    // Apply FIFO sorting: PENDING is sorted oldest first (asc), others newest first (desc)
+    filtered.sort((a, b) => {
+      const timeA = new Date(a.created_at).getTime();
+      const timeB = new Date(b.created_at).getTime();
+      return statusFilter === VerificationStatus.PENDING ? timeA - timeB : timeB - timeA;
+    });
+
     return filtered.map(toListItemDto);
   },
 
@@ -539,5 +554,41 @@ export const adminRepository = {
       verification_status: status,
       rejection_reason: rejectionReason,
     };
+  },
+
+  resetDefaults: async () => {
+    // Reset inMemory store
+    inMemoryTutors[0].verification_status = VerificationStatus.PENDING;
+    inMemoryTutors[0].rejection_reason = null;
+
+    inMemoryTutors[1].verification_status = VerificationStatus.PENDING;
+    inMemoryTutors[1].rejection_reason = null;
+
+    inMemoryTutors[2].verification_status = VerificationStatus.APPROVED;
+    inMemoryTutors[2].rejection_reason = null;
+
+    inMemoryTutors[3].verification_status = VerificationStatus.REJECTED;
+    inMemoryTutors[3].rejection_reason =
+      'The uploaded academic degree document is blurred and lacks official university seal or watermark. Please upload a clear scanned PDF.';
+
+    try {
+      await db
+        .update(tutors)
+        .set({
+          verification_status: VerificationStatus.PENDING,
+          rejection_reason: null,
+        })
+        .where(eq(tutors.user_id, inMemoryTutors[0].user_id));
+
+      await db
+        .update(tutors)
+        .set({
+          verification_status: VerificationStatus.PENDING,
+          rejection_reason: null,
+        })
+        .where(eq(tutors.user_id, inMemoryTutors[1].user_id));
+    } catch {
+      // Ignored if DB not connected
+    }
   },
 };
