@@ -3,7 +3,7 @@
  * It can be revised, expanded, or modified when developing this specific module in detail.
  */
 import { z } from 'zod';
-import { TutorType } from '../enums/index.js';
+import { TutorType, DayOfWeek } from '../enums/index.js';
 import { SliderValueSchema } from './student.schema.js';
 
 export const TutorProfileSchema = z.object({
@@ -31,6 +31,19 @@ export const SetTutorSubjectsSchema = z.object({
   subjects: z.array(TutorSubjectItemSchema),
 });
 
+export const TutorAvailabilitySlotSchema = z.object({
+  day_of_week: z.nativeEnum(DayOfWeek),
+  start_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, 'Invalid time format (HH:mm)'),
+  end_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, 'Invalid time format (HH:mm)'),
+});
+
+export const SetTutorAvailabilitySchema = z.object({
+  availability: z.array(TutorAvailabilitySlotSchema),
+});
+
 export type TutorProfileInput = z.infer<typeof TutorProfileSchema>;
 export type UpdateTutorProfileInput = z.infer<typeof UpdateTutorProfileSchema>;
 export type TutorSubjectItemInput = z.infer<typeof TutorSubjectItemSchema>;
+export type SetTutorSubjectsInput = z.infer<typeof SetTutorSubjectsSchema>;
+export type TutorAvailabilitySlotInput = z.infer<typeof TutorAvailabilitySlotSchema>;
+export type SetTutorAvailabilityInput = z.infer<typeof SetTutorAvailabilitySchema>;

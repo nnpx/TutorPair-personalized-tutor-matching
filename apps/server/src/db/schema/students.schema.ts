@@ -1,6 +1,6 @@
 import { pgTable, uuid, varchar, decimal, integer } from 'drizzle-orm/pg-core';
 import { users } from './users.schema.js';
-import { classFormatEnum, tutorTypePrefEnum } from './enums.schema.js';
+import { tutorTypePrefEnum } from './enums.schema.js';
 
 export const students = pgTable('students', {
   user_id: uuid('user_id')
@@ -14,7 +14,6 @@ export const students = pgTable('students', {
   style_profile: integer('style_profile').array().notNull(),
   personality_profile: integer('personality_profile').array().notNull(),
   budget_max: decimal('budget_max', { precision: 10, scale: 2 }).notNull(),
-  class_format_pref: classFormatEnum('class_format_pref').notNull(),
 });
 
 export type Student = typeof students.$inferSelect;

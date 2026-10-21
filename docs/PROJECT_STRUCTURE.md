@@ -31,7 +31,6 @@ packages/shared/
 │   ├── enums/
 │   │   ├── user-role.enum.ts           # UserRole: STUDENT | TUTOR | ADMIN
 │   │   ├── verification-status.enum.ts # VerificationStatus: PENDING | APPROVED | REJECTED
-│   │   ├── class-format.enum.ts        # ClassFormat: ONLINE | ONSITE | BOTH
 │   │   ├── tutor-type.enum.ts          # TutorType, TutorTypePref
 │   │   ├── subject-category.enum.ts    # SubjectCategory: GENERAL_LEARNING | LANGUAGE_TESTING | UNIVERSITY_ENTRANCE
 │   │   ├── learning-goal.enum.ts       # LearningGoal enum (used for UI grouping in Step 3)

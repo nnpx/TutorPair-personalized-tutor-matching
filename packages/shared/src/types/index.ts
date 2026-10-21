@@ -26,7 +26,6 @@ export interface TutorSummaryDto {
   user_id: string;
   first_name: string;
   last_name: string;
-  profile_photo: string | null;
   description: string | null;
   hourly_rate: number;
   average_rating: number;

@@ -8,8 +8,6 @@ export const verificationStatusEnum = pgEnum('verification_status', [
   'REJECTED',
 ]);
 
-export const classFormatEnum = pgEnum('class_format', ['ONLINE', 'ONSITE', 'BOTH']);
-
 export const tutorTypeEnum = pgEnum('tutor_type', [
   'UNDERGRADUATE',
   'FREELANCE',

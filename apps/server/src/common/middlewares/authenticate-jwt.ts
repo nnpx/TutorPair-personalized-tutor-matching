@@ -28,7 +28,7 @@ export const authenticate = asyncHandler(
     let cognitoSub: string;
 
     // Support mock token for local testing without AWS Cognito
-    if (env.NODE_ENV === 'development' && token.startsWith('mock-token-')) {
+    if ((env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && token.startsWith('mock-token-')) {
       cognitoSub = token.replace('mock-token-', '');
     } else {
       try {

@@ -8,6 +8,20 @@
       "when": 1792078216402,
       "tag": "0000_silly_blizzard",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792577935044,
+      "tag": "0001_curious_trauma",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792578212027,
+      "tag": "0002_classy_mongu",
+      "breakpoints": true
     }
   ]
 }
