@@ -20,6 +20,7 @@ This folder contains all architectural decisions, conventions, and constraints a
 | [S3_DOCUMENTS.md](./S3_DOCUMENTS.md) | Backend + Frontend devs | Presigned URL upload and view flows with sequence diagrams |
 | [NOTIFICATIONS.md](./NOTIFICATIONS.md) | Backend devs | In-app notification + SES email async polling architecture |
 | [DATABASE.md](./DATABASE.md) | Backend devs | Drizzle ORM conventions, migration workflow, schema organization |
+| [API_SPEC.md](./API_SPEC.md) | Backend + Frontend devs & AI Agents | REST API spec for the **Tutor Profile & Verification** module (personal info, subjects, availability, verification status) |
 
 ---
 
