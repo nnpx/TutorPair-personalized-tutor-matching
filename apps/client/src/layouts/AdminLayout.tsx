@@ -1,11 +1,10 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
-import { ShieldCheck, LogOut } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 export const AdminLayout: React.FC = () => {
   const { user, clearUser } = useAuthStore();
-  const location = useLocation();
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: 'var(--color-muted)' }}>
@@ -59,26 +58,6 @@ export const AdminLayout: React.FC = () => {
                 </span>
               </div>
             </Link>
-
-            <nav style={{ display: 'flex', gap: '0.5rem' }}>
-              <Link
-                to="/admin/verifications"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.625rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  fontWeight: location.pathname === '/admin/verifications' ? 700 : 600,
-                  color: 'var(--color-white)',
-                  backgroundColor: location.pathname === '/admin/verifications' ? 'var(--color-primary)' : 'transparent',
-                  transition: 'all 0.2s ease',
-                }}
-              >
-                <ShieldCheck size={18} strokeWidth={2.2} />
-                Tutor Verifications
-              </Link>
-            </nav>
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
