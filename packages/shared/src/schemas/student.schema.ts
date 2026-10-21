@@ -3,7 +3,7 @@
  * It can be revised, expanded, or modified when developing this specific module in detail.
  */
 import { z } from 'zod';
-import { ClassFormat, TutorTypePref } from '../enums/index.js';
+import { TutorTypePref } from '../enums/index.js';
 
 // Slider rating must be an integer between 1 and 5
 export const SliderValueSchema = z.number().int().min(1).max(5);
@@ -19,7 +19,6 @@ export const StudentProfileSchema = z.object({
   // 4 sliders for personality profile
   personality_profile: z.array(SliderValueSchema).length(4, 'Personality profile requires exactly 4 ratings'),
   budget_max: z.number().positive('Budget must be greater than 0'),
-  class_format_pref: z.nativeEnum(ClassFormat),
 });
 
 export const UpdateStudentProfileSchema = StudentProfileSchema.partial();

@@ -10,12 +10,6 @@ export enum VerificationStatus {
   REJECTED = 'REJECTED',
 }
 
-export enum ClassFormat {
-  ONLINE = 'ONLINE',
-  ONSITE = 'ONSITE',
-  BOTH = 'BOTH',
-}
-
 export enum TutorType {
   UNDERGRADUATE = 'UNDERGRADUATE',
   FREELANCE = 'FREELANCE',

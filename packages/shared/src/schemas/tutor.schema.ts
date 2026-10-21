@@ -3,14 +3,13 @@
  * It can be revised, expanded, or modified when developing this specific module in detail.
  */
 import { z } from 'zod';
-import { ClassFormat, TutorType } from '../enums/index.js';
+import { TutorType } from '../enums/index.js';
 import { SliderValueSchema } from './student.schema.js';
 
 export const TutorProfileSchema = z.object({
   first_name: z.string().min(1, 'First name is required').max(100),
   last_name: z.string().min(1, 'Last name is required').max(100),
   phone_number: z.string().min(1, 'Phone number is required').max(20),
-  profile_photo: z.string().url().or(z.string().min(1)).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
   tutor_type: z.nativeEnum(TutorType),
   // 5 sliders for teaching style
@@ -18,7 +17,6 @@ export const TutorProfileSchema = z.object({
   // 4 sliders for personality
   personality_profile: z.array(SliderValueSchema).length(4, 'Personality profile requires exactly 4 ratings'),
   hourly_rate: z.number().positive('Hourly rate must be greater than 0'),
-  class_format: z.nativeEnum(ClassFormat),
 });
 
 export const UpdateTutorProfileSchema = TutorProfileSchema.partial();
