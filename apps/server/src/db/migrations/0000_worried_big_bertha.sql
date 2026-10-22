@@ -1,6 +1,5 @@
-CREATE TYPE "public"."class_format" AS ENUM('ONLINE', 'ONSITE', 'BOTH');--> statement-breakpoint
 CREATE TYPE "public"."day_of_week" AS ENUM('MONDAY', 'TUESDAY', 'WEDNESDAY', 'THURSDAY', 'FRIDAY', 'SATURDAY', 'SUNDAY');--> statement-breakpoint
-CREATE TYPE "public"."document_type" AS ENUM('GRADUATION_CERTIFICATE', 'ACADEMIC_TRANSCRIPT', 'CV', 'SUBJECT_QUALIFICATION');--> statement-breakpoint
+CREATE TYPE "public"."document_type" AS ENUM('DEGREE_TRANSCRIPT', 'CV', 'SUBJECT_QUALIFICATION');--> statement-breakpoint
 CREATE TYPE "public"."email_status" AS ENUM('NONE', 'PENDING', 'SENT', 'FAILED');--> statement-breakpoint
 CREATE TYPE "public"."learning_goal" AS ENUM('SCHOOL_CURRICULUM', 'COMPETITIONS', 'STANDARDIZED_EXAMS', 'PRACTICAL_APPLICATION', 'A_LEVEL', 'TPAT', 'TGAT', 'GENERAL_SKILLS');--> statement-breakpoint
 CREATE TYPE "public"."notification_event_type" AS ENUM('TUTOR_SELECTED', 'VERIFICATION_APPROVED', 'VERIFICATION_REJECTED', 'NEW_REVIEW');--> statement-breakpoint
@@ -25,12 +24,12 @@ CREATE TABLE "students" (
 	"first_name" varchar(100) NOT NULL,
 	"last_name" varchar(100) NOT NULL,
 	"phone_number" varchar(20),
+	"line_id" varchar(100),
 	"grade_level" varchar(20) NOT NULL,
 	"tutor_type_pref" "tutor_type_pref" NOT NULL,
 	"style_profile" integer[] NOT NULL,
 	"personality_profile" integer[] NOT NULL,
-	"budget_max" numeric(10, 2) NOT NULL,
-	"class_format_pref" "class_format" NOT NULL
+	"budget_max" numeric(10, 2) NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "tutors" (
@@ -38,13 +37,11 @@ CREATE TABLE "tutors" (
 	"first_name" varchar(100) NOT NULL,
 	"last_name" varchar(100) NOT NULL,
 	"phone_number" varchar(20) NOT NULL,
-	"profile_photo" varchar(500),
+	"line_id" varchar(100),
 	"description" text,
 	"tutor_type" "tutor_type" NOT NULL,
 	"style_profile" integer[] NOT NULL,
 	"personality_profile" integer[] NOT NULL,
-	"hourly_rate" numeric(10, 2) NOT NULL,
-	"class_format" "class_format" NOT NULL,
 	"verification_status" "verification_status" DEFAULT 'PENDING' NOT NULL,
 	"rejection_reason" text,
 	"average_rating" numeric(3, 2) DEFAULT '0.00' NOT NULL,
@@ -75,6 +72,7 @@ CREATE TABLE "subjects" (
 CREATE TABLE "tutor_subjects" (
 	"tutor_id" uuid NOT NULL,
 	"variant_id" uuid NOT NULL,
+	"hourly_rate" numeric(10, 2) DEFAULT '500.00' NOT NULL,
 	"grade_levels" varchar(20)[],
 	"teaching_focus" varchar(255),
 	CONSTRAINT "tutor_subjects_tutor_id_variant_id_pk" PRIMARY KEY("tutor_id","variant_id")

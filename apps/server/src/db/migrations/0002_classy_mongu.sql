@@ -1,1 +1,0 @@
-ALTER TABLE "tutors" DROP COLUMN "profile_photo";
