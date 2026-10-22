@@ -121,13 +121,23 @@ Redux requires manually writing reducers, actions, and loading booleans for ever
 **Decision: Database-backed async polling (no message queue)**
 
 - When a notification event occurs (tutor selected, tutor approved/rejected), the service inserts a row into the `notifications` table with `email_status: PENDING`.
-- A background worker (plain `setInterval` inside the Express process) polls every 30 seconds for `PENDING` rows and sends emails via Amazon SES.
+- A background worker inside each Express process polls every 30 seconds and sends emails via SES after atomically claiming eligible rows in PostgreSQL. Prevent overlapping polls and use recoverable ownership, bounded retries, and guarded completion for one or multiple processes.
 - **No extra infrastructure**: No SQS, no Redis, no Bull. Pure Node.js running in the existing ECS container.
-- **Crash-resilient**: Pending emails survive container restarts because their state is in PostgreSQL, not in memory.
+- **Recovery requirement**: Pending records survive restarts; expired claims must be recoverable. Ambiguous SES send outcomes can still cause duplicate delivery. See [NOTIFICATIONS.md](./NOTIFICATIONS.md).
 
 ---
 
+## 8. Availability and Deployment Profiles
+
+**Decision accepted 2026-10-22: one codebase supporting HA, regular single-instance deployment, and an HA configuration for testing.**
+
+Implement concurrent worker safety, repeat-safe writes, database recovery, stateless API instances, health checks, and graceful shutdown in both profiles. Regular deployment uses one API task and Single-AZ RDS; HA testing uses tasks across two AZs, Multi-AZ RDS, and resilient outbound connectivity. Keep the agreed cloud service list. No separate application fork or message queue is required. The existing 99% availability target is unchanged.
+
+This is an accepted direction, not a claim of completed implementation or tested HA. [HIGH_AVAILABILITY.md](./clouds/HIGH_AVAILABILITY.md) defines the profiles, code requirements, and acceptance evidence.
+
 ## Technology Stack Summary
+
+The agreed AWS component scope and service responsibilities are recorded in [CLOUD_COMPONENTS.md](./clouds/CLOUD_COMPONENTS.md). The user supplied this replacement list on 2026-10-22; it supersedes the earlier Word document and embedded screenshots for cloud component selection.
 
 | Layer | Technology | Deployment Target |
 |---|---|---|

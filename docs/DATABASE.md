@@ -93,6 +93,8 @@ Open **[https://local.drizzle.studio](https://local.drizzle.studio)** in your br
 
 ## Drizzle Client Setup
 
+The code example below illustrates basic wiring only. Under the accepted [availability decision](./clouds/HIGH_AVAILABILITY.md), the implementation must add verified RDS TLS, bounded connection/query timeouts, pool error handling, failover reconnection, and connection limits sized across all tasks and deployment overlap. Retried writes must resolve ambiguous commits through durable operation identity rather than blind replay. Business changes and notification creation must share a transaction, with database constraints protecting concurrent operations. Run migrations once per release; these requirements remain to be implemented.
+
 The `db` instance is created once and exported from `db/client.ts`:
 
 ```typescript

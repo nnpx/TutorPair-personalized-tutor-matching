@@ -8,10 +8,14 @@ This folder contains all architectural decisions, conventions, and constraints a
 
 ## Files in This Folder
 
+Cloud deployment and availability documents are grouped under [clouds/](./clouds/README.md). Application integration guides remain in this directory.
+
 | File | Who Should Read | Purpose |
 |---|---|---|
 | [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) | Everyone & AI Agents | Comprehensive domain requirements, 1-5 slider specs, matching logic, and user flows |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | Everyone | High-level decisions: why we chose each technology and approach |
+| [CLOUD_COMPONENTS.md](./clouds/CLOUD_COMPONENTS.md) | Everyone | Authoritative cloud component list supplied by the team; supersedes earlier Word screenshots |
+| [HIGH_AVAILABILITY.md](./clouds/HIGH_AVAILABILITY.md) | Everyone | Accepted decision: one codebase supporting HA, regular single-instance deployment, HA testing profile, and required verification |
 | [PROJECT_STRUCTURE.md](./PROJECT_STRUCTURE.md) | Everyone | Full folder structure for both frontend and backend with explanation of each directory |
 | [BACKEND_GUIDE.md](./BACKEND_GUIDE.md) | Backend devs | Module anatomy, cross-module rules, env vars, migration workflow, error handling |
 | [FRONTEND_GUIDE.md](./FRONTEND_GUIDE.md) | Frontend devs | State management, form handling, route guards, folder conventions |
@@ -21,6 +25,8 @@ This folder contains all architectural decisions, conventions, and constraints a
 | [NOTIFICATIONS.md](./NOTIFICATIONS.md) | Backend devs | In-app notification + SES email async polling architecture |
 | [DATABASE.md](./DATABASE.md) | Backend devs | Drizzle ORM conventions, migration workflow, schema organization |
 | [API_SPEC.md](./API_SPEC.md) | Backend + Frontend devs & AI Agents | REST API spec for the **Tutor Profile & Verification** module (personal info, subjects, availability, verification status) |
+| [AWS_SETUP_PLAN.md](./clouds/AWS_SETUP_PLAN.md) | Everyone deploying the pilot | Team-aligned AWS deployment plan, cost profile, readiness gaps, and verification |
+| [AWS_ALIGNMENT_REVIEW.md](./clouds/AWS_ALIGNMENT_REVIEW.md) | Everyone | Comparison with the agreed component list and current implementation evidence |
 
 ---
 

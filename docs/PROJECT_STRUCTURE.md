@@ -14,6 +14,7 @@ tutorpair/
 ├── packages/
 │   └── shared/          # Shared TypeScript package (@tutorpair/shared)
 ├── docs/                # Architecture and convention documentation (you are here)
+│   └── clouds/          # AWS components, setup, alignment, and availability profiles
 ├── .env.example         # Template listing all required environment variables
 ├── .gitignore           # Ignore node_modules, .env.local, dist, etc.
 ├── docker-compose.yml   # Local PostgreSQL only (NOT for running the app itself)
