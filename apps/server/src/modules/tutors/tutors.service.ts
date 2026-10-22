@@ -18,11 +18,11 @@ function formatTutorProfile(tutor: Tutor) {
     first_name: tutor.first_name,
     last_name: tutor.last_name,
     phone_number: tutor.phone_number,
+    line_id: tutor.line_id,
     description: tutor.description,
     tutor_type: tutor.tutor_type,
     style_profile: tutor.style_profile,
     personality_profile: tutor.personality_profile,
-    hourly_rate: parseFloat(tutor.hourly_rate),
     verification_status: tutor.verification_status,
     rejection_reason: tutor.rejection_reason,
     average_rating: parseFloat(tutor.average_rating),
@@ -70,7 +70,12 @@ export const tutorsService = {
     }
 
     const subjects = await tutorsRepository.findSubjectsByTutorId(tutorId);
-    return { subjects };
+    return {
+      subjects: subjects.map((s) => ({
+        ...s,
+        hourly_rate: parseFloat(s.hourly_rate),
+      })),
+    };
   },
 
   async setSubjects(tutorId: string, input: SetTutorSubjectsInput) {
@@ -94,7 +99,12 @@ export const tutorsService = {
     }
 
     const subjects = await tutorsRepository.replaceSubjects(tutorId, input.subjects);
-    return { subjects };
+    return {
+      subjects: subjects.map((s) => ({
+        ...s,
+        hourly_rate: parseFloat(s.hourly_rate),
+      })),
+    };
   },
 
   async getAvailability(userId: string) {

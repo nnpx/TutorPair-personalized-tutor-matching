@@ -12,6 +12,7 @@ export const StudentProfileSchema = z.object({
   first_name: z.string().min(1, 'First name is required').max(100),
   last_name: z.string().min(1, 'Last name is required').max(100),
   phone_number: z.string().max(20).optional().nullable(),
+  line_id: z.string().max(100).optional().nullable(),
   grade_level: z.string().min(1, 'Grade level is required').max(20),
   tutor_type_pref: z.nativeEnum(TutorTypePref),
   // 5 sliders for learning style profile

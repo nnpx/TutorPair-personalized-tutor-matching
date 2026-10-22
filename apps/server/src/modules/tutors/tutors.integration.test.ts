@@ -36,6 +36,7 @@ interface SubjectItemDto {
   category: string;
   learning_goal: string;
   requires_proof: boolean;
+  hourly_rate: number;
   grade_levels: string[] | null;
   teaching_focus: string | null;
 }
@@ -180,7 +181,6 @@ describe('Tutors Module — Integration Tests', () => {
       tutor_type: TutorType.UNDERGRADUATE,
       style_profile: [4, 5, 3, 4, 2],
       personality_profile: [5, 4, 4, 3],
-      hourly_rate: 450.0,
     };
 
     const res = await fetch(`${baseUrl}/api/tutors/profile`, {
@@ -197,7 +197,6 @@ describe('Tutors Module — Integration Tests', () => {
     assert.strictEqual(body.success, true);
     assert.ok(body.data);
     assert.strictEqual(body.data.first_name, 'Somchai');
-    assert.strictEqual(body.data.hourly_rate, 450);
     assert.strictEqual(body.data.verification_status, 'PENDING');
   });
 
@@ -225,7 +224,7 @@ describe('Tutors Module — Integration Tests', () => {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        hourly_rate: 550.0,
+        phone_number: '0899999999',
         description: 'Updated description with new credentials',
       }),
     });
@@ -234,7 +233,7 @@ describe('Tutors Module — Integration Tests', () => {
     const body = await getJson<TutorProfileDto>(res);
     assert.strictEqual(body.success, true);
     assert.ok(body.data);
-    assert.strictEqual(body.data.hourly_rate, 550);
+    assert.strictEqual(body.data.phone_number, '0899999999');
     assert.strictEqual(body.data.description, 'Updated description with new credentials');
   });
 
@@ -254,6 +253,7 @@ describe('Tutors Module — Integration Tests', () => {
         subjects: [
           {
             variant_id: existingVariantId,
+            hourly_rate: 650.0,
             grade_levels: ['G10', 'G11'],
             teaching_focus: 'Test focus',
           },
@@ -267,6 +267,7 @@ describe('Tutors Module — Integration Tests', () => {
     assert.ok(putBody.data);
     assert.strictEqual(putBody.data.subjects.length, 1);
     assert.strictEqual(putBody.data.subjects[0].variant_id, existingVariantId);
+    assert.strictEqual(putBody.data.subjects[0].hourly_rate, 650);
 
     // Get subjects
     const getRes = await fetch(`${baseUrl}/api/tutors/subjects`, {

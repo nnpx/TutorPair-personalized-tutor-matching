@@ -39,8 +39,7 @@ export const learningGoalEnum = pgEnum('learning_goal', [
 ]);
 
 export const documentTypeEnum = pgEnum('document_type', [
-  'GRADUATION_CERTIFICATE',
-  'ACADEMIC_TRANSCRIPT',
+  'DEGREE_TRANSCRIPT',
   'CV',
   'SUBJECT_QUALIFICATION',
 ]);

@@ -35,11 +35,11 @@ export const tutorsRepository = {
         first_name: input.first_name,
         last_name: input.last_name,
         phone_number: input.phone_number,
+        line_id: input.line_id ?? null,
         description: input.description ?? null,
         tutor_type: input.tutor_type,
         style_profile: input.style_profile,
         personality_profile: input.personality_profile,
-        hourly_rate: input.hourly_rate.toFixed(2),
         verification_status: 'PENDING',
       })
       .returning();
@@ -53,12 +53,12 @@ export const tutorsRepository = {
     if (input.first_name !== undefined) updateValues.first_name = input.first_name;
     if (input.last_name !== undefined) updateValues.last_name = input.last_name;
     if (input.phone_number !== undefined) updateValues.phone_number = input.phone_number;
+    if (input.line_id !== undefined) updateValues.line_id = input.line_id;
     if (input.description !== undefined) updateValues.description = input.description;
     if (input.tutor_type !== undefined) updateValues.tutor_type = input.tutor_type;
     if (input.style_profile !== undefined) updateValues.style_profile = input.style_profile;
     if (input.personality_profile !== undefined)
       updateValues.personality_profile = input.personality_profile;
-    if (input.hourly_rate !== undefined) updateValues.hourly_rate = input.hourly_rate.toFixed(2);
 
     if (Object.keys(updateValues).length === 0) {
       return this.findProfileByUserId(userId);
@@ -83,6 +83,7 @@ export const tutorsRepository = {
         category: subjects.category,
         learning_goal: subjectVariants.learning_goal,
         requires_proof: subjectVariants.requires_proof,
+        hourly_rate: tutorSubjects.hourly_rate,
         grade_levels: tutorSubjects.grade_levels,
         teaching_focus: tutorSubjects.teaching_focus,
       })
@@ -112,6 +113,7 @@ export const tutorsRepository = {
           subjectItems.map((item) => ({
             tutor_id: tutorId,
             variant_id: item.variant_id,
+            hourly_rate: item.hourly_rate.toFixed(2),
             grade_levels: item.grade_levels ?? [],
             teaching_focus: item.teaching_focus ?? null,
           }))
@@ -127,6 +129,7 @@ export const tutorsRepository = {
           category: subjects.category,
           learning_goal: subjectVariants.learning_goal,
           requires_proof: subjectVariants.requires_proof,
+          hourly_rate: tutorSubjects.hourly_rate,
           grade_levels: tutorSubjects.grade_levels,
           teaching_focus: tutorSubjects.teaching_focus,
         })

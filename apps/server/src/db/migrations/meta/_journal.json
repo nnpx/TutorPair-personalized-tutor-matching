@@ -22,6 +22,27 @@
       "when": 1792578212027,
       "tag": "0002_classy_mongu",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1792584756556,
+      "tag": "0003_absent_shiva",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1792594335332,
+      "tag": "0004_closed_hydra",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1792602805473,
+      "tag": "0005_useful_punisher",
+      "breakpoints": true
     }
   ]
 }

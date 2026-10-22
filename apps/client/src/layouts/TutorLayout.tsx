@@ -1,16 +1,47 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
-import { User, FileText, BookOpen, LogOut } from 'lucide-react';
+import { useTutorVerification } from '../features/tutors/hooks/useTutors';
+import { VerificationStatus } from '@tutorpair/shared';
+import { User, LogOut, Lock, LayoutDashboard, Bell } from 'lucide-react';
 
 export const TutorLayout: React.FC = () => {
   const { user, clearUser } = useAuthStore();
   const location = useLocation();
+  const { data: verification } = useTutorVerification();
+
+  const docs = verification?.documents ?? [];
+  const status = verification?.verification_status;
+  const isSubmittedOrReviewed =
+    status === VerificationStatus.APPROVED ||
+    status === VerificationStatus.REJECTED ||
+    (status === VerificationStatus.PENDING && docs.length >= 2);
+
+  // Guard: If onboarding is incomplete, prevent direct URL navigation to sub-management tabs
+  if (
+    !isSubmittedOrReviewed &&
+    ['/tutor/subjects', '/tutor/availability', '/tutor/verification', '/tutor/documents'].includes(
+      location.pathname
+    )
+  ) {
+    return <Navigate to="/tutor/profile" replace />;
+  }
+
+  const isProfileActive =
+    (location.pathname === '/tutor/profile' &&
+      ['tab=profile', 'tab=subjects', 'tab=availability', 'tab=documents'].some((t) =>
+        location.search.includes(t)
+      )) ||
+    ['/tutor/subjects', '/tutor/availability', '/tutor/verification', '/tutor/documents'].includes(
+      location.pathname
+    );
+
+  const isDashboardActive =
+    location.pathname === '/tutor/profile' && !isProfileActive;
 
   const navItems = [
-    { label: 'My Profile', path: '/tutor/profile', icon: User },
-    { label: 'Verification Documents', path: '/tutor/documents', icon: FileText },
-    { label: 'Teaching Subjects', path: '/tutor/subjects', icon: BookOpen },
+    { label: 'Dashboard', path: '/tutor/profile', icon: LayoutDashboard, locked: false, isActive: isDashboardActive },
+    { label: 'My Profile', path: '/tutor/profile?tab=profile', icon: User, locked: !isSubmittedOrReviewed, isActive: isProfileActive },
   ];
 
   return (
@@ -69,7 +100,34 @@ export const TutorLayout: React.FC = () => {
             <nav style={{ display: 'flex', gap: '0.5rem' }}>
               {navItems.map((item) => {
                 const Icon = item.icon;
-                const isActive = location.pathname === item.path;
+                const isActive = item.isActive;
+
+                if (item.locked) {
+                  return (
+                    <div
+                      key={item.path}
+                      title="Complete onboarding application to unlock this section"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.625rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        fontWeight: 600,
+                        color: 'var(--color-muted-text, #9ca3af)',
+                        backgroundColor: 'transparent',
+                        cursor: 'not-allowed',
+                        opacity: 0.65,
+                        userSelect: 'none',
+                      }}
+                    >
+                      <Icon size={18} strokeWidth={2.2} />
+                      {item.label}
+                      <Lock size={13} strokeWidth={2.4} style={{ marginLeft: '0.125rem', opacity: 0.8 }} />
+                    </div>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.path}
@@ -94,8 +152,46 @@ export const TutorLayout: React.FC = () => {
             </nav>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
-            <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--fg-main)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            {/* Non-functional Notification Bell per user instruction */}
+            <button
+              type="button"
+              title="Notifications"
+              aria-label="Notifications"
+              style={{
+                position: 'relative',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: 'var(--radius-full)',
+                backgroundColor: 'var(--color-muted)',
+                border: '2px solid var(--color-border)',
+                color: 'var(--fg-main)',
+                cursor: 'pointer',
+              }}
+              onClick={(e) => {
+                e.preventDefault();
+                // Placeholder - backend notifications left out as requested
+              }}
+            >
+              <Bell size={18} strokeWidth={2.4} />
+              <span
+                style={{
+                  position: 'absolute',
+                  top: '5px',
+                  right: '6px',
+                  width: '8px',
+                  height: '8px',
+                  borderRadius: '50%',
+                  backgroundColor: 'var(--color-secondary)',
+                  border: '2px solid var(--bg-canvas)',
+                }}
+              />
+            </button>
+
+            <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--fg-main)', marginLeft: '0.25rem' }}>
               {user?.email}
             </span>
             <button

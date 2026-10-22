@@ -18,7 +18,6 @@ describe('TutorsService Unit Tests', () => {
       tutor_type: TutorType.UNDERGRADUATE,
       style_profile: [3, 3, 3, 3, 3],
       personality_profile: [3, 3, 3, 3],
-      hourly_rate: '500.00',
       verification_status: 'APPROVED',
       rejection_reason: null,
       average_rating: '0.00',
@@ -56,7 +55,6 @@ describe('TutorsService Unit Tests', () => {
       tutor_type: TutorType.UNDERGRADUATE,
       style_profile: [3, 3, 3, 3, 3],
       personality_profile: [3, 3, 3, 3],
-      hourly_rate: '500.00',
       verification_status: 'APPROVED',
       rejection_reason: null,
       average_rating: '0.00',
@@ -68,8 +66,8 @@ describe('TutorsService Unit Tests', () => {
         async () => {
           await tutorsService.setSubjects('mock-user-id', {
             subjects: [
-              { variant_id: '11111111-1111-1111-1111-111111111111' },
-              { variant_id: '11111111-1111-1111-1111-111111111111' }, // Duplicate
+              { variant_id: '11111111-1111-1111-1111-111111111111', hourly_rate: 500 },
+              { variant_id: '11111111-1111-1111-1111-111111111111', hourly_rate: 500 }, // Duplicate
             ],
           });
         },

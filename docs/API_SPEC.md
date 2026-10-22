@@ -1,4 +1,4 @@
-﻿# API Specification — Module 4: Tutor Profile & Verification
+# API Specification — Module 4: Tutor Profile & Verification
 
 > **Base URL:** `http://localhost:4000/api` (local) | `https://api.tutorpair.com/api` (production)
 >
@@ -459,8 +459,8 @@ Error responses are handled centrally by [`errorHandler`](../apps/server/src/com
     "documents": [
       {
         "id": "5a6b7c8d-9e0f-1a2b-3c4d-5e6f7a8b9c0d",
-        "document_type": "GRADUATION_CERTIFICATE",
-        "file_key": "tutors/8a3d5f30-8041-454d-b636-f0dfbb98305c/graduation_cert.pdf",
+        "document_type": "DEGREE_TRANSCRIPT",
+        "file_key": "tutors/8a3d5f30-8041-454d-b636-f0dfbb98305c/degree_transcript.pdf",
         "file_size_kb": 1420,
         "variant_id": null,
         "uploaded_at": "2024-01-15T08:30:00Z"
@@ -480,5 +480,5 @@ Error responses are handled centrally by [`errorHandler`](../apps/server/src/com
 
 > **Field Notes:**
 > - `verification_status`: `PENDING` | `APPROVED` | `REJECTED`
-> - `document_type`: `GRADUATION_CERTIFICATE` | `ACADEMIC_TRANSCRIPT` | `CV` | `SUBJECT_QUALIFICATION`
+> - `document_type`: `DEGREE_TRANSCRIPT` | `CV` | `SUBJECT_QUALIFICATION`
 > - If `verification_status` is `REJECTED`, `rejection_reason` provides guidance from the administrator on what correction is needed.

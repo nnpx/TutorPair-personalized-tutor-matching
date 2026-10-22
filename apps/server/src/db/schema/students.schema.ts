@@ -9,6 +9,7 @@ export const students = pgTable('students', {
   first_name: varchar('first_name', { length: 100 }).notNull(),
   last_name: varchar('last_name', { length: 100 }).notNull(),
   phone_number: varchar('phone_number', { length: 20 }),
+  line_id: varchar('line_id', { length: 100 }),
   grade_level: varchar('grade_level', { length: 20 }).notNull(),
   tutor_type_pref: tutorTypePrefEnum('tutor_type_pref').notNull(),
   style_profile: integer('style_profile').array().notNull(),
