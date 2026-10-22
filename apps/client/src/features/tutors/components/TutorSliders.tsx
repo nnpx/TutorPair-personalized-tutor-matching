@@ -20,7 +20,7 @@ export const TEACHING_STYLE_QUESTIONS = [
     right: 'Focus on key points & move fast',
   },
   {
-    title: 'Pedagogical Focus',
+    title: 'Teaching Method',
     left: 'Doing a lot of practice exercises',
     right: 'Understanding the concept first',
   },
@@ -98,7 +98,7 @@ export const TutorSliders: React.FC<TutorSlidersProps> = ({
           </span>
           <div>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)' }}>
-              Teaching Style Profile (5 Dimensions)
+              Teaching Style Profile
             </h3>
             <p style={{ fontSize: '0.875rem', color: '#4b5563', fontWeight: 500 }}>
               Defines your pedagogical style to match with students’ learning preferences on a 1–5 scale.
@@ -149,7 +149,7 @@ export const TutorSliders: React.FC<TutorSlidersProps> = ({
           </span>
           <div>
             <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)' }}>
-              Tutor Personality Traits (4 Dimensions)
+              Tutor Personality Traits
             </h3>
             <p style={{ fontSize: '0.875rem', color: '#4b5563', fontWeight: 500 }}>
               Identifies your interpersonal traits for chemistry matching with student personality profiles.

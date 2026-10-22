@@ -16,12 +16,16 @@ interface TutorProfileFormProps {
   initialData?: TutorProfileDto | null;
   mode: 'create' | 'edit';
   onSuccess?: () => void;
+  submitLabel?: string;
+  showSuccessMessage?: boolean;
 }
 
 export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
   initialData,
   mode,
   onSuccess,
+  submitLabel,
+  showSuccessMessage = true,
 }) => {
   const createMutation = useCreateTutorProfile();
   const updateMutation = useUpdateTutorProfile();
@@ -94,7 +98,9 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
     try {
       if (mode === 'create') {
         await createMutation.mutateAsync(data);
-        setSaveSuccess(true);
+        if (showSuccessMessage) {
+          setSaveSuccess(true);
+        }
         if (onSuccess) onSuccess();
       } else {
         await updateMutation.mutateAsync({
@@ -104,7 +110,9 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
           style_profile: data.style_profile,
           personality_profile: data.personality_profile,
         });
-        setSaveSuccess(true);
+        if (showSuccessMessage) {
+          setSaveSuccess(true);
+        }
         if (onSuccess) onSuccess();
       }
     } catch (err: unknown) {
@@ -334,7 +342,7 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
         <Alert variant="error">{formError}</Alert>
       )}
 
-      {saveSuccess && (
+      {showSuccessMessage && saveSuccess && (
         <Alert variant="success">
           {mode === 'create'
             ? 'Profile created successfully!'
@@ -346,7 +354,7 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
       <SaveButton
         isLoading={isPending}
         disabled={isPending}
-        label={mode === 'create' ? 'Save Personal Info & Continue' : 'Save Profile Changes'}
+        label={submitLabel || (mode === 'create' ? 'Save Profile & Continue' : 'Save Profile Changes')}
       />
     </form>
   );

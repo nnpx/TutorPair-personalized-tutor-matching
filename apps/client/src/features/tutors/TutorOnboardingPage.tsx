@@ -1,61 +1,43 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
-  TutorType,
-  type TutorProfileInput,
   type TutorAvailabilitySlotDto,
 } from '@tutorpair/shared';
 import {
   useTutorProfile,
-  useCreateTutorProfile,
-  useUpdateTutorProfile,
   useTutorSubjects,
   useSetTutorSubjects,
   useTutorAvailability,
   useSetTutorAvailability,
 } from './hooks/useTutors';
-import { TutorSliders } from './components/TutorSliders';
+import { TutorProfileForm } from './components/TutorProfileForm';
 import { SubjectSelector, type ConfiguredSubjectItem } from './components/SubjectSelector';
 import { AvailabilityGrid } from './components/AvailabilityGrid';
 import { VerificationSection, type VerificationSectionRef } from './components/VerificationSection';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
+import { Card, Button, Alert } from '../../components/ui';
 import {
-  User,
-  Sliders,
-  BookOpen,
-  Calendar,
-  FileCheck,
   CheckCircle2,
   ArrowRight,
   ArrowLeft,
-  AlertCircle,
   Sparkles,
 } from 'lucide-react';
 
 const STEPS = [
-  { id: 1, title: 'Personal Info', desc: 'Identity & Bio', icon: User },
-  { id: 2, title: 'Teaching Style', desc: 'Matchmaking Sliders', icon: Sliders },
-  { id: 3, title: 'Subjects & Rates', desc: 'Curriculum & Pricing', icon: BookOpen },
-  { id: 4, title: 'Availability', desc: 'Weekly Hours', icon: Calendar },
-  { id: 5, title: 'Verification', desc: 'Required Documents', icon: FileCheck },
+  { id: 1, title: 'Profile & Style' },
+  { id: 2, title: 'Subjects & Rates' },
+  { id: 3, title: 'Weekly Schedule' },
+  { id: 4, title: 'Verification Docs' },
 ];
+
 
 export const TutorOnboardingPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const initialStepParam = parseInt(searchParams.get('step') || '1', 10);
-  const [currentStep, setCurrentStep] = useState<number>(
-    initialStepParam >= 1 && initialStepParam <= 5 ? initialStepParam : 1
-  );
-
   const { data: profile, isLoading: loadingProfile } = useTutorProfile();
   const { data: serverSubjects } = useTutorSubjects();
   const { data: serverAvailability } = useTutorAvailability();
 
-  const createProfileMutation = useCreateTutorProfile();
-  const updateProfileMutation = useUpdateTutorProfile();
   const setSubjectsMutation = useSetTutorSubjects();
   const setAvailabilityMutation = useSetTutorAvailability();
 
@@ -64,43 +46,56 @@ export const TutorOnboardingPage: React.FC = () => {
   const [isSubmittingFinal, setIsSubmittingFinal] = useState<boolean>(false);
   const verificationRef = useRef<VerificationSectionRef>(null);
 
-  // Helper to switch step and update query param
-  const setStep = (step: number) => {
-    setCurrentStep(step);
-    setSearchParams({ step: String(step) });
-  };
-
-  // Step 1: Personal Info
-  const [firstName, setFirstName] = useState<string>('');
-  const [lastName, setLastName] = useState<string>('');
-  const [phoneNumber, setPhoneNumber] = useState<string>('');
-  const [lineId, setLineId] = useState<string>('');
-  const [tutorType, setTutorType] = useState<TutorType>(TutorType.UNDERGRADUATE);
-  const [description, setDescription] = useState<string>('');
-
-  // Step 2: Sliders
-  const [styleProfile, setStyleProfile] = useState<number[]>([3, 3, 3, 3, 3]);
-  const [personalityProfile, setPersonalityProfile] = useState<number[]>([3, 3, 3, 3]);
-
-  // Step 3: Configured Subjects
+  // Step 2 state: Configured Subjects
   const [configuredSubjects, setConfiguredSubjects] = useState<ConfiguredSubjectItem[]>([]);
 
-  // Step 4: Availability Slots
+  // Step 3 state: Availability Slots
   const [availabilitySlots, setAvailabilitySlots] = useState<TutorAvailabilitySlotDto[]>([]);
 
-  // Pre-fill profile data if user returns
+  // Local state to track immediate Step 1 completion before React Query refetches profile
+  const [step1Saved, setStep1Saved] = useState<boolean>(false);
+
+  // Step completion criteria derived from actual server and client state
+  const isStep1Done = Boolean(profile) || step1Saved;
+  const isStep2Done = (serverSubjects && serverSubjects.length > 0) || configuredSubjects.length > 0;
+  const isStep3Done = (serverAvailability && serverAvailability.length > 0) || availabilitySlots.length > 0;
+
+  // Gated Progression: Maximum step unlocked
+  const maxReachableStep = isStep3Done
+    ? 4
+    : isStep2Done
+      ? 3
+      : isStep1Done
+        ? 2
+        : 1;
+
+  const initialStepParam = parseInt(searchParams.get('step') || '1', 10);
+  const validInitialStep = initialStepParam >= 1 && initialStepParam <= 4 ? initialStepParam : 1;
+  const [currentStep, setCurrentStep] = useState<number>(Math.min(validInitialStep, maxReachableStep));
+
+  // Helper to change step and keep query param in sync
+  const setStep = (step: number) => {
+    setErrorMsg(null);
+    const reachable = isStep3Done ? 4 : isStep2Done ? 3 : isStep1Done ? 2 : 1;
+    const clampedStep = Math.min(step, reachable);
+    setCurrentStep(clampedStep);
+    setSearchParams({ step: String(clampedStep) });
+  };
+
+  const handleProfileSuccess = () => {
+    setErrorMsg(null);
+    setStep1Saved(true);
+    setCurrentStep(2);
+    setSearchParams({ step: '2' });
+  };
+
+  // Guard against direct URL tampering (?step=4 when only step 1 is done)
   useEffect(() => {
-    if (profile) {
-      setFirstName(profile.first_name);
-      setLastName(profile.last_name);
-      setPhoneNumber(profile.phone_number);
-      setLineId(profile.line_id ?? '');
-      setTutorType(profile.tutor_type as TutorType);
-      setDescription(profile.description ?? '');
-      setStyleProfile(profile.style_profile);
-      setPersonalityProfile(profile.personality_profile);
+    if (!loadingProfile && currentStep > maxReachableStep) {
+      setCurrentStep(maxReachableStep);
+      setSearchParams({ step: String(maxReachableStep) });
     }
-  }, [profile]);
+  }, [loadingProfile, currentStep, maxReachableStep, setSearchParams]);
 
   // Pre-fill previously configured subjects if user returns
   useEffect(() => {
@@ -128,98 +123,56 @@ export const TutorOnboardingPage: React.FC = () => {
     }
   }, [serverAvailability, availabilitySlots.length]);
 
-  // Handle Step 1 & 2 save to backend
-  const saveProfileData = async () => {
-    if (!firstName.trim() || !lastName.trim() || !phoneNumber.trim()) {
-      throw new Error('Please fill in your first name, last name, and phone number.');
-    }
-
-    const payload: TutorProfileInput = {
-      first_name: firstName.trim(),
-      last_name: lastName.trim(),
-      phone_number: phoneNumber.trim(),
-      line_id: lineId.trim() ? lineId.trim() : null,
-      tutor_type: tutorType,
-      description: description.trim(),
-      style_profile: styleProfile,
-      personality_profile: personalityProfile,
-    };
-
-    if (profile) {
-      await updateProfileMutation.mutateAsync({
-        phone_number: payload.phone_number,
-        line_id: payload.line_id,
-        description: payload.description,
-        style_profile: payload.style_profile,
-        personality_profile: payload.personality_profile,
-      });
-    } else {
-      await createProfileMutation.mutateAsync(payload);
-    }
-  };
-
-  // Step Navigation Handlers
-  const handleNext = async () => {
+  // Handle Step 2: Save Subjects & Continue to Step 3
+  const handleSaveSubjectsAndContinue = async () => {
     setErrorMsg(null);
+    if (configuredSubjects.length === 0) {
+      setErrorMsg('Please add at least one subject offering before proceeding.');
+      return;
+    }
 
+    setIsSubmitting(true);
     try {
-      if (currentStep === 1) {
-        if (!firstName.trim() || !lastName.trim() || !phoneNumber.trim()) {
-          setErrorMsg('First Name, Last Name, and Phone Number are required.');
-          return;
-        }
-        setIsSubmitting(true);
-        await saveProfileData();
-        setIsSubmitting(false);
-        setStep(2);
-      } else if (currentStep === 2) {
-        setIsSubmitting(true);
-        await saveProfileData();
-        setIsSubmitting(false);
-        setStep(3);
-      } else if (currentStep === 3) {
-        if (configuredSubjects.length === 0) {
-          setErrorMsg('Please add at least one subject offering before proceeding.');
-          return;
-        }
-        setIsSubmitting(true);
-        await setSubjectsMutation.mutateAsync({
-          subjects: configuredSubjects.map((s) => ({
-            variant_id: s.variant_id,
-            hourly_rate: s.hourly_rate,
-            grade_levels: s.grade_levels.length > 0 ? s.grade_levels : null,
-            teaching_focus: s.teaching_focus ? s.teaching_focus : null,
-          })),
-        });
-        setIsSubmitting(false);
-        setStep(4);
-      } else if (currentStep === 4) {
-        if (availabilitySlots.length === 0) {
-          setErrorMsg('Please configure at least one available teaching time slot.');
-          return;
-        }
-        setIsSubmitting(true);
-        await setAvailabilityMutation.mutateAsync({
-          availability: availabilitySlots,
-        });
-        setIsSubmitting(false);
-        setStep(5);
-      }
+      await setSubjectsMutation.mutateAsync({
+        subjects: configuredSubjects.map((s) => ({
+          variant_id: s.variant_id,
+          hourly_rate: s.hourly_rate,
+          grade_levels: s.grade_levels.length > 0 ? s.grade_levels : null,
+          teaching_focus: s.teaching_focus ? s.teaching_focus : null,
+        })),
+      });
+      setStep(3);
     } catch (err: unknown) {
-      setIsSubmitting(false);
-      const msg = err instanceof Error ? err.message : 'An error occurred while saving your data.';
+      const msg = err instanceof Error ? err.message : 'Failed to save subjects.';
       setErrorMsg(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleBack = () => {
+  // Handle Step 3: Save Availability & Continue to Step 4
+  const handleSaveAvailabilityAndContinue = async () => {
     setErrorMsg(null);
-    if (currentStep > 1) {
-      setStep(currentStep - 1);
+    if (availabilitySlots.length === 0) {
+      setErrorMsg('Please configure at least one available teaching time slot.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await setAvailabilityMutation.mutateAsync({
+        availability: availabilitySlots,
+      });
+      setStep(4);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save availability schedule.';
+      setErrorMsg(msg);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  // Final Application Submission (Consolidated Single Submit Button)
+  // Step 4: Final Application Submission
   const handleFinalSubmit = async () => {
     setErrorMsg(null);
 
@@ -238,8 +191,15 @@ export const TutorOnboardingPage: React.FC = () => {
       }
     }
 
-    // Success -> redirect to Profile & Application Hub
+    // Success -> redirect to Tutor Profile Dashboard
     navigate('/tutor/profile');
+  };
+
+  const handleBack = () => {
+    setErrorMsg(null);
+    if (currentStep > 1) {
+      setStep(currentStep - 1);
+    }
   };
 
   if (loadingProfile) {
@@ -257,14 +217,14 @@ export const TutorOnboardingPage: React.FC = () => {
       {/* Header & Hero */}
       <div style={{ textAlign: 'center', marginBottom: '0.5rem' }}>
         <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--fg-main)', letterSpacing: '-0.03em', marginBottom: '0.5rem' }}>
-          Tutor Application & Onboarding
+          Tutor Application &amp; Onboarding
         </h1>
-        <p style={{ color: '#4b5563', fontSize: '1rem', fontWeight: 500, maxWidth: '640px', margin: '0 auto' }}>
-          Complete all 5 sections to register your credentials, set your rates, and submit for verification.
+        <p style={{ color: '#4b5563', fontSize: '1rem', fontWeight: 500, maxWidth: '800px', margin: '0 auto' }}>
+          Complete all 4 sections to register your credentials, set your rates, and submit for verification.
         </p>
       </div>
 
-      {/* Stepper Header (Connected 1 --- 2 --- 3 --- 4 --- 5 Track with Labels Below) */}
+      {/* Stepper Header (Connected 1 --- 2 --- 3 --- 4 Track with Labels Below) */}
       <div
         style={{
           backgroundColor: 'var(--bg-canvas)',
@@ -276,37 +236,26 @@ export const TutorOnboardingPage: React.FC = () => {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(5, 1fr)',
+            gridTemplateColumns: 'repeat(4, 1fr)',
             gap: '0.25rem',
           }}
         >
           {STEPS.map((step, idx) => {
             const isCurrent = currentStep === step.id;
             const isDone =
-              currentStep > step.id ||
-              (step.id === 1 && Boolean(profile)) ||
-              (step.id === 2 && Boolean(profile)) ||
-              (step.id === 3 && ((serverSubjects?.length ?? 0) > 0 || configuredSubjects.length > 0)) ||
-              (step.id === 4 && ((serverAvailability?.length ?? 0) > 0 || availabilitySlots.length > 0));
+              (step.id === 1 && isStep1Done) ||
+              (step.id === 2 && isStep2Done) ||
+              (step.id === 3 && isStep3Done);
 
-            const maxReachableStep =
-              (serverAvailability && serverAvailability.length > 0) || availabilitySlots.length > 0
-                ? 5
-                : (serverSubjects && serverSubjects.length > 0) || configuredSubjects.length > 0
-                  ? 4
-                  : profile
-                    ? 3
-                    : 1;
+            // Gated Progression: can only click steps that are already reached/unlocked
+            const isClickable = step.id <= maxReachableStep;
 
-            const isClickable = step.id <= Math.max(currentStep, maxReachableStep);
-
-            // Connector line coloring: Left connector from previous step, right connector to next step
+            // Connector lines: left from previous, right to next
             const prevDone =
               idx > 0 &&
-              (currentStep > idx ||
-                (idx === 1 && Boolean(profile)) ||
-                (idx === 2 && Boolean(profile)) ||
-                (idx === 3 && ((serverSubjects?.length ?? 0) > 0 || configuredSubjects.length > 0)));
+              ((idx === 1 && isStep1Done) ||
+                (idx === 2 && isStep2Done) ||
+                (idx === 3 && isStep3Done));
 
             const leftLineColor = prevDone ? 'var(--color-secondary)' : 'var(--color-border)';
             const rightLineColor = isDone ? 'var(--color-secondary)' : 'var(--color-border)';
@@ -328,12 +277,12 @@ export const TutorOnboardingPage: React.FC = () => {
                   borderRadius: 'var(--radius-md)',
                   padding: '0.625rem 0.25rem',
                   cursor: isClickable ? 'pointer' : 'not-allowed',
-                  opacity: !isClickable && !isCurrent ? 0.55 : 1,
+                  opacity: !isClickable && !isCurrent ? 0.45 : 1,
                   transition: 'all 0.15s ease',
                   textAlign: 'center',
                 }}
               >
-                {/* 1 --- 2 --- 3 --- 4 --- 5 Track Row */}
+                {/* 1 --- 2 --- 3 --- 4 Track Row */}
                 <div
                   style={{
                     display: 'flex',
@@ -351,7 +300,7 @@ export const TutorOnboardingPage: React.FC = () => {
                     }}
                   />
 
-                  {/* Number Circle Node */}
+                  {/* Number Circle Node: Current step ALWAYS displays the step.id number, NEVER a checkmark! */}
                   <span
                     style={{
                       width: '2.5rem',
@@ -378,7 +327,7 @@ export const TutorOnboardingPage: React.FC = () => {
                       transition: 'all 0.2s ease',
                     }}
                   >
-                    {isDone ? (
+                    {isDone && !isCurrent ? (
                       <CheckCircle2 size={18} strokeWidth={2.6} />
                     ) : (
                       step.id
@@ -390,7 +339,7 @@ export const TutorOnboardingPage: React.FC = () => {
                     style={{
                       flex: 1,
                       height: '3px',
-                      backgroundColor: idx === 4 ? 'transparent' : rightLineColor,
+                      backgroundColor: idx === 3 ? 'transparent' : rightLineColor,
                     }}
                   />
                 </div>
@@ -407,20 +356,9 @@ export const TutorOnboardingPage: React.FC = () => {
                         : isDone
                           ? 'var(--fg-main)'
                           : '#4b5563',
-                      marginBottom: '0.25rem',
                     }}
                   >
                     {step.title}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: '0.75rem',
-                      color: isCurrent ? 'var(--color-primary)' : '#6b7280',
-                      lineHeight: 1.3,
-                      fontWeight: isCurrent ? 700 : 500,
-                    }}
-                  >
-                    {step.desc}
                   </div>
                 </div>
               </button>
@@ -430,290 +368,180 @@ export const TutorOnboardingPage: React.FC = () => {
       </div>
 
 
-
-      {/* Step Contents */}
+      {/* Step 1: Profile & Style (Identity, Bio, and 5+4 Matchmaking Sliders) */}
       {currentStep === 1 && (
-        <Card style={{ backgroundColor: 'var(--bg-canvas)', border: '2px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <span
-              style={{
-                width: '2.75rem',
-                height: '2.75rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--color-primary)',
-                color: 'var(--color-white)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <User size={22} strokeWidth={2.4} />
-            </span>
-            <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--fg-main)' }}>
-                Step 1: Personal & Identity Information
-              </h2>
-              <p style={{ fontSize: '0.9375rem', color: '#4b5563', fontWeight: 500 }}>
-                Please provide your real legal name and qualification level. These will be verified against your uploaded documents.
-              </p>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '1.25rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-                First Name *
-              </label>
-              <input
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="e.g. John"
-                className="flat-input"
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-                Last Name *
-              </label>
-              <input
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="e.g. Smith"
-                className="flat-input"
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '0.75rem' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-                Phone Number *
-              </label>
-              <input
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
-                placeholder="e.g. +66 81 234 5678"
-                className="flat-input"
-              />
-            </div>
-
-            <div>
-              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-                LINE ID <span style={{ fontWeight: 500, color: '#6b7280' }}>(Optional)</span>
-              </label>
-              <input
-                type="text"
-                value={lineId}
-                onChange={(e) => setLineId(e.target.value)}
-                placeholder="e.g. @tutor_lineid"
-                className="flat-input"
-              />
-            </div>
-          </div>
-
-          {/* Profile Visibility Disclosure */}
-          <div
-            style={{
-              marginBottom: '1.25rem',
-              padding: '0.75rem 1rem',
-              backgroundColor: 'var(--color-secondary-tint)',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--color-border)',
-              fontSize: '0.8125rem',
-              color: 'var(--fg-main)',
-              fontWeight: 600,
-              lineHeight: 1.5,
-            }}
-          >
-            💬 <strong>Profile Visibility:</strong> All information in this Tutor Profile form (including your name, qualification tier, bio, teaching style, phone number, and LINE ID) will be shown to students so they can learn about your background and contact you if they match with you.
-          </div>
-
-          <div style={{ marginBottom: '1.25rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-              Tutor Qualification Type *
-            </label>
-            <select
-              value={tutorType}
-              onChange={(e) => setTutorType(e.target.value as TutorType)}
-              className="flat-input"
-              style={{ fontWeight: 600, width: '100%' }}
-            >
-              <option value={TutorType.UNDERGRADUATE}>Undergraduate Student</option>
-              <option value={TutorType.FREELANCE}>Freelance / Professional Tutor</option>
-              <option value={TutorType.INSTITUTIONAL}>School / Institutional Teacher</option>
-            </select>
-          </div>
-
-          <div style={{ marginBottom: '1rem' }}>
-            <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-              Bio / Introduction (Shown to Students)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={4}
-              placeholder="Introduce your educational background, teaching approach, and student achievements..."
-              className="flat-input"
-              style={{ resize: 'vertical' }}
-              maxLength={2000}
-            />
-          </div>
-        </Card>
+        <TutorProfileForm
+          initialData={profile}
+          mode={profile ? 'edit' : 'create'}
+          onSuccess={handleProfileSuccess}
+          submitLabel="Save Profile & Continue →"
+          showSuccessMessage={false}
+        />
       )}
 
+      {/* Step 2: Teaching Subjects & Rates */}
       {currentStep === 2 && (
-        <Card style={{ backgroundColor: 'var(--bg-canvas)', border: '2px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
-            <span
-              style={{
-                width: '2.75rem',
-                height: '2.75rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--color-primary)',
-                color: 'var(--color-white)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Sliders size={22} strokeWidth={2.4} />
-            </span>
-            <div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--fg-main)' }}>
-                Step 2: Teaching Style & Personality Sliders
-              </h2>
-              <p style={{ fontSize: '0.9375rem', color: '#4b5563', fontWeight: 500 }}>
-                Our intelligent matchmaking engine compares these sliders directly with student preferences.
-              </p>
-            </div>
-          </div>
-
-          <TutorSliders
-            styleProfile={styleProfile}
-            personalityProfile={personalityProfile}
-            onStyleChange={(idx, val) => {
-              const u = [...styleProfile];
-              u[idx] = val;
-              setStyleProfile(u);
-            }}
-            onPersonalityChange={(idx, val) => {
-              const u = [...personalityProfile];
-              u[idx] = val;
-              setPersonalityProfile(u);
-            }}
-          />
-        </Card>
-      )}
-
-      {currentStep === 3 && (
-        <div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <SubjectSelector
             value={configuredSubjects}
             onChange={(newSubs) => setConfiguredSubjects(newSubs)}
             showSaveButton={false}
           />
+
+          {errorMsg && (
+            <Alert variant="error">
+              {errorMsg}
+            </Alert>
+          )}
+
+          {/* Step 2 Bottom Navigation */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: 'var(--bg-canvas)',
+              padding: '1.25rem 1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              border: '2px solid var(--color-border)',
+            }}
+          >
+            <Button
+              type="button"
+              onClick={handleBack}
+              disabled={isSubmitting}
+              variant="outline"
+              style={{ height: '3.25rem', padding: '0 1.5rem', fontWeight: 700 }}
+            >
+              <ArrowLeft size={18} strokeWidth={2.4} />
+              Previous Step
+            </Button>
+
+            <Button
+              type="button"
+              onClick={handleSaveSubjectsAndContinue}
+              isLoading={isSubmitting}
+              variant="primary"
+              style={{ height: '3.25rem', padding: '0 2rem', fontWeight: 800 }}
+            >
+              Save Subjects &amp; Continue
+              <ArrowRight size={18} strokeWidth={2.4} />
+            </Button>
+          </div>
         </div>
       )}
 
-      {currentStep === 4 && (
-        <div>
+      {/* Step 3: Weekly Schedule & Availability */}
+      {currentStep === 3 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <AvailabilityGrid
             value={availabilitySlots}
             onChange={(newSlots) => setAvailabilitySlots(newSlots)}
             showSaveButton={false}
           />
+
+          {errorMsg && (
+            <Alert variant="error">
+              {errorMsg}
+            </Alert>
+          )}
+
+          {/* Step 3 Bottom Navigation */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: 'var(--bg-canvas)',
+              padding: '1.25rem 1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              border: '2px solid var(--color-border)',
+            }}
+          >
+            <Button
+              type="button"
+              onClick={handleBack}
+              disabled={isSubmitting}
+              variant="outline"
+              style={{ height: '3.25rem', padding: '0 1.5rem', fontWeight: 700 }}
+            >
+              <ArrowLeft size={18} strokeWidth={2.4} />
+              Previous Step
+            </Button>
+
+            <Button
+              type="button"
+              onClick={handleSaveAvailabilityAndContinue}
+              isLoading={isSubmitting}
+              variant="primary"
+              style={{ height: '3.25rem', padding: '0 2rem', fontWeight: 800 }}
+            >
+              Save Schedule &amp; Continue
+              <ArrowRight size={18} strokeWidth={2.4} />
+            </Button>
+          </div>
         </div>
       )}
 
-      {currentStep === 5 && (
-        <div>
+      {/* Step 4: Verification Documents & Final Submit */}
+      {currentStep === 4 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <VerificationSection
             ref={verificationRef}
             inOnboarding={true}
             configuredSubjects={configuredSubjects}
           />
-        </div>
-      )}
 
-      {/* Global & Step Error Banner (Placed right near the Submit button for high visibility) */}
-      {errorMsg && (
-        <div
-          style={{
-            padding: '1rem 1.25rem',
-            backgroundColor: 'var(--color-danger-tint)',
-            color: 'var(--color-danger)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px solid var(--color-danger)',
-            fontWeight: 700,
-            fontSize: '0.9375rem',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-          }}
-        >
-          <AlertCircle size={20} strokeWidth={2.4} style={{ flexShrink: 0 }} />
-          <span>{errorMsg}</span>
-        </div>
-      )}
+          {/* Step 4 Error Banner placed right above the submit bar */}
+          {errorMsg && (
+            <Alert variant="error">
+              {errorMsg}
+            </Alert>
+          )}
 
-      {/* Stepper Footer Controls */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          backgroundColor: 'var(--bg-canvas)',
-          padding: '1.25rem 1.5rem',
-          borderRadius: 'var(--radius-lg)',
-          border: '2px solid var(--color-border)',
-        }}
-      >
-        <Button
-          type="button"
-          onClick={handleBack}
-          disabled={currentStep === 1 || isSubmitting || isSubmittingFinal}
-          variant="outline"
-          style={{ height: '3.25rem', padding: '0 1.5rem', fontWeight: 700 }}
-        >
-          <ArrowLeft size={18} strokeWidth={2.4} />
-          Previous Step
-        </Button>
-
-        {currentStep < 5 ? (
-          <Button
-            type="button"
-            onClick={handleNext}
-            isLoading={isSubmitting}
-            variant="primary"
-            style={{ height: '3.25rem', padding: '0 2rem', fontWeight: 800 }}
-          >
-            Save & Continue to Next Step
-            <ArrowRight size={18} strokeWidth={2.4} />
-          </Button>
-        ) : (
-          <Button
-            type="button"
-            onClick={handleFinalSubmit}
-            isLoading={isSubmittingFinal}
-            variant="secondary"
+          {/* Step 4 Bottom Navigation */}
+          <div
             style={{
-              backgroundColor: 'var(--color-secondary)',
-              color: 'white',
-              height: '3.5rem',
-              padding: '0 2.5rem',
-              fontWeight: 800,
-              fontSize: '1rem',
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              backgroundColor: 'var(--bg-canvas)',
+              padding: '1.25rem 1.5rem',
+              borderRadius: 'var(--radius-lg)',
+              border: '2px solid var(--color-border)',
             }}
           >
-            <Sparkles size={18} strokeWidth={2.4} />
-            Submit Application for Verification
-          </Button>
-        )}
-      </div>
+            <Button
+              type="button"
+              onClick={handleBack}
+              disabled={isSubmittingFinal}
+              variant="outline"
+              style={{ height: '3.25rem', padding: '0 1.5rem', fontWeight: 700 }}
+            >
+              <ArrowLeft size={18} strokeWidth={2.4} />
+              Previous Step
+            </Button>
+
+            <Button
+              type="button"
+              onClick={handleFinalSubmit}
+              isLoading={isSubmittingFinal}
+              variant="secondary"
+              style={{
+                backgroundColor: 'var(--color-secondary)',
+                color: 'white',
+                height: '3.5rem',
+                padding: '0 2.5rem',
+                fontWeight: 800,
+                fontSize: '1rem',
+              }}
+            >
+              <Sparkles size={18} strokeWidth={2.4} />
+              Submit Application for Verification
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

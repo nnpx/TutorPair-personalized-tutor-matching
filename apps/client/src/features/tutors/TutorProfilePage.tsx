@@ -16,7 +16,6 @@ import {
   BookOpen,
   Calendar,
   FileCheck,
-  Sliders,
   CheckCircle2,
   Lock,
   Bell,
@@ -150,10 +149,10 @@ export const TutorProfilePage: React.FC = () => {
                 </div>
 
                 <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}>
-                  Complete the 5 guided wizard sections to establish your profile and set your rates:
+                  Complete the 4 guided sections to build your profile and set your rates:
                 </p>
 
-                {/* 5 wizard parts (Vertical, concise 1-phrase items) */}
+                {/* 4 parts (Vertical, concise 1-phrase items) */}
                 <div
                   style={{
                     display: 'flex',
@@ -175,19 +174,10 @@ export const TutorProfilePage: React.FC = () => {
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
                     <span style={{ color: 'var(--color-primary)', display: 'inline-flex' }}>
-                      <Sliders size={16} strokeWidth={2.4} />
-                    </span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg-main)' }}>
-                      2. Teaching Style & Personality (1–5 Sliders)
-                    </span>
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                    <span style={{ color: 'var(--color-primary)', display: 'inline-flex' }}>
                       <BookOpen size={16} strokeWidth={2.4} />
                     </span>
                     <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg-main)' }}>
-                      3. Subjects & Hourly Rates
+                      2. Subjects & Hourly Rates
                     </span>
                   </div>
 
@@ -196,7 +186,7 @@ export const TutorProfilePage: React.FC = () => {
                       <Calendar size={16} strokeWidth={2.4} />
                     </span>
                     <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg-main)' }}>
-                      4. Weekly Availability Schedule
+                      3. Weekly Availability Schedule
                     </span>
                   </div>
 
@@ -206,7 +196,7 @@ export const TutorProfilePage: React.FC = () => {
                     </span>
                     <div>
                       <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg-main)' }}>
-                        5. Verification Documents Upload
+                        4. Verification Documents Upload
                       </span>
                       <span style={{ fontSize: '0.8125rem', color: '#6b7280', marginLeft: '0.375rem' }}>
                         (Degree / Transcript, CV, Supporting Documents, and Subject-Specific Proofs)
@@ -364,7 +354,7 @@ export const TutorProfilePage: React.FC = () => {
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <CheckCircle2 size={15} color="var(--color-secondary)" />
-                    <span>Students view your CV and contact you</span>
+                    <span>Students view your profile, CV, and contact you</span>
                   </div>
                 </div>
               </Card>
@@ -428,25 +418,25 @@ export const TutorProfilePage: React.FC = () => {
 
   // If tutor has started onboarding (profile created) but not yet submitted verification documents
   if (!isSubmittedOrReviewed) {
-    const step3Done = subjects.length > 0;
-    const step4Done = availability.length > 0;
+    const step2Done = subjects.length > 0;
+    const step3Done = availability.length > 0;
 
-    let completedCount = 2; // Steps 1 and 2 are saved when profile exists
+    let completedCount = 1; // Step 1 (Profile & Style) is saved when profile exists
+    if (step2Done) completedCount++;
     if (step3Done) completedCount++;
-    if (step4Done) completedCount++;
 
-    let nextStep = 3;
+    let nextStep = 2;
     let nextStepTitle = 'Subjects & Rates';
 
-    if (step3Done && !step4Done) {
+    if (step2Done && !step3Done) {
+      nextStep = 3;
+      nextStepTitle = 'Weekly Schedule';
+    } else if (step2Done && step3Done) {
       nextStep = 4;
-      nextStepTitle = 'Weekly Availability';
-    } else if (step3Done && step4Done) {
-      nextStep = 5;
       nextStepTitle = 'Verification Documents';
     }
 
-    const progressPercent = Math.round((completedCount / 5) * 100);
+    const progressPercent = Math.round((completedCount / 4) * 100);
 
     return (
       <div style={{ maxWidth: '920px', margin: '1rem auto 3rem auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -487,7 +477,7 @@ export const TutorProfilePage: React.FC = () => {
                 Welcome back, {profile.first_name}!
               </h1>
               <p style={{ color: '#4b5563', fontSize: '0.9375rem', marginTop: '0.375rem', maxWidth: '600px' }}>
-                You have completed <strong>{completedCount} of 5</strong> sections. Your previous entries are securely saved. Pick up where you left off or review your details below.
+                You have completed <strong>{completedCount} of 4</strong> sections. Your previous entries are securely saved. Pick up where you left off or review your details below.
               </p>
             </div>
 
@@ -539,7 +529,7 @@ export const TutorProfilePage: React.FC = () => {
           </div>
         </div>
 
-        {/* 5-Step Breakdown Checklist */}
+        {/* 4-Step Breakdown Checklist */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: '0.5rem 0 0.25rem 0' }}>
             Application Checklist
@@ -575,7 +565,7 @@ export const TutorProfilePage: React.FC = () => {
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
-                    1. Personal Info &amp; Bio
+                    1. Profile &amp; Style (Identity, Bio &amp; Teaching Style)
                   </h3>
                   <span
                     style={{
@@ -592,7 +582,7 @@ export const TutorProfilePage: React.FC = () => {
                   </span>
                 </div>
                 <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
-                  {profile.first_name} {profile.last_name} • {profile.phone_number} • {profile.tutor_type}
+                  {profile.first_name} {profile.last_name} • {profile.phone_number} • {profile.tutor_type} • Style &amp; Personality Configured
                 </p>
               </div>
             </div>
@@ -618,7 +608,7 @@ export const TutorProfilePage: React.FC = () => {
               justifyContent: 'space-between',
               padding: '1.25rem 1.5rem',
               backgroundColor: 'var(--bg-canvas)',
-              border: '2px solid var(--color-border)',
+              border: nextStep === 2 ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -627,7 +617,7 @@ export const TutorProfilePage: React.FC = () => {
                   width: '2.5rem',
                   height: '2.5rem',
                   borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'var(--color-secondary)',
+                  backgroundColor: step2Done ? 'var(--color-secondary)' : nextStep === 2 ? 'var(--color-primary)' : 'var(--color-border)',
                   color: 'white',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -635,12 +625,12 @@ export const TutorProfilePage: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                <CheckCircle2 size={18} strokeWidth={2.4} />
+                {step2Done ? <CheckCircle2 size={18} strokeWidth={2.4} /> : <BookOpen size={18} strokeWidth={2.4} />}
               </span>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
-                    2. Teaching Style &amp; Personality Sliders
+                    2. Teaching Subjects &amp; Rates
                   </h3>
                   <span
                     style={{
@@ -649,15 +639,17 @@ export const TutorProfilePage: React.FC = () => {
                       textTransform: 'uppercase',
                       padding: '0.15rem 0.5rem',
                       borderRadius: 'var(--radius-full)',
-                      backgroundColor: 'var(--color-secondary-tint)',
-                      color: 'var(--color-secondary)',
+                      backgroundColor: step2Done ? 'var(--color-secondary-tint)' : 'var(--color-primary-tint)',
+                      color: step2Done ? 'var(--color-secondary)' : 'var(--color-primary)',
                     }}
                   >
-                    Completed
+                    {step2Done ? `${subjects.length} Subject(s) Saved` : 'Next Up'}
                   </span>
                 </div>
                 <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
-                  5 Matchmaking Style &amp; 4 Personality traits configured
+                  {step2Done
+                    ? subjects.map((s) => s.subject_name).join(', ')
+                    : 'Target curriculum, grade levels (G1–G12), and hourly pricing.'}
                 </p>
               </div>
             </div>
@@ -667,11 +659,11 @@ export const TutorProfilePage: React.FC = () => {
               style={{
                 fontSize: '0.875rem',
                 fontWeight: 700,
-                color: 'var(--color-secondary)',
+                color: step2Done ? 'var(--color-secondary)' : 'var(--color-primary)',
                 textDecoration: 'none',
               }}
             >
-              Review / Edit
+              {step2Done ? 'Review / Edit' : 'Configure →'}
             </Link>
           </Card>
 
@@ -700,12 +692,12 @@ export const TutorProfilePage: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                {step3Done ? <CheckCircle2 size={18} strokeWidth={2.4} /> : <BookOpen size={18} strokeWidth={2.4} />}
+                {step3Done ? <CheckCircle2 size={18} strokeWidth={2.4} /> : nextStep === 3 ? <Calendar size={18} strokeWidth={2.4} /> : <Lock size={16} strokeWidth={2.4} />}
               </span>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
-                    3. Teaching Subjects &amp; Rates
+                    3. Weekly Availability Schedule
                   </h3>
                   <span
                     style={{
@@ -714,32 +706,44 @@ export const TutorProfilePage: React.FC = () => {
                       textTransform: 'uppercase',
                       padding: '0.15rem 0.5rem',
                       borderRadius: 'var(--radius-full)',
-                      backgroundColor: step3Done ? 'var(--color-secondary-tint)' : 'var(--color-primary-tint)',
-                      color: step3Done ? 'var(--color-secondary)' : 'var(--color-primary)',
+                      backgroundColor: step3Done
+                        ? 'var(--color-secondary-tint)'
+                        : nextStep === 3
+                          ? 'var(--color-primary-tint)'
+                          : 'var(--color-muted)',
+                      color: step3Done
+                        ? 'var(--color-secondary)'
+                        : nextStep === 3
+                          ? 'var(--color-primary)'
+                          : '#6b7280',
                     }}
                   >
-                    {step3Done ? `${subjects.length} Subject(s) Saved` : 'Next Up'}
+                    {step3Done ? `${availability.length} Slots Saved` : nextStep === 3 ? 'Next Up' : 'Locked'}
                   </span>
                 </div>
                 <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
                   {step3Done
-                    ? subjects.map((s) => s.subject_name).join(', ')
-                    : 'Target curriculum, grade levels (G1–G12), and hourly pricing.'}
+                    ? `${availability.length} active weekly teaching time slots configured`
+                    : 'Interactive weekly grid to mark available teaching slots.'}
                 </p>
               </div>
             </div>
 
-            <Link
-              to="/tutor/onboarding?step=3"
-              style={{
-                fontSize: '0.875rem',
-                fontWeight: 700,
-                color: step3Done ? 'var(--color-secondary)' : 'var(--color-primary)',
-                textDecoration: 'none',
-              }}
-            >
-              {step3Done ? 'Review / Edit' : 'Configure →'}
-            </Link>
+            {step3Done || nextStep === 3 ? (
+              <Link
+                to="/tutor/onboarding?step=3"
+                style={{
+                  fontSize: '0.875rem',
+                  fontWeight: 700,
+                  color: step3Done ? 'var(--color-secondary)' : 'var(--color-primary)',
+                  textDecoration: 'none',
+                }}
+              >
+                {step3Done ? 'Review / Edit' : 'Set Hours →'}
+              </Link>
+            ) : (
+              <span style={{ fontSize: '0.8125rem', color: '#9ca3af', fontWeight: 600 }}>Follows Step 2</span>
+            )}
           </Card>
 
           {/* Step 4 Item */}
@@ -759,7 +763,7 @@ export const TutorProfilePage: React.FC = () => {
                   width: '2.5rem',
                   height: '2.5rem',
                   borderRadius: 'var(--radius-full)',
-                  backgroundColor: step4Done ? 'var(--color-secondary)' : nextStep === 4 ? 'var(--color-primary)' : 'var(--color-border)',
+                  backgroundColor: nextStep === 4 ? 'var(--color-primary)' : 'var(--color-border)',
                   color: 'white',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -767,12 +771,12 @@ export const TutorProfilePage: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                {step4Done ? <CheckCircle2 size={18} strokeWidth={2.4} /> : nextStep === 4 ? <Calendar size={18} strokeWidth={2.4} /> : <Lock size={16} strokeWidth={2.4} />}
+                {nextStep === 4 ? <FileCheck size={18} strokeWidth={2.4} /> : <Lock size={16} strokeWidth={2.4} />}
               </span>
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                   <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
-                    4. Weekly Availability Schedule
+                    4. Verification Documents Upload
                   </h3>
                   <span
                     style={{
@@ -781,90 +785,11 @@ export const TutorProfilePage: React.FC = () => {
                       textTransform: 'uppercase',
                       padding: '0.15rem 0.5rem',
                       borderRadius: 'var(--radius-full)',
-                      backgroundColor: step4Done
-                        ? 'var(--color-secondary-tint)'
-                        : nextStep === 4
-                          ? 'var(--color-primary-tint)'
-                          : 'var(--color-muted)',
-                      color: step4Done
-                        ? 'var(--color-secondary)'
-                        : nextStep === 4
-                          ? 'var(--color-primary)'
-                          : '#6b7280',
+                      backgroundColor: nextStep === 4 ? 'var(--color-primary-tint)' : 'var(--color-muted)',
+                      color: nextStep === 4 ? 'var(--color-primary)' : '#6b7280',
                     }}
                   >
-                    {step4Done ? `${availability.length} Slots Saved` : nextStep === 4 ? 'Next Up' : 'Locked'}
-                  </span>
-                </div>
-                <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
-                  {step4Done
-                    ? `${availability.length} active weekly teaching time slots configured`
-                    : 'Interactive weekly grid to mark available teaching slots.'}
-                </p>
-              </div>
-            </div>
-
-            {step4Done || nextStep === 4 ? (
-              <Link
-                to="/tutor/onboarding?step=4"
-                style={{
-                  fontSize: '0.875rem',
-                  fontWeight: 700,
-                  color: step4Done ? 'var(--color-secondary)' : 'var(--color-primary)',
-                  textDecoration: 'none',
-                }}
-              >
-                {step4Done ? 'Review / Edit' : 'Set Hours →'}
-              </Link>
-            ) : (
-              <span style={{ fontSize: '0.8125rem', color: '#9ca3af', fontWeight: 600 }}>Follows Step 3</span>
-            )}
-          </Card>
-
-          {/* Step 5 Item */}
-          <Card
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '1.25rem 1.5rem',
-              backgroundColor: 'var(--bg-canvas)',
-              border: nextStep === 5 ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <span
-                style={{
-                  width: '2.5rem',
-                  height: '2.5rem',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: nextStep === 5 ? 'var(--color-primary)' : 'var(--color-border)',
-                  color: 'white',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                {nextStep === 5 ? <FileCheck size={18} strokeWidth={2.4} /> : <Lock size={16} strokeWidth={2.4} />}
-              </span>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
-                    5. Verification Documents Upload
-                  </h3>
-                  <span
-                    style={{
-                      fontSize: '0.6875rem',
-                      fontWeight: 800,
-                      textTransform: 'uppercase',
-                      padding: '0.15rem 0.5rem',
-                      borderRadius: 'var(--radius-full)',
-                      backgroundColor: nextStep === 5 ? 'var(--color-primary-tint)' : 'var(--color-muted)',
-                      color: nextStep === 5 ? 'var(--color-primary)' : '#6b7280',
-                    }}
-                  >
-                    {nextStep === 5 ? 'Ready to Upload' : 'Final Step'}
+                    {nextStep === 4 ? 'Ready to Upload' : 'Final Step'}
                   </span>
                 </div>
                 <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
@@ -873,9 +798,9 @@ export const TutorProfilePage: React.FC = () => {
               </div>
             </div>
 
-            {nextStep === 5 ? (
+            {nextStep === 4 ? (
               <Link
-                to="/tutor/onboarding?step=5"
+                to="/tutor/onboarding?step=4"
                 style={{
                   fontSize: '0.875rem',
                   fontWeight: 700,
@@ -886,7 +811,7 @@ export const TutorProfilePage: React.FC = () => {
                 Upload &amp; Submit →
               </Link>
             ) : (
-              <span style={{ fontSize: '0.8125rem', color: '#9ca3af', fontWeight: 600 }}>Follows Step 4</span>
+              <span style={{ fontSize: '0.8125rem', color: '#9ca3af', fontWeight: 600 }}>Follows Step 3</span>
             )}
           </Card>
         </div>
@@ -904,7 +829,7 @@ export const TutorProfilePage: React.FC = () => {
             What happens after you submit?
           </h3>
           <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0, lineHeight: 1.5 }}>
-            Once you submit in Step 5, your application enters the <strong>Administrator Review Queue (24–48 hours)</strong>. All navbar sections (Teaching Subjects, Availability, Verification &amp; Docs) unlock immediately so you can view your profile and refine rates or schedules anytime while awaiting approval.
+            Once you submit in Step 4, your application enters the <strong>Administrator Review Queue (24–48 hours)</strong>.
           </p>
         </Card>
       </div>
