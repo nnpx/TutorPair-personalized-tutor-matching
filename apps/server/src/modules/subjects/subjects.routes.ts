@@ -1,7 +1,10 @@
 import { Router } from 'express';
+import { subjectsController } from './subjects.controller.js';
 
 const router = Router();
 
-// TODO: Define subjects routes (e.g. GET /api/subjects)
+// GET /api/subjects (optionally ?category=...)
+router.get('/', subjectsController.getSubjects);
 
 export const subjectsRouter = router;
+

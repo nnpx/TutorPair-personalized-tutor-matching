@@ -31,11 +31,10 @@ packages/shared/
 │   ├── enums/
 │   │   ├── user-role.enum.ts           # UserRole: STUDENT | TUTOR | ADMIN
 │   │   ├── verification-status.enum.ts # VerificationStatus: PENDING | APPROVED | REJECTED
-│   │   ├── class-format.enum.ts        # ClassFormat: ONLINE | ONSITE | BOTH
 │   │   ├── tutor-type.enum.ts          # TutorType, TutorTypePref
 │   │   ├── subject-category.enum.ts    # SubjectCategory: GENERAL_LEARNING | LANGUAGE_TESTING | UNIVERSITY_ENTRANCE
 │   │   ├── learning-goal.enum.ts       # LearningGoal enum (used for UI grouping in Step 3)
-│   │   ├── document-type.enum.ts       # DocumentType: CV | ACADEMIC_TRANSCRIPT | etc.
+│   │   ├── document-type.enum.ts       # DocumentType: CV | DEGREE_TRANSCRIPT | etc.
 │   │   ├── day-of-week.enum.ts         # DayOfWeek: MONDAY → SUNDAY
 │   │   ├── notification-event.enum.ts  # NotificationEventType: TUTOR_SELECTED | VERIFICATION_APPROVED | etc.
 │   │   └── email-status.enum.ts        # EmailStatus: NONE | PENDING | SENT | FAILED

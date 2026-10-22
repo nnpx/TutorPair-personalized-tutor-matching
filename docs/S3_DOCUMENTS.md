@@ -161,7 +161,7 @@ These checks happen **before** the presigned URL is generated. If validation fai
 | `DocumentType` enum | When Required | `requires_proof` on variant |
 |---|---|---|
 | `CV` | All tutors — always required | N/A |
-| `GRADUATION_CERTIFICATE` or `ACADEMIC_TRANSCRIPT` | One of these is required for all tutors | N/A |
+| `DEGREE_TRANSCRIPT` | All tutors — always required (Degree or Academic Transcript) | N/A |
 | `SUBJECT_QUALIFICATION` | Only for subject variants where `requires_proof = true` in DB (e.g., JLPT N1, IELTS, SAT) | `true` |
 
 The frontend dynamically shows/hides the subject proof upload field based on whether the selected `subject_variant.requires_proof` is `true`.

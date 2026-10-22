@@ -3,7 +3,7 @@
  * It can be revised, expanded, or modified when developing this specific module in detail.
  */
 import { z } from 'zod';
-import { ClassFormat, TutorTypePref, DayOfWeek } from '../enums/index.js';
+import { TutorTypePref, DayOfWeek } from '../enums/index.js';
 import { SliderValueSchema } from './student.schema.js';
 
 export const AvailabilitySlotSchema = z.object({
@@ -18,7 +18,6 @@ export const MatchRequestSchema = z.object({
   style_profile: z.array(SliderValueSchema).length(5, 'Style profile requires 5 ratings'),
   personality_profile: z.array(SliderValueSchema).length(4, 'Personality profile requires 4 ratings'),
   budget_max: z.number().positive('Budget must be greater than 0'),
-  class_format_pref: z.nativeEnum(ClassFormat),
   tutor_type_pref: z.nativeEnum(TutorTypePref),
   availabilities: z.array(AvailabilitySlotSchema).optional().default([]),
 });

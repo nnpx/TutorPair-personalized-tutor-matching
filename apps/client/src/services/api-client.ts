@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { fetchAuthSession } from '@aws-amplify/auth';
+import { useAuthStore } from '../store/auth.store';
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
@@ -8,7 +9,7 @@ export const apiClient = axios.create({
   },
 });
 
-// Interceptor to attach Cognito ID token to every request
+// Interceptor to attach Cognito ID token to every request (with mock token fallback)
 apiClient.interceptors.request.use(async (config) => {
   try {
     const session = await fetchAuthSession();
@@ -17,8 +18,17 @@ apiClient.interceptors.request.use(async (config) => {
       config.headers.Authorization = `Bearer ${token}`;
     }
   } catch {
-    // Session not found / user not logged in
+    // Session not found / Cognito not configured
   }
+
+  // Fallback to local development mock token
+  if (!config.headers.Authorization) {
+    const user = useAuthStore.getState().user;
+    if (user?.id) {
+      config.headers.Authorization = `Bearer mock-token-${user.id}`;
+    }
+  }
+
   return config;
 });
 

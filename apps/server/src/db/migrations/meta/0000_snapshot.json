@@ -1,5 +1,5 @@
 {
-  "id": "83a78f18-8056-440b-a632-7966caeaeb63",
+  "id": "3461b942-3285-4b80-8f67-18464e021e65",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -100,6 +100,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "line_id": {
+          "name": "line_id",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "grade_level": {
           "name": "grade_level",
           "type": "varchar(20)",
@@ -128,13 +134,6 @@
         "budget_max": {
           "name": "budget_max",
           "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "class_format_pref": {
-          "name": "class_format_pref",
-          "type": "class_format",
-          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         }
@@ -189,9 +188,9 @@
           "primaryKey": false,
           "notNull": true
         },
-        "profile_photo": {
-          "name": "profile_photo",
-          "type": "varchar(500)",
+        "line_id": {
+          "name": "line_id",
+          "type": "varchar(100)",
           "primaryKey": false,
           "notNull": false
         },
@@ -217,19 +216,6 @@
         "personality_profile": {
           "name": "personality_profile",
           "type": "integer[]",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "hourly_rate": {
-          "name": "hourly_rate",
-          "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "class_format": {
-          "name": "class_format",
-          "type": "class_format",
-          "typeSchema": "public",
           "primaryKey": false,
           "notNull": true
         },
@@ -460,6 +446,13 @@
           "type": "uuid",
           "primaryKey": false,
           "notNull": true
+        },
+        "hourly_rate": {
+          "name": "hourly_rate",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'500.00'"
         },
         "grade_levels": {
           "name": "grade_levels",
@@ -1012,15 +1005,6 @@
     }
   },
   "enums": {
-    "public.class_format": {
-      "name": "class_format",
-      "schema": "public",
-      "values": [
-        "ONLINE",
-        "ONSITE",
-        "BOTH"
-      ]
-    },
     "public.day_of_week": {
       "name": "day_of_week",
       "schema": "public",
@@ -1038,8 +1022,7 @@
       "name": "document_type",
       "schema": "public",
       "values": [
-        "GRADUATION_CERTIFICATE",
-        "ACADEMIC_TRANSCRIPT",
+        "DEGREE_TRANSCRIPT",
         "CV",
         "SUBJECT_QUALIFICATION"
       ]

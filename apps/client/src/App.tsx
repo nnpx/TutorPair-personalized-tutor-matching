@@ -9,7 +9,10 @@ import { LoginPage } from './features/auth/LoginPage';
 import { LandingPage } from './features/landing/LandingPage';
 import { StudentProfilePage } from './features/students/StudentProfilePage';
 import { MatchingPage, MatchHistoryPage } from './features/matching/MatchingPage';
-import { TutorProfilePage, TutorDocumentsPage } from './features/tutors/TutorPages';
+import {
+  TutorProfilePage,
+  TutorOnboardingPage,
+} from './features/tutors/TutorPages';
 import { AdminVerificationsPage } from './features/admin/AdminVerificationsPage';
 import { ReviewSubmissionPage } from './features/reviews/ReviewSubmissionPage';
 import { UserRole } from '@tutorpair/shared';
@@ -40,8 +43,12 @@ export const App: React.FC = () => {
       <Route element={<ProtectedRoute allowedRoles={[UserRole.TUTOR]} />}>
         <Route path="/tutor" element={<TutorLayout />}>
           <Route index element={<Navigate to="/tutor/profile" replace />} />
+          <Route path="onboarding" element={<TutorOnboardingPage />} />
           <Route path="profile" element={<TutorProfilePage />} />
-          <Route path="documents" element={<TutorDocumentsPage />} />
+          <Route path="subjects" element={<Navigate to="/tutor/profile?tab=subjects" replace />} />
+          <Route path="availability" element={<Navigate to="/tutor/profile?tab=availability" replace />} />
+          <Route path="verification" element={<Navigate to="/tutor/profile?tab=documents" replace />} />
+          <Route path="documents" element={<Navigate to="/tutor/profile?tab=documents" replace />} />
         </Route>
       </Route>
 
