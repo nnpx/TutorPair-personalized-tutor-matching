@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Alert, PageHeader, SaveButton } from '../../components/ui';
+import { Card, PageHeader, SaveButton } from '../../components/ui';
 import { InputField, SelectField } from '../../components/forms';
 import { useAuthStore } from '../../store/auth.store';
 import { Phone, MessageSquare } from 'lucide-react';
 
 const GRADE_OPTIONS = [
+  { value: '', label: 'Select Grade Level' },
   { value: 'G1', label: 'Grade 1 (Primary)' },
   { value: 'G2', label: 'Grade 2 (Primary)' },
   { value: 'G3', label: 'Grade 3 (Primary)' },
@@ -19,19 +20,30 @@ const GRADE_OPTIONS = [
   { value: 'G12', label: 'Grade 12 (Upper Secondary)' },
 ];
 
+/**
+ * StudentProfilePage
+ *
+ * NOTE FOR DEVELOPERS:
+ * Student profile backend endpoints (GET/PUT /api/students/profile) are scheduled for
+ * implementation in the Student Module phase.
+ * When implementing:
+ * 1. Create a `useStudentProfile` query hook to fetch profile data from GET /api/students/profile.
+ * 2. Populate `firstName`, `lastName`, `phoneNumber`, `lineId`, and `gradeLevel` from server data.
+ * 3. Use `useUpdateStudentProfile` mutation on submit to persist changes.
+ */
 export const StudentProfilePage: React.FC = () => {
   const { user } = useAuthStore();
-  const [firstName, setFirstName] = useState('Napasorn');
-  const [lastName, setLastName] = useState('Wongsuwan');
-  const [phoneNumber, setPhoneNumber] = useState('0812345678');
-  const [lineId, setLineId] = useState('@napasorn_w');
-  const [gradeLevel, setGradeLevel] = useState('G10');
-  const [isSaved, setIsSaved] = useState(false);
+
+  // Form field states initialized without mock data
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [lineId, setLineId] = useState('');
+  const [gradeLevel, setGradeLevel] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSaved(true);
-    setTimeout(() => setIsSaved(false), 3000);
+    // TODO: Connect with backend API mutation once /api/students/profile is developed
   };
 
   return (
@@ -41,19 +53,14 @@ export const StudentProfilePage: React.FC = () => {
         description="Manage your personal information and contact channels for matched tutors."
       />
 
-      {isSaved && (
-        <Alert variant="success">
-          Profile changes saved successfully!
-        </Alert>
-      )}
-
       <Card style={{ padding: '2rem' }}>
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          {/* Account Email (Readonly) */}
+          {/* Account Email (Readonly from authenticated session) */}
           <InputField
             label="Account Email"
             type="email"
-            value={user?.email || 'student@example.com'}
+            value={user?.email || ''}
+            placeholder={user?.email ? undefined : 'No session email'}
             disabled
             isLocked
           />
@@ -65,18 +72,21 @@ export const StudentProfilePage: React.FC = () => {
               required
               value={firstName}
               onChange={(e) => setFirstName(e.target.value)}
+              placeholder="e.g. First name"
             />
             <InputField
               label="Last Name"
               required
               value={lastName}
               onChange={(e) => setLastName(e.target.value)}
+              placeholder="e.g. Last name"
             />
           </div>
 
           {/* Grade Level */}
           <SelectField
             label="Grade Level"
+            required
             value={gradeLevel}
             onChange={(e) => setGradeLevel(e.target.value)}
             options={GRADE_OPTIONS}
@@ -95,7 +105,6 @@ export const StudentProfilePage: React.FC = () => {
           {/* Phone Number */}
           <InputField
             label="Phone Number"
-            required
             type="tel"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
