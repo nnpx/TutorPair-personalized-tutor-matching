@@ -679,3 +679,195 @@ sequenceDiagram
   "message": "Document deleted successfully"
 }
 ```
+
+
+---
+
+# Module 5: Admin Tutor Verification
+
+> **Base URL:** `http://localhost:4000/api` (local) | `https://api.tutorpair.com/api` (production)
+>
+> **Authentication:** `Authorization: Bearer <cognito-jwt>`
+> Local mock bypass: `Authorization: Bearer mock-token-admin-1` (or any `mock-token-admin-*`)
+>
+> **Access Role:** Admin endpoints strictly require the `ADMIN` role enforced via backend `requireRole([UserRole.ADMIN])` middleware.
+
+---
+
+## 1. Architectural Overview & Security
+
+- **Base Route Prefix:** `/api/admin`
+- **Authentication:** Enforced on all routes via `authenticate` JWT middleware.
+- **Authorization:** Restricted to users with `ADMIN` role (`requireRole([UserRole.ADMIN])`).
+- **S3 Document Security:** Server **never** proxies or streams binary files. Document previews are served exclusively through short-lived (15-minute / 900-second) S3 Presigned GET URLs generated on-demand via `documentsService.generatePresignedViewUrl`.
+- **First-In, First-Out (FIFO) Review Queue:** When reviewing pending applications, tutors are sorted chronologically by `users.created_at ASC` ensuring tutors who applied earlier receive verification review first.
+
+---
+
+## 2. Admin Verification Endpoints Summary
+
+| Domain | Method | Endpoint | Description | Frontend Client Use Case |
+|---|---|---|---|---|
+| **Queue** | `GET` | `/admin/tutors` | List tutor applications with status filter & FIFO sorting | Populates applications workbench list and live count badges |
+| **Profile** | `GET` | `/admin/tutors/:id` | Retrieve detailed tutor profile, subjects & documents | Detailed inspection view for credentials and offerings |
+| **Documents** | `GET` | `/admin/tutors/:id/documents/:docId/view-url` | Generate secure 15-minute S3 Presigned View URL | "View" button for CV, degrees, and subject proofs |
+| **Verification** | `PATCH` | `/admin/tutors/:id/verify` | Approve or reject application with mandatory feedback | "Approve Application" & "Reject Application" modal actions |
+
+---
+
+## 3. Endpoints Specification
+
+### `GET /admin/tutors`
+
+- **Use Case:**
+  - Retrieves the verification queue with optional status filtering (`?status=PENDING|APPROVED|REJECTED|ALL`).
+  - **Queue Ordering:** When `status=PENDING`, applications are sorted **ascending** (`users.created_at ASC`) for strict FIFO prioritization. When `status=APPROVED`, `REJECTED`, or `ALL`, applications are sorted **descending** (`users.created_at DESC`) to show recent activities.
+
+**Query Parameters:**
+- `status` *(optional)*: `PENDING` | `APPROVED` | `REJECTED` | `ALL` (default: `ALL`).
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Tutors queue retrieved successfully",
+  "data": [
+    {
+      "user_id": "tutor-uuid-pending-1",
+      "email": "somchai.math@tutorpair.local",
+      "first_name": "Somchai",
+      "last_name": "Prasert",
+      "phone_number": "081-234-5678",
+      "tutor_type": "FREELANCE",
+      "hourly_rate": 650,
+      "verification_status": "PENDING",
+      "rejection_reason": null,
+      "created_at": "2026-10-18T22:31:12.359Z",
+      "document_count": 2,
+      "documents_summary": {
+        "has_cv": true,
+        "has_transcript": true,
+        "has_subject_proof": false
+      }
+    }
+  ]
+}
+```
+
+---
+
+### `GET /admin/tutors/:id`
+
+- **Use Case:**
+  - Retrieves full applicant credentials, teaching offerings, subject variants, and uploaded document metadata.
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Tutor details retrieved successfully",
+  "data": {
+    "user_id": "tutor-uuid-pending-1",
+    "email": "somchai.math@tutorpair.local",
+    "first_name": "Somchai",
+    "last_name": "Prasert",
+    "phone_number": "081-234-5678",
+    "description": "Chulalongkorn University graduate in Pure Mathematics. 5 years teaching Olympiad and secondary math.",
+    "tutor_type": "FREELANCE",
+    "style_profile": [2, 3, 4, 2, 3],
+    "personality_profile": [2, 1, 3, 2],
+    "hourly_rate": 650,
+    "verification_status": "PENDING",
+    "rejection_reason": null,
+    "created_at": "2026-10-18T22:31:12.359Z",
+    "subjects": [
+      {
+        "variant_id": "var-math-sec",
+        "variant_name": "Secondary School Mathematics",
+        "subject_name": "Mathematics",
+        "category": "GENERAL_LEARNING",
+        "grade_levels": ["G7", "G8", "G9", "G10", "G11", "G12"],
+        "teaching_focus": "Calculus, Trigonometry, and Exam Prep",
+        "requires_proof": false
+      }
+    ],
+    "documents": [
+      {
+        "id": "doc-somchai-cv",
+        "tutor_id": "tutor-uuid-pending-1",
+        "document_type": "CV",
+        "variant_id": null,
+        "variant_name": null,
+        "file_key": "tutors/tutor-uuid-pending-1/cv-somchai.pdf",
+        "file_size_kb": 1450,
+        "uploaded_at": "2026-10-18T22:31:12.359Z"
+      }
+    ]
+  }
+}
+```
+
+---
+
+### `GET /admin/tutors/:id/documents/:docId/view-url`
+
+- **Use Case:**
+  - Generates a short-lived (15 minutes / 900 seconds) S3 Presigned GET URL for viewing uploaded PDFs, transcripts, and certificates directly from S3.
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Document view URL generated successfully",
+  "data": {
+    "document_id": "doc-somchai-cv",
+    "document_type": "CV",
+    "file_key": "tutors/tutor-uuid-pending-1/cv-somchai.pdf",
+    "file_size_kb": 1450,
+    "view_url": "https://tutorpair-documents.s3.ap-southeast-1.amazonaws.com/tutors/tutor-uuid-pending-1/cv-somchai.pdf",
+    "expires_in_seconds": 900
+  }
+}
+```
+
+---
+
+### `PATCH /admin/tutors/:id/verify`
+
+- **Use Case:**
+  - Approves a tutor application (unlocking matchmaking visibility) or rejects it with mandatory written feedback.
+  - Automatically dispatches in-app notifications and queues automated SES email notifications.
+
+**Request Body (Approval)**
+
+```json
+{
+  "status": "APPROVED"
+}
+```
+
+**Request Body (Rejection with Feedback)**
+
+```json
+{
+  "status": "REJECTED",
+  "rejection_reason": "The uploaded degree certificate is blurred and lacks official university watermark. Please upload a clear scanned PDF."
+}
+```
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Tutor application approved successfully",
+  "data": {
+    "user_id": "tutor-uuid-pending-1",
+    "verification_status": "APPROVED",
+    "rejection_reason": null
+  }
+}
+```
