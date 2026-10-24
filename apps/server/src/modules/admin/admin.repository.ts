@@ -549,40 +549,4 @@ export const adminRepository = {
       rejection_reason: rejectionReason,
     };
   },
-
-  resetDefaults: async () => {
-    // Reset inMemory store
-    inMemoryTutors[0].verification_status = VerificationStatus.PENDING;
-    inMemoryTutors[0].rejection_reason = null;
-
-    inMemoryTutors[1].verification_status = VerificationStatus.PENDING;
-    inMemoryTutors[1].rejection_reason = null;
-
-    inMemoryTutors[2].verification_status = VerificationStatus.APPROVED;
-    inMemoryTutors[2].rejection_reason = null;
-
-    inMemoryTutors[3].verification_status = VerificationStatus.REJECTED;
-    inMemoryTutors[3].rejection_reason =
-      'The uploaded academic degree document is blurred and lacks official university seal or watermark. Please upload a clear scanned PDF.';
-
-    try {
-      await db
-        .update(tutors)
-        .set({
-          verification_status: VerificationStatus.PENDING,
-          rejection_reason: null,
-        })
-        .where(eq(tutors.user_id, inMemoryTutors[0].user_id));
-
-      await db
-        .update(tutors)
-        .set({
-          verification_status: VerificationStatus.PENDING,
-          rejection_reason: null,
-        })
-        .where(eq(tutors.user_id, inMemoryTutors[1].user_id));
-    } catch {
-      // Ignored if DB not connected
-    }
-  },
 };

@@ -30,12 +30,6 @@ router.get('/tutors/:id', adminController.getTutorDetails);
 router.get('/tutors/:id/documents/:docId/view-url', adminController.getDocumentViewUrl);
 
 /**
- * POST /api/admin/tutors/reset-defaults
- * Reset mock tutor verification statuses back to default
- */
-router.post('/tutors/reset-defaults', adminController.resetDefaults);
-
-/**
  * PATCH /api/admin/tutors/:id/verify
  * Approve or reject tutor application with validation and automated notifications
  */

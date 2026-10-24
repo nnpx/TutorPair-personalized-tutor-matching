@@ -30,9 +30,4 @@ export const adminController = {
       result.verification_status === 'APPROVED' ? 'approved' : 'rejected';
     res.status(200).json(successResponse(result, `Tutor application ${actionText} successfully`));
   }),
-
-  resetDefaults: asyncHandler(async (_req: Request, res: Response) => {
-    await adminService.resetDefaults();
-    res.status(200).json(successResponse(null, 'Tutor statuses reset to default successfully'));
-  }),
 };
