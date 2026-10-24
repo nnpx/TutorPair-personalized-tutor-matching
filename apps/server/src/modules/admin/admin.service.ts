@@ -1,6 +1,6 @@
 import { adminRepository } from './admin.repository.js';
 import { notificationService } from '../../common/notifications/notification.service.js';
-import { generateViewPresignedUrl } from '../../common/utils/s3.util.js';
+import { documentsService } from '../documents/documents.service.js';
 import { NotFoundError, BadRequestError } from '../../common/errors/http-errors.js';
 import {
   VerificationStatus,
@@ -39,7 +39,7 @@ export const adminService = {
     }
 
     // 15-minute expiration as per docs/S3_DOCUMENTS.md
-    const viewUrl = await generateViewPresignedUrl(document.file_key, 900);
+    const viewUrl = await documentsService.generatePresignedViewUrl(document.file_key, 900);
 
     return {
       document_id: document.id,
