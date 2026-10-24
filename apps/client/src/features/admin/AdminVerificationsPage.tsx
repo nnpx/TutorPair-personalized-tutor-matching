@@ -32,6 +32,7 @@ export const AdminVerificationsPage: React.FC = () => {
   const [isDetailManuallyClosed, setIsDetailManuallyClosed] = useState<boolean>(false);
   const [rejectingTutorId, setRejectingTutorId] = useState<string | null>(null);
   const [approvingTutor, setApprovingTutor] = useState<{ id: string; name: string } | null>(null);
+  const [confirmingRejectTutor, setConfirmingRejectTutor] = useState<{ id: string; name: string; reason: string } | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
   const [rejectError, setRejectError] = useState<string | null>(null);
   const [documentLoadingId, setDocumentLoadingId] = useState<string | null>(null);
@@ -127,6 +128,7 @@ export const AdminVerificationsPage: React.FC = () => {
       await queryClient.refetchQueries({ queryKey: ['admin', 'tutor-detail', variables.tutorId] });
       setRejectingTutorId(null);
       setApprovingTutor(null);
+      setConfirmingRejectTutor(null);
       setRejectionReason('');
       setRejectError(null);
       setActionSuccessMessage(
@@ -174,11 +176,11 @@ export const AdminVerificationsPage: React.FC = () => {
       setRejectError('Please specify the rejection reason so the tutor can rectify their profile.');
       return;
     }
-    if (rejectingTutorId) {
-      verifyMutation.mutate({
-        tutorId: rejectingTutorId,
-        status: VerificationStatus.REJECTED,
-        rejectionReason: rejectionReason.trim(),
+    if (rejectingTutorId && tutorDetail) {
+      setConfirmingRejectTutor({
+        id: rejectingTutorId,
+        name: `${tutorDetail.first_name} ${tutorDetail.last_name}`,
+        reason: rejectionReason.trim(),
       });
     }
   };
@@ -1203,6 +1205,120 @@ export const AdminVerificationsPage: React.FC = () => {
               <li>Profile will be unlocked in the student matchmaking pool.</li>
               <li>An automated verification confirmation email will be sent.</li>
             </ul>
+          </div>
+        )}
+      </Modal>
+
+      {/* Flat Design Rejection Confirmation Modal */}
+      <Modal
+        isOpen={!!confirmingRejectTutor}
+        onClose={() => {
+          if (!verifyMutation.isPending) setConfirmingRejectTutor(null);
+        }}
+        title="Confirm Application Rejection"
+        subtitle="Feedback will be dispatched to the applicant"
+        variant="danger"
+        icon={
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'rgba(239, 68, 68, 0.12)',
+              color: 'var(--color-danger)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <XCircle size={28} strokeWidth={2.5} />
+          </div>
+        }
+        footerActions={
+          <>
+            <button
+              type="button"
+              disabled={verifyMutation.isPending}
+              className="flat-btn flat-btn-secondary"
+              onClick={() => setConfirmingRejectTutor(null)}
+              style={{ minWidth: '100px' }}
+            >
+              Back to Edit
+            </button>
+            <button
+              type="button"
+              disabled={verifyMutation.isPending}
+              onClick={() => {
+                if (confirmingRejectTutor) {
+                  verifyMutation.mutate({
+                    tutorId: confirmingRejectTutor.id,
+                    status: VerificationStatus.REJECTED,
+                    rejectionReason: confirmingRejectTutor.reason,
+                  });
+                }
+              }}
+              className="flat-btn"
+              style={{
+                backgroundColor: 'var(--color-danger)',
+                color: 'var(--color-white)',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                minWidth: '160px',
+                justifyContent: 'center',
+              }}
+            >
+              <XCircle size={18} strokeWidth={2.5} />
+              {verifyMutation.isPending ? 'Rejecting...' : 'Confirm & Send Rejection'}
+            </button>
+          </>
+        }
+      >
+        {confirmingRejectTutor && (
+          <div
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+            }}
+          >
+            <p style={{ fontSize: '0.9375rem', color: 'var(--color-text-main)', lineHeight: 1.5 }}>
+              Are you sure you want to reject the application for{' '}
+              <strong style={{ fontWeight: 800 }}>{confirmingRejectTutor.name}</strong>?
+            </p>
+
+            <div
+              style={{
+                backgroundColor: 'var(--color-bg)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem 1.25rem',
+                border: '2px solid var(--color-danger)',
+              }}
+            >
+              <span
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  color: 'var(--color-danger)',
+                  letterSpacing: '0.04em',
+                }}
+              >
+                Rejection Feedback to be Emailed:
+              </span>
+              <p
+                style={{
+                  fontSize: '0.9375rem',
+                  color: '#374151',
+                  marginTop: '0.4rem',
+                  lineHeight: 1.5,
+                  fontStyle: 'italic',
+                }}
+              >
+                "{confirmingRejectTutor.reason}"
+              </p>
+            </div>
           </div>
         )}
       </Modal>
