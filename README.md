@@ -32,10 +32,14 @@ In Thailand, primary and secondary students (Grades 1–12) face significant hur
 * **Authentication**: **AWS Cognito** + Google OAuth 2.0 with JWT verification (`aws-jwt-verify`).
 * **Notifications**: Database-backed async email worker using **Amazon SES**.
 
+**Availability decision (2026-10-22):** Maintain one codebase that supports one or multiple API instances. Use a low-cost single-instance deployment regularly and an HA configuration for testing. Implementation and failover verification are pending; the current single-instance deployment plan does not provide HA. See [Availability and Deployment Profiles](./docs/clouds/HIGH_AVAILABILITY.md).
+
 Detailed documentation is available in the [`docs/`](./docs/README.md) directory:
 * [AI Agent & Full Project Context](./PROJECT_CONTEXT.md)
 * [Agent Directives](./AGENTS.md)
 * [Architecture Decisions](./docs/ARCHITECTURE.md)
+* [Agreed Cloud Components](./docs/clouds/CLOUD_COMPONENTS.md)
+* [Availability and Deployment Profiles](./docs/clouds/HIGH_AVAILABILITY.md)
 * [Project Structure](./docs/PROJECT_STRUCTURE.md)
 * [Backend Developer Guide](./docs/BACKEND_GUIDE.md)
 * [Frontend Developer Guide](./docs/FRONTEND_GUIDE.md)

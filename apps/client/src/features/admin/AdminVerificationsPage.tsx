@@ -672,7 +672,7 @@ export const AdminVerificationsPage: React.FC = () => {
                       Class Mode
                     </span>
                     <p style={{ fontWeight: 700, fontSize: '1.0625rem', marginTop: '0.2rem' }}>
-                      {tutorDetail.class_format}
+                      ONLINE
                     </p>
                   </div>
 

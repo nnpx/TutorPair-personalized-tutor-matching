@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, boolean, primaryKey } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, boolean, primaryKey, decimal } from 'drizzle-orm/pg-core';
 import { learningGoalEnum, subjectCategoryEnum } from './enums.schema.js';
 import { tutors } from './tutors.schema.js';
 import { students } from './students.schema.js';
@@ -28,6 +28,7 @@ export const tutorSubjects = pgTable(
     variant_id: uuid('variant_id')
       .notNull()
       .references(() => subjectVariants.id, { onDelete: 'cascade' }),
+    hourly_rate: decimal('hourly_rate', { precision: 10, scale: 2 }).default('500.00').notNull(),
     grade_levels: varchar('grade_levels', { length: 20 }).array(),
     teaching_focus: varchar('teaching_focus', { length: 255 }),
   },

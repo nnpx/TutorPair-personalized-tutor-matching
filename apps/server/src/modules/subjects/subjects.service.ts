@@ -1,2 +1,9 @@
-// TODO: Implement subjects business logic (e.g. cascading subject catalog)
-export const subjectsService = {};
+import { subjectsRepository } from './subjects.repository.js';
+import { SubjectCategory } from '@tutorpair/shared';
+
+export const subjectsService = {
+  async getSubjects(category?: SubjectCategory) {
+    return await subjectsRepository.findAllWithVariants(category);
+  },
+};
+

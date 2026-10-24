@@ -25,14 +25,12 @@ let inMemoryTutors: AdminTutorDetailDto[] = [
     first_name: 'Somchai',
     last_name: 'Prasert',
     phone_number: '081-234-5678',
-    profile_photo: null,
     description:
       'Chulalongkorn University graduate in Pure Mathematics. 5 years teaching Olympiad and secondary math.',
     tutor_type: 'FREELANCE',
     style_profile: [2, 3, 4, 2, 3],
     personality_profile: [2, 1, 3, 2],
     hourly_rate: 650,
-    class_format: 'BOTH',
     verification_status: VerificationStatus.PENDING,
     rejection_reason: null,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
@@ -61,7 +59,7 @@ let inMemoryTutors: AdminTutorDetailDto[] = [
       {
         id: 'doc-somchai-degree',
         tutor_id: 'tutor-uuid-pending-1',
-        document_type: DocumentType.GRADUATION_CERTIFICATE,
+        document_type: DocumentType.DEGREE_TRANSCRIPT,
         variant_id: null,
         variant_name: null,
         file_key: 'tutors/tutor-uuid-pending-1/degree-chula-math.pdf',
@@ -76,14 +74,12 @@ let inMemoryTutors: AdminTutorDetailDto[] = [
     first_name: 'Natthida',
     last_name: 'Wongsuwan',
     phone_number: '089-876-5432',
-    profile_photo: null,
     description:
       'Certified IELTS Academic Band 8.5 instructor. Specialized in Writing Task 2 and Speaking fluency.',
     tutor_type: 'INSTITUTIONAL',
     style_profile: [4, 2, 2, 4, 2],
     personality_profile: [4, 2, 4, 3],
     hourly_rate: 800,
-    class_format: 'ONLINE',
     verification_status: VerificationStatus.PENDING,
     rejection_reason: null,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
@@ -112,7 +108,7 @@ let inMemoryTutors: AdminTutorDetailDto[] = [
       {
         id: 'doc-natthida-transcript',
         tutor_id: 'tutor-uuid-pending-2',
-        document_type: DocumentType.ACADEMIC_TRANSCRIPT,
+        document_type: DocumentType.DEGREE_TRANSCRIPT,
         variant_id: null,
         variant_name: null,
         file_key: 'tutors/tutor-uuid-pending-2/transcript-arts.pdf',
@@ -137,14 +133,12 @@ let inMemoryTutors: AdminTutorDetailDto[] = [
     first_name: 'Chatchai',
     last_name: 'Siriporn',
     phone_number: '085-555-1234',
-    profile_photo: null,
     description:
       'Engineering undergrad at Thammasat with 800/800 SAT Math score. Friendly and step-by-step guidance.',
     tutor_type: 'UNDERGRADUATE',
     style_profile: [1, 5, 2, 1, 4],
     personality_profile: [3, 2, 4, 4],
     hourly_rate: 500,
-    class_format: 'BOTH',
     verification_status: VerificationStatus.APPROVED,
     rejection_reason: null,
     created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
@@ -173,7 +167,7 @@ let inMemoryTutors: AdminTutorDetailDto[] = [
       {
         id: 'doc-chatchai-transcript',
         tutor_id: 'tutor-uuid-approved-1',
-        document_type: DocumentType.ACADEMIC_TRANSCRIPT,
+        document_type: DocumentType.DEGREE_TRANSCRIPT,
         variant_id: null,
         variant_name: null,
         file_key: 'tutors/tutor-uuid-approved-1/transcript-eng.pdf',
@@ -188,13 +182,11 @@ let inMemoryTutors: AdminTutorDetailDto[] = [
     first_name: 'Anong',
     last_name: 'Sukhumvit',
     phone_number: '082-999-8877',
-    profile_photo: null,
     description: 'Biology high school preparation tutor.',
     tutor_type: 'FREELANCE',
     style_profile: [3, 3, 3, 3, 3],
     personality_profile: [3, 3, 3, 3],
     hourly_rate: 450,
-    class_format: 'ONLINE',
     verification_status: VerificationStatus.REJECTED,
     rejection_reason:
       'The uploaded academic degree document is blurred and lacks official university seal or watermark. Please upload a clear scanned PDF.',
@@ -228,9 +220,7 @@ let inMemoryTutors: AdminTutorDetailDto[] = [
 function toListItemDto(t: AdminTutorDetailDto): AdminTutorListItemDto {
   const has_cv = t.documents.some((d) => d.document_type === DocumentType.CV);
   const has_transcript = t.documents.some(
-    (d) =>
-      d.document_type === DocumentType.ACADEMIC_TRANSCRIPT ||
-      d.document_type === DocumentType.GRADUATION_CERTIFICATE
+    (d) => d.document_type === DocumentType.DEGREE_TRANSCRIPT
   );
   const has_subject_proof = t.documents.some(
     (d) => d.document_type === DocumentType.SUBJECT_QUALIFICATION
@@ -242,10 +232,8 @@ function toListItemDto(t: AdminTutorDetailDto): AdminTutorListItemDto {
     first_name: t.first_name,
     last_name: t.last_name,
     phone_number: t.phone_number,
-    profile_photo: t.profile_photo,
     tutor_type: t.tutor_type,
     hourly_rate: t.hourly_rate,
-    class_format: t.class_format,
     verification_status: t.verification_status,
     rejection_reason: t.rejection_reason,
     created_at: t.created_at,
@@ -268,10 +256,7 @@ export const adminRepository = {
           first_name: tutors.first_name,
           last_name: tutors.last_name,
           phone_number: tutors.phone_number,
-          profile_photo: tutors.profile_photo,
           tutor_type: tutors.tutor_type,
-          hourly_rate: tutors.hourly_rate,
-          class_format: tutors.class_format,
           verification_status: tutors.verification_status,
           rejection_reason: tutors.rejection_reason,
           created_at: users.created_at,
@@ -304,6 +289,22 @@ export const adminRepository = {
           .from(documents)
           .where(inArray(documents.tutor_id, tutorIds));
 
+        // Fetch primary hourly rate from tutor subjects
+        const subjectRows = await db
+          .select({
+            tutor_id: tutorSubjects.tutor_id,
+            hourly_rate: tutorSubjects.hourly_rate,
+          })
+          .from(tutorSubjects)
+          .where(inArray(tutorSubjects.tutor_id, tutorIds));
+
+        const ratesByTutor = new Map<string, number>();
+        for (const s of subjectRows) {
+          if (!ratesByTutor.has(s.tutor_id)) {
+            ratesByTutor.set(s.tutor_id, Number(s.hourly_rate) || 500);
+          }
+        }
+
         const docsByTutor = new Map<
           string,
           { count: number; has_cv: boolean; has_transcript: boolean; has_subject_proof: boolean }
@@ -318,10 +319,7 @@ export const adminRepository = {
           };
           current.count += 1;
           if (doc.document_type === DocumentType.CV) current.has_cv = true;
-          if (
-            doc.document_type === DocumentType.ACADEMIC_TRANSCRIPT ||
-            doc.document_type === DocumentType.GRADUATION_CERTIFICATE
-          ) {
+          if (doc.document_type === DocumentType.DEGREE_TRANSCRIPT) {
             current.has_transcript = true;
           }
           if (doc.document_type === DocumentType.SUBJECT_QUALIFICATION) {
@@ -344,10 +342,8 @@ export const adminRepository = {
             first_name: tutor.first_name,
             last_name: tutor.last_name,
             phone_number: tutor.phone_number,
-            profile_photo: tutor.profile_photo,
             tutor_type: tutor.tutor_type,
-            hourly_rate: Number(tutor.hourly_rate),
-            class_format: tutor.class_format,
+            hourly_rate: ratesByTutor.get(tutor.user_id) || 500,
             verification_status: tutor.verification_status as VerificationStatus,
             rejection_reason: tutor.rejection_reason,
             created_at: tutor.created_at.toISOString(),
@@ -385,13 +381,10 @@ export const adminRepository = {
           first_name: tutors.first_name,
           last_name: tutors.last_name,
           phone_number: tutors.phone_number,
-          profile_photo: tutors.profile_photo,
           description: tutors.description,
           tutor_type: tutors.tutor_type,
           style_profile: tutors.style_profile,
           personality_profile: tutors.personality_profile,
-          hourly_rate: tutors.hourly_rate,
-          class_format: tutors.class_format,
           verification_status: tutors.verification_status,
           rejection_reason: tutors.rejection_reason,
           created_at: users.created_at,
@@ -410,6 +403,7 @@ export const adminRepository = {
             category: subjects.category,
             grade_levels: tutorSubjects.grade_levels,
             teaching_focus: tutorSubjects.teaching_focus,
+            hourly_rate: tutorSubjects.hourly_rate,
             requires_proof: subjectVariants.requires_proof,
           })
           .from(tutorSubjects)
@@ -433,19 +427,19 @@ export const adminRepository = {
           .where(eq(documents.tutor_id, tutorId))
           .orderBy(desc(documents.uploaded_at));
 
+        const primaryRate = subjectRows.length > 0 ? Number(subjectRows[0].hourly_rate) : 500;
+
         return {
           user_id: tutorRow.user_id,
           email: tutorRow.email,
           first_name: tutorRow.first_name,
           last_name: tutorRow.last_name,
           phone_number: tutorRow.phone_number,
-          profile_photo: tutorRow.profile_photo,
           description: tutorRow.description,
           tutor_type: tutorRow.tutor_type,
           style_profile: tutorRow.style_profile,
           personality_profile: tutorRow.personality_profile,
-          hourly_rate: Number(tutorRow.hourly_rate),
-          class_format: tutorRow.class_format,
+          hourly_rate: primaryRate,
           verification_status: tutorRow.verification_status as VerificationStatus,
           rejection_reason: tutorRow.rejection_reason,
           created_at: tutorRow.created_at.toISOString(),
@@ -461,7 +455,7 @@ export const adminRepository = {
           documents: docRows.map((d) => ({
             id: d.id,
             tutor_id: d.tutor_id,
-            document_type: d.document_type,
+            document_type: d.document_type as DocumentType,
             variant_id: d.variant_id,
             variant_name: d.variant_name,
             file_key: d.file_key,
@@ -490,7 +484,7 @@ export const adminRepository = {
         return {
           id: doc.id,
           tutor_id: doc.tutor_id,
-          document_type: doc.document_type,
+          document_type: doc.document_type as DocumentType,
           variant_id: doc.variant_id,
           variant_name: null,
           file_key: doc.file_key,

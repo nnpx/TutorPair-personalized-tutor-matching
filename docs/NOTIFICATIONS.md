@@ -2,6 +2,8 @@
 
 > Covers how in-app notifications and automated email notifications (via Amazon SES) work. No message queues, no extra AWS services — pure Node.js.
 
+The accepted [availability decision](./clouds/HIGH_AVAILABILITY.md) requires the same worker design to work with one or multiple API instances. The requirements below are an implementation target; the current worker is still a TODO scaffold. A process-local timer alone does not coordinate workers across tasks.
+
 ---
 
 ## Two Types of Notifications
@@ -30,8 +32,10 @@ Both types share the same `notifications` table row. Every notification event cr
 
 The system uses no message queue. Instead:
 
-1. **The request handler creates a notification row synchronously** and returns `200 OK` immediately.
-2. **A background worker** (`setInterval`) running in the same Node.js process polls the database every 30 seconds for unsent emails and dispatches them via SES.
+1. **The request handler persists the notification with the business change in one transaction** and returns after commit, without waiting for SES. Repeated requests must not create duplicate business events or notification rows.
+2. **A background worker in each API process** polls every 30 seconds, atomically claims eligible work in PostgreSQL, and dispatches via SES. It must prevent overlapping polls locally and use durable, expiring ownership across processes.
+
+The following diagram shows service relationships within one task. Its simplified query/send labels do not replace the claim protocol defined under Background Worker Implementation; multiple tasks share the same PostgreSQL state.
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
@@ -89,7 +93,7 @@ INSERT INTO notifications (user_id, event_type, message, is_read, requires_email
 VALUES (..., 'TUTOR_SELECTED', '...', false, true, 'PENDING')
     │
     ▼
-API returns 200 OK to student immediately (email sends async within ~30 seconds)
+API returns after transaction commit (email is asynchronous; backlog and retries affect delay)
 ```
 
 ---
@@ -123,25 +127,29 @@ useMutation({
 
 ## Background Worker Implementation
 
-The worker is started in `server.ts` when the Express server boots. It runs inside the same process — no separate deployment, no additional infrastructure.
+The worker is started in `server.ts` when the Express server boots. It runs inside each API process, including when only one task is deployed. No separate worker deployment or queue service is required.
 
 ```
 workers/email-dispatch.worker.ts
 
 - Exported function: startEmailWorker()
 - Called once in server.ts at startup
-- Uses setInterval(pollAndSend, 30_000)   // Every 30 seconds
+- Polls every 30 seconds; skips an overlapping tick while a poll is active
 - pollAndSend():
-    1. SELECT * FROM notifications
-       WHERE email_status = 'PENDING' AND requires_email = true
-       LIMIT 10   ← process in small batches to avoid timeouts
-    2. For each notification:
+    1. Atomically claim up to 10 eligible notifications in a short transaction
+       Persist owner and expiry; recover abandoned claims after expiry
+       Commit before network calls; do not hold row locks during SES requests
+    2. For each notification owned by this attempt:
        - Build email body from event_type + message
-       - Call SES SendEmail API
-       - On success: UPDATE email_status = 'SENT', email_sent_at = NOW()
-       - On failure: UPDATE email_status = 'FAILED'
-         (can be retried manually or by a future cron job)
+       - Keep ownership valid while sending; bound SES timeouts
+       - Call SES SendEmail API outside the claim transaction
+       - On success: record SENT and sent time only if ownership is still valid
+       - On transient failure: schedule bounded retry with backoff
+       - On permanent/exhausted failure: record failure for investigation
+    3. On shutdown: stop new polls/claims and drain bounded in-flight work
 ```
+
+The lease fields, retry metadata, event uniqueness, and status transitions must be specified during implementation. They are not assumed to exist in the current schema. If enums or DTOs change, update `packages/shared` first and run `npm run build:shared`; deliver database changes through reviewed migrations.
 
 **Why `LIMIT 10` per batch?**
 If 500 notifications somehow accumulated (e.g., after a server restart), sending all 500 in one 30-second tick would cause the SES API calls to pile up and potentially timeout. Processing 10 at a time keeps each tick fast.
@@ -150,13 +158,17 @@ If 500 notifications somehow accumulated (e.g., after a server restart), sending
 
 ## Crash Resilience
 
-This is the key advantage of the database-backed approach:
+Durable notification records enable recovery, but recovery and duplicate prevention must be implemented explicitly:
 
-| Scenario | In-Memory Queue (Bull, etc.) | Our DB-backed Approach |
-|---|---|---|
-| ECS container crashes | All PENDING jobs in queue are **lost** | PENDING rows survive in PostgreSQL — picked up on next restart |
-| SES is temporarily unavailable | Job may fail and be lost | Row stays `PENDING` or `FAILED` — can be retried |
-| Server restarts for deployment | Queue is cleared | No impact — DB state is durable |
+| Scenario | Required behavior |
+|---|---|
+| Container crashes before sending | Notification persists and abandoned claim expires for retry |
+| SES is temporarily unavailable | Retry with bounded backoff; preserve business transaction success |
+| Two workers or overlapping deployments | Only one valid owner may process a notification; stale completions are rejected |
+| SES accepts email but worker crashes before recording success | Outcome is ambiguous; recovery can deliver a duplicate. Do not promise exactly-once delivery |
+| Only one API process is running | That worker can claim, send, retry, and recover work without a second instance |
+
+Use database-level event identity to avoid duplicate notification creation. It does not eliminate the external SES send/commit ambiguity. Verify single-worker, concurrent-worker, crash-recovery, and shutdown cases described in [HIGH_AVAILABILITY.md](./clouds/HIGH_AVAILABILITY.md).
 
 ---
 

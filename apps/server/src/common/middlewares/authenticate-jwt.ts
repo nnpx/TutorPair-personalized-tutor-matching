@@ -10,6 +10,7 @@ import { users, User } from '../../db/schema/index.js';
 import { eq } from 'drizzle-orm';
 import { env } from '../../config/env.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { UserRole } from '@tutorpair/shared';
 
 export interface AuthRequest extends Request {
   user?: User;
@@ -28,7 +29,7 @@ export const authenticate = asyncHandler(
     let cognitoSub: string;
 
     // Support mock token for local testing without AWS Cognito
-    if (env.NODE_ENV === 'development' && token.startsWith('mock-token-')) {
+    if ((env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && token.startsWith('mock-token-')) {
       cognitoSub = token.replace('mock-token-', '');
     } else {
       try {
@@ -53,13 +54,46 @@ export const authenticate = asyncHandler(
       // Local database might not be running in frontend-only development mode
     }
 
+    // In development or test mode, auto-provision mock user if not yet in database
+    if (!user && (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && token.startsWith('mock-token-')) {
+      const mockRole = cognitoSub.toLowerCase().includes('student')
+        ? UserRole.STUDENT
+        : cognitoSub.toLowerCase().includes('admin')
+        ? UserRole.ADMIN
+        : UserRole.TUTOR;
+
+      try {
+        const [insertedUser] = await db
+          .insert(users)
+          .values({
+            cognito_sub: cognitoSub,
+            email: `${cognitoSub}@tutorpair.local`,
+            role: mockRole,
+          })
+          .onConflictDoNothing()
+          .returning();
+        user = insertedUser;
+
+        if (!user) {
+          const [found] = await db
+            .select()
+            .from(users)
+            .where(eq(users.cognito_sub, cognitoSub))
+            .limit(1);
+          user = found;
+        }
+      } catch {
+        // Fallback for offline dev
+      }
+    }
+
     if (!user) {
       if (env.NODE_ENV === 'development' && (cognitoSub === 'mock-admin-id' || cognitoSub.includes('admin'))) {
         req.user = {
           id: 'mock-admin-id',
           cognito_sub: 'mock-admin-id',
           email: 'admin@tutorpair.local',
-          role: 'ADMIN',
+          role: UserRole.ADMIN,
           created_at: new Date(),
           updated_at: new Date(),
         } as unknown as User;

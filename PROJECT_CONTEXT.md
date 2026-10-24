@@ -176,10 +176,11 @@ Reviews are gated by system verification:
   - Profile, review, matching history, and admin verification pages load within **< 2 seconds**.
   - Target met for at least **95%** of requests at up to **100 concurrent users**.
 * **Scalability**:
-  - Containerized backend on Amazon ECS Fargate auto-scales horizontally based on CPU/Memory thresholds.
+  - One codebase must operate safely with one or multiple ECS Fargate tasks. Regular deployment uses one task; the HA testing profile uses at least two tasks across two Availability Zones. CPU/Memory autoscaling can be configured for the HA profile after concurrency and capacity verification.
   - Relational persistence on Amazon RDS PostgreSQL with connection pooling.
 * **Reliability & Availability**:
   - Target **99% availability**.
+  - Accepted deployment decision (2026-10-22): build code that supports HA, use a low-cost single-instance deployment regularly, and deploy an HA configuration for testing. Code support alone does not make a running single-instance deployment HA. Requirements and verification are documented in [docs/clouds/HIGH_AVAILABILITY.md](./docs/clouds/HIGH_AVAILABILITY.md); implementation and failover testing remain outstanding.
   - Match calculation is deterministic given identical inputs and scoring weights.
   - Operations fail with clear error messages (`BadRequestError`, `NotFoundError`, etc.) rather than failing silently.
 * **Security & Access Control**:

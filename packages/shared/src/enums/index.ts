@@ -10,12 +10,6 @@ export enum VerificationStatus {
   REJECTED = 'REJECTED',
 }
 
-export enum ClassFormat {
-  ONLINE = 'ONLINE',
-  ONSITE = 'ONSITE',
-  BOTH = 'BOTH',
-}
-
 export enum TutorType {
   UNDERGRADUATE = 'UNDERGRADUATE',
   FREELANCE = 'FREELANCE',
@@ -47,8 +41,7 @@ export enum LearningGoal {
 }
 
 export enum DocumentType {
-  GRADUATION_CERTIFICATE = 'GRADUATION_CERTIFICATE',
-  ACADEMIC_TRANSCRIPT = 'ACADEMIC_TRANSCRIPT',
+  DEGREE_TRANSCRIPT = 'DEGREE_TRANSCRIPT',
   CV = 'CV',
   SUBJECT_QUALIFICATION = 'SUBJECT_QUALIFICATION',
 }

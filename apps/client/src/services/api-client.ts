@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { fetchAuthSession } from '@aws-amplify/auth';
+import { useAuthStore } from '../store/auth.store';
 
 export const apiClient = axios.create({
   baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
@@ -8,7 +9,7 @@ export const apiClient = axios.create({
   },
 });
 
-// Interceptor to attach Cognito ID token (or mock token in local development)
+// Interceptor to attach Cognito ID token to every request (with mock token fallback)
 apiClient.interceptors.request.use(async (config) => {
   try {
     const session = await fetchAuthSession();
@@ -21,22 +22,15 @@ apiClient.interceptors.request.use(async (config) => {
     // Session not found / Cognito not configured
   }
 
-  // Fallback to Zustand mock auth user in local development mode
-  let storedUser = (window as any).__TP_CURRENT_USER__;
-  if (!storedUser) {
-    try {
-      const raw = localStorage.getItem('tp_mock_user');
-      if (raw) storedUser = JSON.parse(raw);
-    } catch {
-      // ignore
+  // Fallback to local development mock token
+  if (!config.headers.Authorization) {
+    const user = useAuthStore.getState().user;
+    if (user?.id) {
+      config.headers.Authorization = `Bearer mock-token-${user.id}`;
+    } else {
+      // Default to mock-admin-id in local dev if no user is set yet
+      config.headers.Authorization = 'Bearer mock-token-mock-admin-id';
     }
-  }
-
-  if (storedUser?.id) {
-    config.headers.Authorization = `Bearer mock-token-${storedUser.id}`;
-  } else {
-    // If accessing admin routes in local development without session, default to mock-admin-id
-    config.headers.Authorization = 'Bearer mock-token-mock-admin-id';
   }
 
   return config;

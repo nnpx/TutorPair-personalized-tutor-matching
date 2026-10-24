@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { UserRole } from '@tutorpair/shared';
 
 export interface UserState {
@@ -14,27 +15,39 @@ interface AuthStore {
   clearUser: () => void;
 }
 
-const initialUserStr = localStorage.getItem('tp_mock_user');
-const initialUser: UserState | null = initialUserStr ? JSON.parse(initialUserStr) : null;
-if (initialUser) {
-  (window as any).__TP_CURRENT_USER__ = initialUser;
-}
-
-export const useAuthStore = create<AuthStore>((set) => ({
-  user: initialUser,
-  isLoading: false,
-  setUser: (user) => {
-    (window as any).__TP_CURRENT_USER__ = user;
-    if (user) {
-      localStorage.setItem('tp_mock_user', JSON.stringify(user));
-    } else {
-      localStorage.removeItem('tp_mock_user');
+/**
+ * DEVELOPMENT ONLY MOCK USER
+ * -------------------------------------------------------------
+ * When running locally without AWS Cognito configured, this default user
+ * allows immediate testing of tutor features without manual login.
+ * In production, the initial state is populated via AWS Amplify / Cognito session sync.
+ */
+const DEV_MOCK_USER: UserState | null = import.meta.env.DEV
+  ? {
+      id: 'mock-admin-id',
+      email: 'admin@tutorpair.local',
+      role: UserRole.ADMIN,
     }
-    set({ user });
-  },
-  clearUser: () => {
-    (window as any).__TP_CURRENT_USER__ = null;
-    localStorage.removeItem('tp_mock_user');
-    set({ user: null });
-  },
-}));
+  : null;
+
+/**
+ * Zustand Global Auth Store
+ * -------------------------------------------------------------
+ * - Manages the authenticated user's client-side state (id, email, role).
+ * - Uses `persist` middleware with `localStorage` so the session survives browser refreshes (F5).
+ * - Gated route guards (ProtectedRoute) and Axios interceptors read from this store.
+ */
+export const useAuthStore = create<AuthStore>()(
+  persist(
+    (set) => ({
+      // Defaults to mock admin in local dev mode; null in production
+      user: DEV_MOCK_USER,
+      isLoading: false,
+      setUser: (user) => set({ user }),
+      clearUser: () => set({ user: null }),
+    }),
+    {
+      name: 'tutorpair-auth-session', // Key in localStorage
+    }
+  )
+);
