@@ -1,4 +1,6 @@
-# API Specification — Module 4: Tutor Profile & Verification
+# API Specification
+
+# Module 4: Tutor Profile & Verification
 
 > **Base URL:** `http://localhost:4000/api` (local) | `https://api.tutorpair.com/api` (production)
 >
