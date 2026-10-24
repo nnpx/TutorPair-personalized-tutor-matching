@@ -482,58 +482,6 @@ export const AdminVerificationsPage: React.FC = () => {
                           Submitted: {new Date(tutor.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         </span>
                       </div>
-
-                      {/* Document summary flags */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          gap: '0.5rem',
-                          marginTop: '0.4rem',
-                          fontSize: '0.8125rem',
-                          flexWrap: 'wrap',
-                        }}
-                      >
-                        <span
-                          style={{
-                            padding: '0.2rem 0.6rem',
-                            borderRadius: 'var(--radius-md)',
-                            backgroundColor: tutor.documents_summary.has_cv ? '#d1fae5' : '#fee2e2',
-                            color: tutor.documents_summary.has_cv ? '#065f46' : '#991b1b',
-                            fontWeight: 700,
-                          }}
-                        >
-                          CV: {tutor.documents_summary.has_cv ? '✓ Uploaded' : '✗ Missing'}
-                        </span>
-
-                        <span
-                          style={{
-                            padding: '0.2rem 0.6rem',
-                            borderRadius: 'var(--radius-md)',
-                            backgroundColor: tutor.documents_summary.has_transcript
-                              ? '#d1fae5'
-                              : '#fee2e2',
-                            color: tutor.documents_summary.has_transcript ? '#065f46' : '#991b1b',
-                            fontWeight: 700,
-                          }}
-                        >
-                          Transcript/Degree:{' '}
-                          {tutor.documents_summary.has_transcript ? '✓ Uploaded' : '✗ Missing'}
-                        </span>
-
-                        {tutor.documents_summary.has_subject_proof && (
-                          <span
-                            style={{
-                              padding: '0.2rem 0.6rem',
-                              borderRadius: 'var(--radius-md)',
-                              backgroundColor: '#e0e7ff',
-                              color: '#3730a3',
-                              fontWeight: 700,
-                            }}
-                          >
-                            ★ Test Proof Uploaded
-                          </span>
-                        )}
-                      </div>
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
