@@ -35,6 +35,9 @@ export const App: React.FC = () => {
           <Route path="matching" element={<MatchingPage />} />
           <Route path="history" element={<MatchHistoryPage />} />
           <Route path="profile" element={<StudentProfilePage />} />
+          <Route path="subjects" element={<Navigate to="/student/matching" replace />} />
+          <Route path="sliders" element={<Navigate to="/student/profile?tab=sliders" replace />} />
+          <Route path="availability" element={<Navigate to="/student/profile?tab=availability" replace />} />
           <Route path="review/:recommendationId" element={<ReviewSubmissionPage />} />
         </Route>
       </Route>

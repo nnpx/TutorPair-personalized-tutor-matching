@@ -56,22 +56,38 @@ export const authenticate = asyncHandler(
         ? UserRole.ADMIN
         : UserRole.TUTOR;
 
-      [user] = await db
-        .insert(users)
-        .values({
-          cognito_sub: cognitoSub,
-          email: `${cognitoSub}@tutorpair.local`,
-          role: mockRole,
-        })
-        .onConflictDoNothing()
-        .returning();
+      const mockEmail =
+        typeof req.headers['x-mock-email'] === 'string' && req.headers['x-mock-email'].trim()
+          ? (req.headers['x-mock-email'] as string).trim()
+          : `${cognitoSub}@tutorpair.local`;
 
-      if (!user) {
+      // Check if user with this email already exists
+      const [existingByEmail] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, mockEmail))
+        .limit(1);
+
+      if (existingByEmail) {
+        user = existingByEmail;
+      } else {
         [user] = await db
-          .select()
-          .from(users)
-          .where(eq(users.cognito_sub, cognitoSub))
-          .limit(1);
+          .insert(users)
+          .values({
+            cognito_sub: cognitoSub,
+            email: mockEmail,
+            role: mockRole,
+          })
+          .onConflictDoNothing()
+          .returning();
+
+        if (!user) {
+          [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.cognito_sub, cognitoSub))
+            .limit(1);
+        }
       }
     }
 
