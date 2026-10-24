@@ -444,7 +444,7 @@ export const AdminVerificationsPage: React.FC = () => {
                       position: 'relative',
                     }}
                   >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                         {isFifoPending && (
                           <span
@@ -474,13 +474,123 @@ export const AdminVerificationsPage: React.FC = () => {
                         {renderStatusBadge(tutor.verification_status)}
                       </div>
 
-                      <div style={{ fontSize: '0.9375rem', color: '#4b5563', fontWeight: 500 }}>
-                        {tutor.email} •{' '}
-                        <strong style={{ color: 'var(--fg-main)' }}>{tutor.tutor_type}</strong> •{' '}
-                        {tutor.hourly_rate} THB/hr •{' '}
-                        <span style={{ color: '#6b7280', fontSize: '0.8125rem' }}>
-                          Submitted: {new Date(tutor.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                      {/* Structured Key-Value Grid matching Right Panel Style */}
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                          gap: '0.75rem 1.25rem',
+                          padding: '0.875rem 1rem',
+                          backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-bg)',
+                          borderRadius: 'var(--radius-md)',
+                          border: '1px solid var(--color-border)',
+                        }}
+                      >
+                        <div>
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              color: '#6b7280',
+                              textTransform: 'uppercase',
+                              fontWeight: 800,
+                              letterSpacing: '0.04em',
+                              display: 'block',
+                            }}
+                          >
+                            Contact Email
+                          </span>
+                          <p
+                            style={{
+                              fontWeight: 700,
+                              fontSize: '0.875rem',
+                              color: 'var(--fg-main)',
+                              marginTop: '0.15rem',
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {tutor.email}
+                          </p>
+                        </div>
+
+                        <div>
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              color: '#6b7280',
+                              textTransform: 'uppercase',
+                              fontWeight: 800,
+                              letterSpacing: '0.04em',
+                              display: 'block',
+                            }}
+                          >
+                            Tutor Type
+                          </span>
+                          <p
+                            style={{
+                              fontWeight: 700,
+                              fontSize: '0.875rem',
+                              color: 'var(--fg-main)',
+                              marginTop: '0.15rem',
+                            }}
+                          >
+                            {tutor.tutor_type}
+                          </p>
+                        </div>
+
+                        <div>
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              color: '#6b7280',
+                              textTransform: 'uppercase',
+                              fontWeight: 800,
+                              letterSpacing: '0.04em',
+                              display: 'block',
+                            }}
+                          >
+                            Hourly Rate
+                          </span>
+                          <p
+                            style={{
+                              fontWeight: 700,
+                              fontSize: '0.875rem',
+                              color: 'var(--fg-main)',
+                              marginTop: '0.15rem',
+                            }}
+                          >
+                            {tutor.hourly_rate} THB / hr
+                          </p>
+                        </div>
+
+                        <div>
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              color: '#6b7280',
+                              textTransform: 'uppercase',
+                              fontWeight: 800,
+                              letterSpacing: '0.04em',
+                              display: 'block',
+                            }}
+                          >
+                            Submitted
+                          </span>
+                          <p
+                            style={{
+                              fontWeight: 700,
+                              fontSize: '0.875rem',
+                              color: 'var(--fg-main)',
+                              marginTop: '0.15rem',
+                            }}
+                          >
+                            {new Date(tutor.created_at).toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            })}
+                          </p>
+                        </div>
                       </div>
                     </div>
 
