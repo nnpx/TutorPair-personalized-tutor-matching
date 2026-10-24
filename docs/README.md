@@ -24,7 +24,7 @@ Cloud deployment and availability documents are grouped under [clouds/](./clouds
 | [S3_DOCUMENTS.md](./S3_DOCUMENTS.md) | Backend + Frontend devs | Presigned URL upload and view flows with sequence diagrams |
 | [NOTIFICATIONS.md](./NOTIFICATIONS.md) | Backend devs | In-app notification + SES email async polling architecture |
 | [DATABASE.md](./DATABASE.md) | Backend devs | Drizzle ORM conventions, migration workflow, schema organization |
-| [API_SPEC.md](./API_SPEC.md) | Backend + Frontend devs & AI Agents | REST API spec for the **Tutor Profile & Verification** module (personal info, subjects, availability, verification status) |
+| [API_SPEC.md](./API_SPEC.md) | Backend + Frontend devs & AI Agents | API spec for all modules |
 | [AWS_SETUP_PLAN.md](./clouds/AWS_SETUP_PLAN.md) | Everyone deploying the pilot | Team-aligned AWS deployment plan, cost profile, readiness gaps, and verification |
 | [AWS_ALIGNMENT_REVIEW.md](./clouds/AWS_ALIGNMENT_REVIEW.md) | Everyone | Comparison with the agreed component list and current implementation evidence |
 
