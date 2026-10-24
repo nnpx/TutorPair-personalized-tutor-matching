@@ -28,6 +28,7 @@ export const AdminVerificationsPage: React.FC = () => {
     VerificationStatus.PENDING
   );
   const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
+  const [isDetailManuallyClosed, setIsDetailManuallyClosed] = useState<boolean>(false);
   const [rejectingTutorId, setRejectingTutorId] = useState<string | null>(null);
   const [approvingTutor, setApprovingTutor] = useState<{ id: string; name: string } | null>(null);
   const [rejectionReason, setRejectionReason] = useState<string>('');
@@ -77,15 +78,15 @@ export const AdminVerificationsPage: React.FC = () => {
     return counts;
   }, [allTutors]);
 
-  // FIFO auto-selection: When in PENDING queue and no tutor is actively selected,
+  // FIFO auto-selection: When in PENDING queue and detail hasn't been manually closed,
   // automatically select the oldest pending tutor (#1 in line) to review first.
   useEffect(() => {
     if (selectedStatus === VerificationStatus.PENDING && tutors.length > 0) {
-      if (!selectedTutorId || !tutors.some((t) => t.user_id === selectedTutorId)) {
+      if (!isDetailManuallyClosed && (!selectedTutorId || !tutors.some((t) => t.user_id === selectedTutorId))) {
         setSelectedTutorId(tutors[0].user_id);
       }
     }
-  }, [selectedStatus, tutors, selectedTutorId]);
+  }, [selectedStatus, tutors, selectedTutorId, isDetailManuallyClosed]);
 
   // 2. Fetch Selected Tutor Details
   const { data: tutorDetail, isLoading: isDetailLoading } = useQuery<AdminTutorDetailDto>({
@@ -292,6 +293,7 @@ export const AdminVerificationsPage: React.FC = () => {
                 onClick={() => {
                   setSelectedStatus(tab.value as any);
                   setSelectedTutorId(null);
+                  setIsDetailManuallyClosed(false);
                 }}
                 style={{
                   padding: '0.625rem 1.125rem',
@@ -420,7 +422,10 @@ export const AdminVerificationsPage: React.FC = () => {
                 return (
                   <div
                     key={tutor.user_id}
-                    onClick={() => setSelectedTutorId(tutor.user_id)}
+                    onClick={() => {
+                      setSelectedTutorId(tutor.user_id);
+                      setIsDetailManuallyClosed(false);
+                    }}
                     style={{
                       border: isSelected
                         ? '3px solid var(--color-primary)'
@@ -606,7 +611,10 @@ export const AdminVerificationsPage: React.FC = () => {
                   </div>
 
                   <button
-                    onClick={() => setSelectedTutorId(null)}
+                    onClick={() => {
+                      setSelectedTutorId(null);
+                      setIsDetailManuallyClosed(true);
+                    }}
                     className="flat-btn flat-btn-secondary flat-btn-sm"
                     style={{ fontWeight: 700 }}
                   >
