@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../services/api-client';
 import { Spinner } from '../../components/ui/Feedback';
+import { Modal } from '../../components/ui/Modal';
 import {
   VerificationStatus,
   AdminTutorListItemDto,
@@ -1107,146 +1108,104 @@ export const AdminVerificationsPage: React.FC = () => {
       </div>
 
       {/* Flat Design Approval Confirmation Modal */}
-      {approvingTutor && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="approve-modal-title"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            backgroundColor: 'rgba(17, 24, 39, 0.6)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 999,
-            padding: '1.5rem',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !verifyMutation.isPending) {
-              setApprovingTutor(null);
-            }
-          }}
-        >
+      <Modal
+        isOpen={!!approvingTutor}
+        onClose={() => {
+          if (!verifyMutation.isPending) setApprovingTutor(null);
+        }}
+        title="Approve Tutor Application"
+        subtitle="Action cannot be undone automatically"
+        variant="secondary"
+        icon={
           <div
-            className="flat-card"
             style={{
-              maxWidth: '520px',
-              width: '100%',
-              backgroundColor: 'var(--color-white)',
-              border: '3px solid var(--color-secondary)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '2rem',
+              width: '48px',
+              height: '48px',
+              borderRadius: 'var(--radius-md)',
+              backgroundColor: 'rgba(16, 185, 129, 0.12)',
+              color: 'var(--color-secondary)',
               display: 'flex',
-              flexDirection: 'column',
-              gap: '1.25rem',
-              boxShadow: 'none',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-              <div
-                style={{
-                  width: '48px',
-                  height: '48px',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'rgba(16, 185, 129, 0.12)',
-                  color: 'var(--color-secondary)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}
-              >
-                <CheckCircle size={28} strokeWidth={2.5} />
-              </div>
-              <div>
-                <h3
-                  id="approve-modal-title"
-                  style={{
-                    fontSize: '1.375rem',
-                    fontWeight: 800,
-                    color: 'var(--color-text-main)',
-                    lineHeight: 1.2,
-                  }}
-                >
-                  Approve Tutor Application
-                </h3>
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                  Action cannot be undone automatically
-                </p>
-              </div>
-            </div>
-
-            <div
-              style={{
-                backgroundColor: 'var(--color-bg)',
-                borderRadius: 'var(--radius-md)',
-                padding: '1rem 1.25rem',
-                border: '1px solid var(--color-border)',
-                fontSize: '0.9375rem',
-                color: 'var(--color-text-main)',
-                lineHeight: 1.6,
-              }}
+            <CheckCircle size={28} strokeWidth={2.5} />
+          </div>
+        }
+        footerActions={
+          <>
+            <button
+              type="button"
+              disabled={verifyMutation.isPending}
+              className="flat-btn flat-btn-secondary"
+              onClick={() => setApprovingTutor(null)}
+              style={{ minWidth: '100px' }}
             >
-              Are you sure you want to approve{' '}
-              <strong style={{ fontWeight: 800, color: 'var(--color-text-main)' }}>
-                {approvingTutor.name}
-              </strong>
-              ?
-              <ul
-                style={{
-                  margin: '0.75rem 0 0 1.25rem',
-                  padding: 0,
-                  fontSize: '0.875rem',
-                  color: '#4b5563',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.375rem',
-                }}
-              >
-                <li>Profile will be unlocked in the student matchmaking pool.</li>
-                <li>An automated verification confirmation email will be sent.</li>
-              </ul>
-            </div>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.5rem' }}>
-              <button
-                type="button"
-                disabled={verifyMutation.isPending}
-                className="flat-btn flat-btn-secondary"
-                onClick={() => setApprovingTutor(null)}
-                style={{ minWidth: '100px' }}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                disabled={verifyMutation.isPending}
-                onClick={() =>
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={verifyMutation.isPending}
+              onClick={() => {
+                if (approvingTutor) {
                   verifyMutation.mutate({
                     tutorId: approvingTutor.id,
                     status: VerificationStatus.APPROVED,
-                  })
+                  });
                 }
-                className="flat-btn"
-                style={{
-                  backgroundColor: 'var(--color-secondary)',
-                  color: 'var(--color-white)',
-                  fontWeight: 800,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  minWidth: '160px',
-                  justifyContent: 'center',
-                }}
-              >
-                <CheckCircle size={18} strokeWidth={2.5} />
-                {verifyMutation.isPending ? 'Approving...' : 'Confirm Approval'}
-              </button>
-            </div>
+              }}
+              className="flat-btn"
+              style={{
+                backgroundColor: 'var(--color-secondary)',
+                color: 'var(--color-white)',
+                fontWeight: 800,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                minWidth: '160px',
+                justifyContent: 'center',
+              }}
+            >
+              <CheckCircle size={18} strokeWidth={2.5} />
+              {verifyMutation.isPending ? 'Approving...' : 'Confirm Approval'}
+            </button>
+          </>
+        }
+      >
+        {approvingTutor && (
+          <div
+            style={{
+              backgroundColor: 'var(--color-bg)',
+              borderRadius: 'var(--radius-md)',
+              padding: '1rem 1.25rem',
+              border: '1px solid var(--color-border)',
+              fontSize: '0.9375rem',
+              color: 'var(--color-text-main)',
+              lineHeight: 1.6,
+            }}
+          >
+            Are you sure you want to approve{' '}
+            <strong style={{ fontWeight: 800, color: 'var(--color-text-main)' }}>
+              {approvingTutor.name}
+            </strong>
+            ?
+            <ul
+              style={{
+                margin: '0.75rem 0 0 1.25rem',
+                padding: 0,
+                fontSize: '0.875rem',
+                color: '#4b5563',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.375rem',
+              }}
+            >
+              <li>Profile will be unlocked in the student matchmaking pool.</li>
+              <li>An automated verification confirmation email will be sent.</li>
+            </ul>
           </div>
-        </div>
-      )}
+        )}
+      </Modal>
     </div>
   );
 };
