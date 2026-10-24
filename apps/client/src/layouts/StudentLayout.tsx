@@ -1,11 +1,25 @@
 import React from 'react';
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
+import { queryClient } from '../services/query-client';
 import { Sparkles, History, User, LogOut } from 'lucide-react';
 
 export const StudentLayout: React.FC = () => {
   const { user, clearUser } = useAuthStore();
   const location = useLocation();
+
+  const handleLogout = () => {
+    queryClient.clear();
+    queryClient.removeQueries();
+    try {
+      localStorage.removeItem('tutorpair_dev_student_profile');
+      localStorage.removeItem('tutorpair_dev_student_availability');
+      localStorage.removeItem('tutorpair_dev_student_subjects');
+    } catch {
+      // ignore
+    }
+    clearUser();
+  };
 
   const navItems = [
     { label: 'Find Tutors', path: '/student/matching', icon: Sparkles },
@@ -99,7 +113,7 @@ export const StudentLayout: React.FC = () => {
               {user?.email}
             </span>
             <button
-              onClick={clearUser}
+              onClick={handleLogout}
               className="flat-btn flat-btn-secondary flat-btn-sm"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
             >

@@ -15,13 +15,28 @@ import { reviewsRouter } from './modules/reviews/reviews.routes.js';
 export function createApp(): Express {
   const app = express();
 
+  // Development Request Logger
+  if (env.NODE_ENV === 'development') {
+    app.use((req, _res, next) => {
+      console.log(`[HTTP] ${req.method} ${req.url}`);
+      next();
+    });
+  }
+
   // CORS Configuration
   app.use(
     cors({
-      origin: env.ALLOWED_ORIGIN,
+      origin: (origin, callback) => {
+        // Allow same-origin, dev tools, or allowed origins
+        if (!origin || env.NODE_ENV === 'development' || origin === env.ALLOWED_ORIGIN) {
+          callback(null, true);
+        } else {
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Mock-Email', 'x-mock-email'],
     })
   );
 
