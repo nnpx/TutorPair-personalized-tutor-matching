@@ -1,47 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import { Card, PageHeader, Alert, Button } from '../../components/ui';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Card, Button, Alert, Modal } from '../../components/ui';
 import { InputField, SelectField } from '../../components/forms';
 import { useAuthStore } from '../../store/auth.store';
 import {
   useStudentProfile,
-  useCreateStudentProfile,
   useUpdateStudentProfile,
+  useStudentAvailability,
+  useSetStudentAvailability,
 } from './hooks/useStudents';
 import { StudentSliders } from './components/StudentSliders';
-import { TutorTypePref } from '@tutorpair/shared';
+import { StudentAvailabilityGrid } from './components/StudentAvailabilityGrid';
+import { TutorTypePref, type StudentAvailabilitySlotDto } from '@tutorpair/shared';
 import {
   User,
   Sliders,
-  Phone,
-  MessageSquare,
-  Lock,
+  Calendar,
+  Save,
   CheckCircle2,
   ArrowLeft,
-  Check,
-  Home,
   AlertTriangle,
-  Trash2,
-  X,
 } from 'lucide-react';
-
-interface SavedStep1State {
-  firstName: string;
-  lastName: string;
-  phoneNumber: string;
-  lineId: string;
-  gradeLevel: string;
-  tutorTypePref: TutorTypePref;
-}
-
-interface SavedStep2State {
-  styleProfile: number[];
-  personalityProfile: number[];
-}
-
-type NavigationTarget =
-  | { type: 'route'; path: string }
-  | { type: 'tab'; tab: StudentTabKey };
 
 const GRADE_OPTIONS = [
   { value: '', label: 'Select Grade Level' },
@@ -66,56 +45,17 @@ const TUTOR_TYPE_PREF_OPTIONS = [
   { value: TutorTypePref.INSTITUTIONAL, label: 'School / Institution Teacher' },
 ];
 
-type StudentTabKey = 'profile' | 'sliders';
+type SettingsTab = 'profile' | 'sliders' | 'availability';
 
 export const StudentProfilePage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { data: profile, isLoading } = useStudentProfile();
-
-  const createProfileMutation = useCreateStudentProfile();
   const updateProfileMutation = useUpdateStudentProfile();
+  const { data: serverAvailability, isLoading: isAvailabilityLoading } = useStudentAvailability();
+  const setAvailabilityMutation = useSetStudentAvailability();
 
-  const [searchParams, setSearchParams] = useSearchParams();
-  const requestedTab = (searchParams.get('tab') as StudentTabKey) || 'profile';
-  const returnTo = searchParams.get('returnTo');
-
-  // Local storage helpers for persistent step progress
-  const stepStorageKey = (step: number) => `tutorpair_student_step_${step}_${user?.id || 'guest'}`;
-
-  // Local step completion flags with localStorage persistence
-  const [step1Saved, setStep1Saved] = useState<boolean>(() => {
-    return localStorage.getItem(`tutorpair_student_step_1_${user?.id || 'guest'}`) === 'true';
-  });
-  const [step2Saved, setStep2Saved] = useState<boolean>(() => {
-    return localStorage.getItem(`tutorpair_student_step_2_${user?.id || 'guest'}`) === 'true';
-  });
-
-  // Step 1: Personal Details, Grade Level & Required Contact Channels
-  const isStep1Done =
-    step1Saved ||
-    Boolean(
-      profile &&
-      profile.first_name &&
-      profile.last_name &&
-      profile.phone_number &&
-      profile.grade_level
-    );
-
-  // Step 2: Learning & Personality Sliders (only completed when explicitly saved or confirmed)
-  const isStep2Done =
-    isStep1Done &&
-    Boolean(
-      step2Saved ||
-      (localStorage.getItem(stepStorageKey(2)) === 'true')
-    );
-
-  // Maximum step reachable in 2-step gated progression (1 -> 2)
-  const maxReachableStep: number = isStep1Done ? 2 : 1;
-
-  const currentStepNum: number = requestedTab === 'sliders' ? 2 : 1;
-
-  const activeTab: StudentTabKey = requestedTab === 'sliders' && isStep1Done ? 'sliders' : 'profile';
+  const [activeTab, setActiveTab] = useState<SettingsTab>('profile');
 
   // Form field states
   const [firstName, setFirstName] = useState('');
@@ -126,203 +66,192 @@ export const StudentProfilePage: React.FC = () => {
   const [tutorTypePref, setTutorTypePref] = useState<TutorTypePref>(TutorTypePref.ANY);
   const [budgetMax, setBudgetMax] = useState<number | ''>(500);
 
-  // 1-5 Sliders
+  // 1–5 Sliders
   const [styleProfile, setStyleProfile] = useState<number[]>([3, 3, 3, 3, 3]);
   const [personalityProfile, setPersonalityProfile] = useState<number[]>([3, 3, 3, 3]);
 
-  // Baseline saved states for dirty tracking
-  const [savedStep1, setSavedStep1] = useState<SavedStep1State>({
-    firstName: '',
-    lastName: '',
-    phoneNumber: '',
-    lineId: '',
-    gradeLevel: '',
-    tutorTypePref: TutorTypePref.ANY,
-  });
-
-  const [savedStep2, setSavedStep2] = useState<SavedStep2State>({
-    styleProfile: [3, 3, 3, 3, 3],
-    personalityProfile: [3, 3, 3, 3],
-  });
-
-  // Modal & Navigation interruption states
-  const [pendingNav, setPendingNav] = useState<NavigationTarget | null>(null);
-  const [showUnsavedModal, setShowUnsavedModal] = useState<boolean>(false);
-  const [isModalSaving, setIsModalSaving] = useState<boolean>(false);
-
-  // Status feedback
+  // Feedback states
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState<boolean>(false);
 
-  // Strict step-skipping restriction guard
-  useEffect(() => {
-    if (!isLoading) {
-      if (currentStepNum > maxReachableStep) {
-        setSearchParams({ tab: 'profile', ...(returnTo ? { returnTo } : {}) });
-        setErrorMessage('Action restricted: You must fill in and save your personal details and contact channels in Step 1 first.');
-      }
-    }
-  }, [requestedTab, currentStepNum, maxReachableStep, isLoading, setSearchParams, returnTo]);
-
-  // Sync step completion flags whenever user changes or profile loads
-  useEffect(() => {
-    const s1 = localStorage.getItem(stepStorageKey(1));
-    const s2 = localStorage.getItem(stepStorageKey(2));
-
-    setStep1Saved(s1 === 'true');
-    if (s2 === 'true') {
-      setStep2Saved(true);
-    } else if (s2 === 'false') {
-      setStep2Saved(false);
-    } else if (profile && s1 === null && s2 === null) {
-      // Returning user with established profile in DB from previous session
-      setStep1Saved(true);
-      setStep2Saved(true);
-      localStorage.setItem(stepStorageKey(1), 'true');
-      localStorage.setItem(stepStorageKey(2), 'true');
-    }
-  }, [user?.id, profile]);
-
-  // Populate from existing profile, or clear for first-time user
+  // Sync profile data on initial fetch
   useEffect(() => {
     if (profile) {
-      const s1: SavedStep1State = {
-        firstName: profile.first_name || '',
-        lastName: profile.last_name || '',
-        phoneNumber: profile.phone_number || '',
-        lineId: profile.line_id || '',
-        gradeLevel: profile.grade_level || '',
-        tutorTypePref: (profile.tutor_type_pref as TutorTypePref) || TutorTypePref.ANY,
-      };
-      const s2: SavedStep2State = {
-        styleProfile: profile.style_profile && profile.style_profile.length === 5 ? [...profile.style_profile] : [3, 3, 3, 3, 3],
-        personalityProfile: profile.personality_profile && profile.personality_profile.length === 4 ? [...profile.personality_profile] : [3, 3, 3, 3],
-      };
-
-      setFirstName(s1.firstName);
-      setLastName(s1.lastName);
-      setPhoneNumber(s1.phoneNumber);
-      setLineId(s1.lineId);
-      setGradeLevel(s1.gradeLevel);
-      setTutorTypePref(s1.tutorTypePref);
-      setBudgetMax(profile.budget_max || 500);
-
-      setStyleProfile(s2.styleProfile);
-      setPersonalityProfile(s2.personalityProfile);
-
-      setSavedStep1(s1);
-      setSavedStep2(s2);
-    } else {
-      // First-time user: reset fields to blank defaults
-      setFirstName('');
-      setLastName('');
-      setPhoneNumber('');
-      setLineId('');
-      setGradeLevel('');
-      setTutorTypePref(TutorTypePref.ANY);
-      setBudgetMax(500);
-      setStyleProfile([3, 3, 3, 3, 3]);
-      setPersonalityProfile([3, 3, 3, 3]);
-
-      setSavedStep1({
-        firstName: '',
-        lastName: '',
-        phoneNumber: '',
-        lineId: '',
-        gradeLevel: '',
-        tutorTypePref: TutorTypePref.ANY,
-      });
-      setSavedStep2({
-        styleProfile: [3, 3, 3, 3, 3],
-        personalityProfile: [3, 3, 3, 3],
-      });
+      if (profile.first_name) setFirstName(profile.first_name);
+      if (profile.last_name) setLastName(profile.last_name);
+      if (profile.phone_number) setPhoneNumber(profile.phone_number);
+      if (profile.line_id) setLineId(profile.line_id);
+      if (profile.grade_level) setGradeLevel(profile.grade_level);
+      if (profile.tutor_type_pref) setTutorTypePref(profile.tutor_type_pref as TutorTypePref);
+      if (profile.budget_max) setBudgetMax(Number(profile.budget_max));
+      if (profile.style_profile && profile.style_profile.length === 5) {
+        setStyleProfile([...profile.style_profile]);
+      }
+      if (profile.personality_profile && profile.personality_profile.length === 4) {
+        setPersonalityProfile([...profile.personality_profile]);
+      }
     }
   }, [profile]);
 
-  // Dirty detection per step
-  const isStep1Dirty =
-    firstName.trim() !== savedStep1.firstName.trim() ||
-    lastName.trim() !== savedStep1.lastName.trim() ||
-    phoneNumber.trim() !== savedStep1.phoneNumber.trim() ||
-    lineId.trim() !== savedStep1.lineId.trim() ||
-    gradeLevel !== savedStep1.gradeLevel ||
-    tutorTypePref !== savedStep1.tutorTypePref;
+  // Availability schedule slots state
+  const [availabilitySlots, setAvailabilitySlots] = useState<StudentAvailabilitySlotDto[]>([]);
+  const hasInitializedAvailability = useRef(false);
 
-  const isStep2Dirty =
-    styleProfile.some((val, idx) => val !== (savedStep2.styleProfile[idx] ?? 3)) ||
-    personalityProfile.some((val, idx) => val !== (savedStep2.personalityProfile[idx] ?? 3));
-
-  // Browser beforeunload protection if dirty
   useEffect(() => {
-    const isCurrentStepDirty = activeTab === 'profile' ? isStep1Dirty : isStep2Dirty;
+    if (serverAvailability && !hasInitializedAvailability.current) {
+      setAvailabilitySlots(
+        serverAvailability.map((s) => ({
+          day_of_week: s.day_of_week,
+          start_time: s.start_time.length > 5 ? s.start_time.slice(0, 5) : s.start_time,
+          end_time: s.end_time.length > 5 ? s.end_time.slice(0, 5) : s.end_time,
+        }))
+      );
+      hasInitializedAvailability.current = true;
+    }
+  }, [serverAvailability]);
+
+  // Unsaved changes detection
+  const isPersonalDirty = Boolean(
+    profile && (
+      firstName.trim() !== (profile.first_name || '').trim() ||
+      lastName.trim() !== (profile.last_name || '').trim() ||
+      phoneNumber.trim() !== (profile.phone_number || '').trim() ||
+      (lineId.trim() || '') !== (profile.line_id || '').trim() ||
+      gradeLevel !== (profile.grade_level || '') ||
+      tutorTypePref !== (profile.tutor_type_pref || TutorTypePref.ANY) ||
+      Number(budgetMax) !== Number(profile.budget_max || 500)
+    )
+  );
+
+  const isSlidersDirty = Boolean(
+    profile && (
+      (profile.style_profile && JSON.stringify(styleProfile) !== JSON.stringify(profile.style_profile)) ||
+      (profile.personality_profile && JSON.stringify(personalityProfile) !== JSON.stringify(profile.personality_profile))
+    )
+  );
+
+  const isAvailabilityDirty = useMemo(() => {
+    if (!serverAvailability) return false;
+    const normalize = (slots: StudentAvailabilitySlotDto[]) =>
+      [...slots]
+        .map((s) => ({
+          day_of_week: s.day_of_week,
+          start_time: s.start_time.length > 5 ? s.start_time.slice(0, 5) : s.start_time,
+          end_time: s.end_time.length > 5 ? s.end_time.slice(0, 5) : s.end_time,
+        }))
+        .sort(
+          (a, b) =>
+            a.day_of_week.localeCompare(b.day_of_week) ||
+            a.start_time.localeCompare(b.start_time) ||
+            a.end_time.localeCompare(b.end_time)
+        );
+
+    return JSON.stringify(normalize(availabilitySlots)) !== JSON.stringify(normalize(serverAvailability));
+  }, [availabilitySlots, serverAvailability]);
+
+  const isCurrentTabDirty =
+    (activeTab === 'profile' && isPersonalDirty) ||
+    (activeTab === 'sliders' && isSlidersDirty) ||
+    (activeTab === 'availability' && isAvailabilityDirty);
+
+  // Modal state for unsaved changes warning (Request 2)
+  const [isUnsavedModalOpen, setIsUnsavedModalOpen] = useState(false);
+  const [pendingTarget, setPendingTarget] = useState<SettingsTab | 'hub' | null>(null);
+
+  // Revert form state back to database profile values
+  const resetTabState = (tab: SettingsTab) => {
+    if (tab === 'profile') {
+      if (!profile) return;
+      setFirstName(profile.first_name || '');
+      setLastName(profile.last_name || '');
+      setPhoneNumber(profile.phone_number || '');
+      setLineId(profile.line_id || '');
+      setGradeLevel(profile.grade_level || '');
+      setTutorTypePref((profile.tutor_type_pref as TutorTypePref) || TutorTypePref.ANY);
+      setBudgetMax(profile.budget_max ? Number(profile.budget_max) : 500);
+    } else if (tab === 'sliders') {
+      if (!profile) return;
+      if (profile.style_profile && profile.style_profile.length === 5) {
+        setStyleProfile([...profile.style_profile]);
+      }
+      if (profile.personality_profile && profile.personality_profile.length === 4) {
+        setPersonalityProfile([...profile.personality_profile]);
+      }
+    } else if (tab === 'availability') {
+      if (serverAvailability) {
+        setAvailabilitySlots(
+          serverAvailability.map((s) => ({
+            day_of_week: s.day_of_week,
+            start_time: s.start_time.length > 5 ? s.start_time.slice(0, 5) : s.start_time,
+            end_time: s.end_time.length > 5 ? s.end_time.slice(0, 5) : s.end_time,
+          }))
+        );
+      }
+    }
+  };
+
+  // Intercept tab click if unsaved changes exist
+  const handleTabClick = (targetTab: SettingsTab) => {
+    if (targetTab === activeTab) return;
+    if (isCurrentTabDirty) {
+      setPendingTarget(targetTab);
+      setIsUnsavedModalOpen(true);
+      return;
+    }
+    setActiveTab(targetTab);
+    setErrorMessage(null);
+    setSuccessMessage(null);
+  };
+
+  // Intercept Option 1 "Back to Matching Hub" button if unsaved changes exist
+  const handleBackToHub = (e: React.MouseEvent) => {
+    if (isCurrentTabDirty || isPersonalDirty || isSlidersDirty || isAvailabilityDirty) {
+      e.preventDefault();
+      setPendingTarget('hub');
+      setIsUnsavedModalOpen(true);
+    }
+  };
+
+  // Browser beforeunload prompt if user tries to close tab or reload with unsaved changes
+  useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (isCurrentStepDirty) {
+      if (isPersonalDirty || isSlidersDirty || isAvailabilityDirty) {
         e.preventDefault();
         e.returnValue = '';
       }
     };
-
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [activeTab, isStep1Dirty, isStep2Dirty]);
+  }, [isPersonalDirty, isSlidersDirty, isAvailabilityDirty]);
 
-  const handleStyleChange = (index: number, val: number) => {
-    const updated = [...styleProfile];
-    updated[index] = val;
-    setStyleProfile(updated);
-    setSuccessMessage(null);
-  };
-
-  const handlePersonalityChange = (index: number, val: number) => {
-    const updated = [...personalityProfile];
-    updated[index] = val;
-    setPersonalityProfile(updated);
-    setSuccessMessage(null);
-  };
-
-  // Step 1: Save Personal Info
-  const handleSaveStep1 = async (e?: React.FormEvent, proceedToNext: boolean = true): Promise<boolean> => {
-    if (e) e.preventDefault();
+  // Discard changes & proceed
+  const handleDiscardChanges = () => {
+    resetTabState(activeTab);
+    setIsUnsavedModalOpen(false);
     setErrorMessage(null);
     setSuccessMessage(null);
 
-    if (!firstName.trim()) {
-      setErrorMessage('First name is required. Please enter your first name.');
-      return false;
+    if (pendingTarget === 'hub') {
+      navigate('/student/matching');
+    } else if (pendingTarget) {
+      setActiveTab(pendingTarget);
     }
-    if (!lastName.trim()) {
-      setErrorMessage('Last name is required. Please enter your last name.');
-      return false;
-    }
-    if (!phoneNumber.trim()) {
-      setErrorMessage('Phone number is required. Please enter your contact phone number.');
-      return false;
-    }
-    if (!gradeLevel) {
-      setErrorMessage('Grade level is required. Please select your current grade level (G1–G12).');
-      return false;
-    }
+    setPendingTarget(null);
+  };
 
+  // Save changes & proceed
+  const handleSaveAndProceed = async () => {
+    setIsSaving(true);
+    setErrorMessage(null);
     try {
-      if (!profile) {
-        // Initial profile creation
-        await createProfileMutation.mutateAsync({
-          first_name: firstName.trim(),
-          last_name: lastName.trim(),
-          phone_number: phoneNumber.trim(),
-          line_id: lineId.trim() || undefined,
-          grade_level: gradeLevel,
-          tutor_type_pref: tutorTypePref,
-          style_profile: styleProfile,
-          personality_profile: personalityProfile,
-          budget_max: Number(budgetMax) > 0 ? Number(budgetMax) : 500,
-        });
-
-        // For first-time user: Step 1 is done, but Step 2 sliders are explicitly not saved yet
-        setStep2Saved(false);
-        localStorage.setItem(stepStorageKey(2), 'false');
-      } else {
-        // Update existing profile
+      if (activeTab === 'profile') {
+        if (!firstName.trim() || !lastName.trim() || !phoneNumber.trim() || !gradeLevel) {
+          setErrorMessage('Please fill in all required fields before saving.');
+          setIsUnsavedModalOpen(false);
+          setIsSaving(false);
+          return;
+        }
         await updateProfileMutation.mutateAsync({
           first_name: firstName.trim(),
           last_name: lastName.trim(),
@@ -330,833 +259,593 @@ export const StudentProfilePage: React.FC = () => {
           line_id: lineId.trim() || null,
           grade_level: gradeLevel,
           tutor_type_pref: tutorTypePref,
+          budget_max: Number(budgetMax),
+        });
+      } else if (activeTab === 'sliders') {
+        await updateProfileMutation.mutateAsync({
+          style_profile: styleProfile,
+          personality_profile: personalityProfile,
+        });
+      } else if (activeTab === 'availability') {
+        if (availabilitySlots.length === 0) {
+          setErrorMessage('Please add at least one available weekly time slot before saving.');
+          setIsUnsavedModalOpen(false);
+          setIsSaving(false);
+          return;
+        }
+        await setAvailabilityMutation.mutateAsync({
+          availability: availabilitySlots.map((s) => ({
+            day_of_week: s.day_of_week,
+            start_time: s.start_time,
+            end_time: s.end_time,
+          })),
         });
       }
 
-      setStep1Saved(true);
-      localStorage.setItem(stepStorageKey(1), 'true');
+      setIsUnsavedModalOpen(false);
+      setSuccessMessage(
+        activeTab === 'profile'
+          ? 'Profile updated successfully.'
+          : activeTab === 'sliders'
+          ? 'Learning style preferences saved successfully.'
+          : 'Weekly study schedule saved successfully.'
+      );
 
-      setSavedStep1({
-        firstName: firstName.trim(),
-        lastName: lastName.trim(),
-        phoneNumber: phoneNumber.trim(),
-        lineId: lineId.trim(),
-        gradeLevel,
-        tutorTypePref,
-      });
-
-      if (proceedToNext) {
-        setSuccessMessage('Step 1 complete! Personal details and contact channels saved. Now configure your learning sliders.');
-        setSearchParams({ tab: 'sliders', ...(returnTo ? { returnTo } : {}) });
-      } else {
-        setSuccessMessage('Personal details and contact channels saved successfully.');
+      if (pendingTarget === 'hub') {
+        navigate('/student/matching');
+      } else if (pendingTarget) {
+        setActiveTab(pendingTarget);
       }
-      return true;
+      setPendingTarget(null);
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to save student personal info.');
-      return false;
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to save changes.');
+      setIsUnsavedModalOpen(false);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Step 2: Save Learning Sliders & Proceed to Find Tutors
-  const handleSaveStep2 = async (e?: React.FormEvent, returnHome: boolean = true): Promise<boolean> => {
-    if (e) e.preventDefault();
+  const handleSaveProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setSuccessMessage(null);
+
+    if (!firstName.trim()) {
+      setErrorMessage('First name is required.');
+      return;
+    }
+    if (!lastName.trim()) {
+      setErrorMessage('Last name is required.');
+      return;
+    }
+    if (!phoneNumber.trim()) {
+      setErrorMessage('Phone number is required.');
+      return;
+    }
+    if (!gradeLevel) {
+      setErrorMessage('Please select your grade level.');
+      return;
+    }
+    if (!budgetMax || Number(budgetMax) <= 0) {
+      setErrorMessage('Please enter a valid hourly budget.');
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateProfileMutation.mutateAsync({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        phone_number: phoneNumber.trim(),
+        line_id: lineId.trim() || null,
+        grade_level: gradeLevel,
+        tutor_type_pref: tutorTypePref,
+        budget_max: Number(budgetMax),
+      });
+      setSuccessMessage('Profile and contact details saved successfully.');
+    } catch (err: unknown) {
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update profile.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveSliders = async (e: React.FormEvent) => {
+    e.preventDefault();
     setErrorMessage(null);
     setSuccessMessage(null);
 
     if (styleProfile.length !== 5) {
       setErrorMessage('Please answer all 5 learning style questions.');
-      return false;
+      return;
     }
     if (personalityProfile.length !== 4) {
-      setErrorMessage('Please answer all 4 personality preference questions.');
-      return false;
+      setErrorMessage('Please answer all 4 personality questions.');
+      return;
     }
 
+    setIsSaving(true);
     try {
       await updateProfileMutation.mutateAsync({
         style_profile: styleProfile,
         personality_profile: personalityProfile,
       });
-
-      setStep2Saved(true);
-      localStorage.setItem(stepStorageKey(2), 'true');
-
-      setSavedStep2({
-        styleProfile: [...styleProfile],
-        personalityProfile: [...personalityProfile],
-      });
-
-      if (returnHome) {
-        setSuccessMessage('Step 2 complete! Learning & personality sliders saved.');
-        navigate(returnTo || '/student/matching');
-      } else {
-        setSuccessMessage('Learning & personality sliders saved successfully.');
-      }
-      return true;
+      setSuccessMessage('Learning style preferences saved successfully.');
     } catch (err: unknown) {
-      setErrorMessage(err instanceof Error ? err.message : 'Failed to save learning sliders.');
-      return false;
-    }
-  };
-
-  // Safe navigation execution
-  const executeNavigation = (target: NavigationTarget) => {
-    if (target.type === 'route') {
-      navigate(target.path);
-    } else if (target.type === 'tab') {
-      const targetStep = target.tab === 'sliders' ? 2 : 1;
-      if (targetStep > maxReachableStep) {
-        if (maxReachableStep === 1) {
-          setErrorMessage('Action restricted: You must fill in and save your personal details and contact info in Step 1 first.');
-        }
-        return;
-      }
-      setSearchParams({ tab: target.tab, ...(returnTo ? { returnTo } : {}) });
-    }
-  };
-
-  // Intercept navigation requests to protect unsaved work
-  const requestNavigation = (target: NavigationTarget) => {
-    if (target.type === 'tab' && target.tab === activeTab) {
-      return;
-    }
-
-    const isCurrentStepDirty = activeTab === 'profile' ? isStep1Dirty : isStep2Dirty;
-
-    if (isCurrentStepDirty) {
-      setPendingNav(target);
-      setShowUnsavedModal(true);
-    } else {
-      executeNavigation(target);
-    }
-  };
-
-  // Decision 1: Save & Continue
-  const handleModalSaveAndProceed = async () => {
-    setIsModalSaving(true);
-    try {
-      if (activeTab === 'profile') {
-        const success = await handleSaveStep1(undefined, false);
-        if (success) {
-          setShowUnsavedModal(false);
-          if (pendingNav) {
-            executeNavigation(pendingNav);
-            setPendingNav(null);
-          }
-        } else {
-          // Validation error in Step 1 form fields
-          setShowUnsavedModal(false);
-        }
-      } else {
-        const success = await handleSaveStep2(undefined, false);
-        if (success) {
-          setShowUnsavedModal(false);
-          if (pendingNav) {
-            executeNavigation(pendingNav);
-            setPendingNav(null);
-          }
-        } else {
-          setShowUnsavedModal(false);
-        }
-      }
+      setErrorMessage(err instanceof Error ? err.message : 'Failed to update sliders.');
     } finally {
-      setIsModalSaving(false);
+      setIsSaving(false);
     }
   };
 
-  // Decision 2: Discard & Leave (Let go)
-  const handleConfirmDiscardAndProceed = () => {
-    if (activeTab === 'profile') {
-      setFirstName(savedStep1.firstName);
-      setLastName(savedStep1.lastName);
-      setPhoneNumber(savedStep1.phoneNumber);
-      setLineId(savedStep1.lineId);
-      setGradeLevel(savedStep1.gradeLevel);
-      setTutorTypePref(savedStep1.tutorTypePref);
-
-      // If user is first-time and discarded, they cannot proceed to Step 2
-      if (!isStep1Done && pendingNav?.type === 'tab' && pendingNav.tab === 'sliders') {
-        setShowUnsavedModal(false);
-        setPendingNav(null);
-        setErrorMessage('Action restricted: You must fill in and save your personal details in Step 1 before proceeding to Step 2.');
-        return;
-      }
-    } else {
-      setStyleProfile([...savedStep2.styleProfile]);
-      setPersonalityProfile([...savedStep2.personalityProfile]);
-    }
-
-    setShowUnsavedModal(false);
-    if (pendingNav) {
-      executeNavigation(pendingNav);
-      setPendingNav(null);
-    }
-  };
-
-  // Decision 3: Keep Editing (Cancel)
-  const handleCancelNavigation = () => {
-    setShowUnsavedModal(false);
-    setPendingNav(null);
-  };
-
-  // Handler for Next button on Step 1: Enforces modal decision if unsaved changes exist
-  const handleNextStepClick = () => {
-    // 1. If Step 1 has unsaved changes, require user to choose Save or Discard via the warning modal first
-    if (isStep1Dirty) {
-      requestNavigation({ type: 'tab', tab: 'sliders' });
-      return;
-    }
-
-    // 2. If user hasn't completed Step 1 yet (e.g. initial empty form)
-    if (!isStep1Done) {
-      handleSaveStep1(undefined, true);
-      return;
-    }
-
-    // 3. Step 1 has no unsaved modifications: proceed directly to Step 2
-    requestNavigation({ type: 'tab', tab: 'sliders' });
-  };
-
-  // Navigation tab click with strict gating enforcement
-  const handleStepClick = (tab: StudentTabKey) => {
-    setErrorMessage(null);
-    setSuccessMessage(null);
-
-    const targetStep = tab === 'sliders' ? 2 : 1;
-    if (targetStep > maxReachableStep) {
-      if (maxReachableStep === 1) {
-        setErrorMessage('Action restricted: You must fill in and save your personal details and contact info in Step 1 first.');
-      }
-      return;
-    }
-
-    requestNavigation({ type: 'tab', tab });
-  };
-
-  const isSaving = createProfileMutation.isPending || updateProfileMutation.isPending;
-
-  if (isLoading) {
+  if (isLoading || isAvailabilityLoading) {
     return (
-      <div style={{ maxWidth: '840px', margin: '2rem auto', textAlign: 'center' }}>
-        <Card style={{ padding: '3rem' }}>
-          <p style={{ fontWeight: 700, color: '#6b7280' }}>Loading student profile...</p>
-        </Card>
-      </div>
+      <Card style={{ textAlign: 'center', padding: '4rem 2rem' }}>
+        <p style={{ fontWeight: 700, fontSize: '1.125rem', color: '#6b7280' }}>
+          Loading profile settings...
+        </p>
+      </Card>
     );
   }
 
-  const STEPS = [
-    {
-      id: 1,
-      tab: 'profile' as const,
-      title: 'Step 1: Personal & Contact Info',
-      subtitle: isStep1Done ? 'Completed' : 'Fill details first',
-      icon: User,
-    },
-    {
-      id: 2,
-      tab: 'sliders' as const,
-      title: 'Step 2: Learning Sliders',
-      subtitle: isStep2Done ? 'Completed' : !isStep1Done ? 'Locked (Step 1 needed)' : 'Configure 9 sliders',
-      icon: Sliders,
-    },
+  const tabs = [
+    { key: 'profile' as SettingsTab, label: 'Personal & Contact Details', icon: User, isDirty: isPersonalDirty },
+    { key: 'sliders' as SettingsTab, label: 'Learning Style & Preferences', icon: Sliders, isDirty: isSlidersDirty },
+    { key: 'availability' as SettingsTab, label: 'Weekly Study Schedule', icon: Calendar, isDirty: isAvailabilityDirty },
   ];
 
   return (
-    <div style={{ maxWidth: '840px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-      {/* Top Breadcrumb Navigation */}
+    <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+      {/* Option 1: Back to Matching Hub Button */}
       <div>
-        <button
-          type="button"
-          onClick={() => requestNavigation({ type: 'route', path: returnTo || '/student/matching' })}
+        <Link
+          to="/student/matching"
+          onClick={handleBackToHub}
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap: '0.375rem',
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            color: '#4b5563',
-            fontSize: '0.8125rem',
+            gap: '0.4rem',
+            fontSize: '0.875rem',
             fontWeight: 700,
-            marginBottom: '0.5rem',
+            color: '#4b5563',
+            textDecoration: 'none',
+            padding: '0.45rem 0.875rem',
+            borderRadius: 'var(--radius-md)',
+            backgroundColor: '#ffffff',
+            border: '2px solid var(--color-border)',
+            transition: 'all 0.15s ease',
           }}
         >
-          <ArrowLeft size={15} /> Back to Find Tutors
-        </button>
+          <ArrowLeft size={16} strokeWidth={2.4} /> Back to Matching Hub
+        </Link>
       </div>
 
-      <PageHeader
-        title="Student Profile & Learning Preferences"
-        description="Set up your profile, 1–5 learning sliders, and schedule. When you want a tutor, select your subject on the Find Tutors page."
-      />
+      {/* Header */}
+      <div>
+        <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--fg-main)', letterSpacing: '-0.02em', margin: '0 0 0.5rem 0' }}>
+          Student Profile &amp; Preferences
+        </h1>
+        <p style={{ color: '#4b5563', fontSize: '1rem', fontWeight: 500, margin: 0 }}>
+          Keep your contact information, learning style preferences, and weekly schedule up to date so we can match you with your ideal tutors.
+        </p>
+      </div>
 
-      {/* 2-Step Progress Tracker with Strict Gating */}
+      {/* Settings Tab Navigation */}
       <div
         style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-          gap: '0.75rem',
+          display: 'flex',
+          gap: '0.5rem',
+          borderBottom: '2px solid var(--color-border)',
+          paddingBottom: '0.25rem',
+          flexWrap: 'wrap',
         }}
       >
-        {STEPS.map((s) => {
-          const isCurrent = activeTab === s.tab;
-          const isDone = s.id === 1 ? isStep1Done : isStep2Done;
-          const isClickable = s.id <= maxReachableStep;
-
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.key;
           return (
             <button
-              key={s.id}
+              key={tab.key}
               type="button"
-              disabled={!isClickable}
-              onClick={() => handleStepClick(s.tab)}
+              onClick={() => handleTabClick(tab.key)}
               style={{
-                display: 'flex',
+                display: 'inline-flex',
                 alignItems: 'center',
-                gap: '0.75rem',
-                padding: '0.875rem 1rem',
-                borderRadius: 'var(--radius-lg)',
-                border: isCurrent
-                  ? '2px solid var(--color-primary)'
-                  : isDone
-                    ? '2px solid var(--color-secondary)'
-                    : '2px solid var(--color-border)',
-                backgroundColor: isCurrent
-                  ? 'var(--color-primary-tint)'
-                  : isDone
-                    ? '#ffffff'
-                    : '#f9fafb',
-                cursor: isClickable ? 'pointer' : 'not-allowed',
-                opacity: isClickable ? 1 : 0.5,
-                textAlign: 'left',
+                gap: '0.5rem',
+                padding: '0.75rem 1.25rem',
+                borderRadius: 'var(--radius-md) var(--radius-md) 0 0',
+                border: 'none',
+                backgroundColor: isActive ? 'var(--color-primary)' : 'transparent',
+                color: isActive ? '#ffffff' : 'var(--fg-main)',
+                fontWeight: isActive ? 800 : 600,
+                fontSize: '0.9375rem',
+                cursor: 'pointer',
                 transition: 'all 0.15s ease',
+                position: 'relative',
               }}
             >
-              <div
-                style={{
-                  width: '2.25rem',
-                  height: '2.25rem',
-                  borderRadius: 'var(--radius-full)',
-                  backgroundColor: !isClickable
-                    ? '#9ca3af'
-                    : isDone
-                      ? 'var(--color-secondary)'
-                      : isCurrent
-                        ? 'var(--color-primary)'
-                        : '#9ca3af',
-                  color: '#ffffff',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: '0.875rem',
-                  flexShrink: 0,
-                }}
-              >
-                {!isClickable ? (
-                  <Lock size={14} />
-                ) : isDone ? (
-                  <CheckCircle2 size={16} strokeWidth={2.6} />
-                ) : (
-                  s.id
-                )}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: '0.875rem', fontWeight: 800, color: 'var(--fg-main)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {s.title}
-                </div>
-                <div
+              <Icon size={18} strokeWidth={2.2} />
+              <span>{tab.label}</span>
+              {tab.isDirty && (
+                <span
+                  title="Unsaved changes in this tab"
                   style={{
-                    fontSize: '0.75rem',
-                    color: !isClickable ? '#9ca3af' : isDone ? '#059669' : isCurrent ? 'var(--color-primary)' : '#6b7280',
-                    fontWeight: 700,
+                    width: '8px',
+                    height: '8px',
+                    borderRadius: '50%',
+                    backgroundColor: isActive ? '#ffffff' : '#f59e0b',
+                    display: 'inline-block',
+                    marginLeft: '0.25rem',
                   }}
-                >
-                  {!isClickable ? '🔒 Locked' : isDone ? '✓ Completed' : isCurrent ? '● Active' : 'Ready'}
-                </div>
-              </div>
+                />
+              )}
             </button>
           );
         })}
       </div>
 
       {/* Global Alerts */}
-      {errorMessage && <Alert variant="error">{errorMessage}</Alert>}
-      {successMessage && <Alert variant="success">{successMessage}</Alert>}
+      {errorMessage && (
+        <Alert variant="error">
+          <strong>Error:</strong> {errorMessage}
+        </Alert>
+      )}
+      {successMessage && (
+        <Alert variant="success">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CheckCircle2 size={18} strokeWidth={2.4} />
+            <span>{successMessage}</span>
+          </div>
+        </Alert>
+      )}
 
-      {/* TAB 1: Personal Details (TP-58) */}
+      {/* Unsaved Changes Banner */}
+      {isCurrentTabDirty && !errorMessage && !successMessage && (
+        <div
+          style={{
+            padding: '0.625rem 1rem',
+            backgroundColor: '#fffbeb',
+            border: '1.5px solid #fcd34d',
+            borderRadius: 'var(--radius-md)',
+            color: '#92400e',
+            fontSize: '0.8125rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+          }}
+        >
+          <AlertTriangle size={16} strokeWidth={2.4} color="#d97706" />
+          <span>
+            {activeTab === 'availability'
+              ? 'You have unsaved changes in your schedule. Click "Save Availability Schedule" below to update your profile.'
+              : 'You have unsaved changes in this tab. Click "Save Changes" below to update your profile.'}
+          </span>
+        </div>
+      )}
+
+      {/* TAB 1: Personal & Contact Info */}
       {activeTab === 'profile' && (
-        <Card style={{ padding: '2rem' }}>
-          <form onSubmit={(e) => handleSaveStep1(e, false)} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.2rem 0.6rem', backgroundColor: 'var(--color-primary-tint)', color: 'var(--color-primary)', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: 800 }}>
-                  <User size={13} strokeWidth={2.5} /> Step 1 of 2
-                </div>
-                {isStep1Dirty && (
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      gap: '0.3rem',
-                      padding: '0.2rem 0.6rem',
-                      backgroundColor: '#fee2e2',
-                      color: '#dc2626',
-                      border: '1px solid #fca5a5',
-                      borderRadius: 'var(--radius-full)',
-                      fontSize: '0.75rem',
-                      fontWeight: 800,
-                    }}
-                  >
-                    ● Unsaved Changes
-                  </span>
-                )}
+        <form onSubmit={handleSaveProfile}>
+          <Card
+            style={{
+              padding: '2rem',
+              backgroundColor: 'var(--bg-canvas)',
+              border: '2px solid var(--color-border)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--color-border)', paddingBottom: '1rem' }}>
+              <span
+                style={{
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--color-primary-tint)',
+                  color: 'var(--color-primary)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <User size={20} strokeWidth={2.4} />
+              </span>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
+                  Personal &amp; Academic Details
+                </h2>
+                <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: 0 }}>
+                  Keep your contact info and academic grade level up to date.
+                </p>
               </div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: '0 0 0.25rem 0' }}>
-                Personal Details & Academic Level
-              </h3>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
-                Your identity and grade level are persistent across all your tutor bookings.
-              </p>
             </div>
 
-            {/* Account Email (Readonly) */}
-            <InputField
-              label="Account Email"
-              type="email"
-              value={user?.email || profile?.email || ''}
-              placeholder={user?.email ? undefined : 'No session email'}
-              disabled
-              isLocked
-              helperText="Managed by authentication. Contact support to update email."
-            />
-
-            {/* Name Row */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-              <InputField
-                label="First Name"
-                required
-                value={firstName}
-                onChange={(e) => setFirstName(e.target.value)}
-                placeholder="e.g. Somchai"
-              />
-              <InputField
-                label="Last Name"
-                required
-                value={lastName}
-                onChange={(e) => setLastName(e.target.value)}
-                placeholder="e.g. Jaidee"
-              />
+            {/* Contact Sharing Notice (matches Tutor Profile visibility pattern) */}
+            <div
+              style={{
+                marginBottom: '1.25rem',
+                padding: '0.75rem 1rem',
+                backgroundColor: 'var(--color-secondary-tint)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+                fontSize: '0.8125rem',
+                color: 'var(--fg-main)',
+                fontWeight: 600,
+                lineHeight: 1.5,
+              }}
+            >
+              💬 <strong>Private Contact Notice:</strong> Your phone number, LINE ID, and grade level stay private. When you choose a matched tutor, these contact channels are shared with that tutor so you can easily message them and schedule lessons directly.
             </div>
 
-            {/* Academic Grade Level (G1–G12) */}
-            <SelectField
-              label="Current Grade Level (G1–G12)"
-              required
-              helperText="Determines whether school curriculum syllabi match your level."
-              value={gradeLevel}
-              onChange={(e) => setGradeLevel(e.target.value)}
-              options={GRADE_OPTIONS}
-            />
-
-            {/* Instructor Preference */}
-            <SelectField
-              label="Tutor Type Preference"
-              required
-              helperText="Helps the matching algorithm rank tutor categories according to your preference."
-              value={tutorTypePref}
-              onChange={(e) => setTutorTypePref(e.target.value as TutorTypePref)}
-              options={TUTOR_TYPE_PREF_OPTIONS}
-            />
-
-            {/* Contact Channels */}
-            <div style={{ borderTop: '2px solid var(--color-border)', paddingTop: '1.25rem' }}>
-              <h4 style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--fg-main)', margin: '0 0 0.25rem 0' }}>
-                Contact Channels
-              </h4>
-              <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0 0 1rem 0' }}>
-                Your phone number is used for lesson coordination. You may also provide your LINE ID optionally.
-              </p>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+              {/* Account Email (Read-only) */}
+              <div style={{ maxWidth: '480px' }}>
                 <InputField
-                  label="Phone Number"
+                  label="Registered Email (Account Identity)"
+                  id="accountEmail"
+                  value={user?.email || profile?.email || ''}
+                  disabled
+                  helperText="Email is bound to your account login session and cannot be changed here."
+                />
+              </div>
+
+              {/* Name Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+                <InputField
+                  label="First Name *"
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="e.g. Pitchaya"
                   required
-                  type="tel"
+                />
+                <InputField
+                  label="Last Name *"
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="e.g. Siriwong"
+                  required
+                />
+              </div>
+
+              {/* Contact Channels Row */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+                <InputField
+                  label="Mobile Phone Number *"
+                  id="phoneNumber"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   placeholder="e.g. 0812345678"
-                  leftIcon={<Phone size={16} />}
-                  helperText="Required for lesson coordination."
+                  type="tel"
+                  required
                 />
-
                 <InputField
                   label="LINE ID (Optional)"
-                  type="text"
+                  id="lineId"
                   value={lineId}
                   onChange={(e) => setLineId(e.target.value)}
-                  placeholder="e.g. @somchai_j"
-                  leftIcon={<MessageSquare size={16} />}
-                  helperText="Optional chat app for direct lesson coordination."
+                  placeholder="e.g. pitchaya.s"
+                />
+              </div>
+
+              {/* Grade Level & Tutor Type */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
+                <SelectField
+                  label="Current Grade Level (G1–G12) *"
+                  id="gradeLevel"
+                  value={gradeLevel}
+                  onChange={(e) => setGradeLevel(e.target.value)}
+                  options={GRADE_OPTIONS}
+                  required
+                />
+                <SelectField
+                  label="Preferred Tutor Type"
+                  id="tutorTypePref"
+                  value={tutorTypePref}
+                  onChange={(e) => setTutorTypePref(e.target.value as TutorTypePref)}
+                  options={TUTOR_TYPE_PREF_OPTIONS}
+                />
+              </div>
+
+              {/* Default Budget */}
+              <div style={{ maxWidth: '320px' }}>
+                <InputField
+                  label="Default Target Budget (THB / hr) *"
+                  id="budgetMax"
+                  type="number"
+                  min="100"
+                  max="10000"
+                  step="50"
+                  value={budgetMax}
+                  onChange={(e) => setBudgetMax(e.target.value ? Number(e.target.value) : '')}
+                  placeholder="500"
+                  required
                 />
               </div>
             </div>
 
-            {/* Bottom Actions */}
+            {/* Save Button */}
             <div
               style={{
+                marginTop: '2rem',
+                paddingTop: '1.5rem',
+                borderTop: '2px solid var(--color-border)',
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '1rem',
-                flexWrap: 'wrap',
-                gap: '0.75rem',
+                justifyContent: 'flex-end',
               }}
             >
-              {/* Back to Home Button */}
               <Button
-                type="button"
-                variant="secondary"
-                onClick={() => requestNavigation({ type: 'route', path: returnTo || '/student/matching' })}
+                type="submit"
+                variant="primary"
+                disabled={isSaving}
                 style={{
-                  height: '3rem',
-                  padding: '0 1.25rem',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.5rem',
-                  fontWeight: 700,
+                  fontWeight: 800,
+                  padding: '0.75rem 2rem',
                 }}
               >
-                <Home size={16} /> Back to Find Tutors
+                <Save size={18} strokeWidth={2.4} />
+                {isSaving ? 'Saving Changes...' : 'Save Profile Changes'}
               </Button>
-
-              {/* Action Buttons: Save Changes vs Next */}
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', flexWrap: 'wrap' }}>
-                <Button
-                  type="button"
-                  variant="secondary"
-                  onClick={(e) => handleSaveStep1(e, false)}
-                  isLoading={isSaving}
-                  style={{
-                    height: '3rem',
-                    padding: '0 1.5rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontWeight: 700,
-                  }}
-                >
-                  <Check size={16} /> Save Changes
-                </Button>
-
-                <Button
-                  type="button"
-                  variant="primary"
-                  onClick={handleNextStepClick}
-                  isLoading={isSaving}
-                  style={{
-                    height: '3rem',
-                    padding: '0 1.75rem',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    fontWeight: 800,
-                  }}
-                >
-                  Next: Sliders →
-                </Button>
-              </div>
             </div>
-          </form>
-        </Card>
+          </Card>
+        </form>
       )}
 
-      {/* TAB 2: Learning & Personality Sliders (TP-57) */}
+      {/* TAB 2: 9 Learning Sliders */}
       {activeTab === 'sliders' && (
-        <Card style={{ padding: '2rem' }}>
-          <form onSubmit={handleSaveStep2} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem', padding: '0.2rem 0.6rem', backgroundColor: 'var(--color-primary-tint)', color: 'var(--color-primary)', borderRadius: 'var(--radius-full)', fontSize: '0.75rem', fontWeight: 800 }}>
-                    <Sliders size={13} strokeWidth={2.5} /> Step 2 of 2
-                  </div>
-                  {isStep2Dirty && (
-                    <span
-                      style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        padding: '0.2rem 0.6rem',
-                        backgroundColor: '#fee2e2',
-                        color: '#dc2626',
-                        border: '1px solid #fca5a5',
-                        borderRadius: 'var(--radius-full)',
-                        fontSize: '0.75rem',
-                        fontWeight: 800,
-                      }}
-                    >
-                      ● Unsaved Changes
-                    </span>
-                  )}
-                </div>
-                <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
-                  1–5 Learning & Personality Sliders
-                </h3>
-                <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
-                  Adjust each slider to reflect how you study and learn best. Our matchmaking algorithm uses these to match teaching styles.
-                </p>
-              </div>
+        <form onSubmit={handleSaveSliders}>
+          <Card
+            style={{
+              padding: '2rem',
+              backgroundColor: 'var(--bg-canvas)',
+              border: '2px solid var(--color-border)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--color-border)', paddingBottom: '1rem' }}>
               <span
                 style={{
-                  padding: '0.25rem 0.625rem',
+                  width: '2.5rem',
+                  height: '2.5rem',
+                  borderRadius: 'var(--radius-md)',
                   backgroundColor: 'var(--color-primary-tint)',
                   color: 'var(--color-primary)',
-                  borderRadius: 'var(--radius-full)',
-                  fontSize: '0.75rem',
-                  fontWeight: 800,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               >
-                9 Questions Total
+                <Sliders size={20} strokeWidth={2.4} />
               </span>
+              <div>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
+                  Learning Style &amp; Study Preferences
+                </h2>
+                <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: 0 }}>
+                  Adjust how you like to learn so our matching suggestions fit your exact pace, style, and study goals.
+                </p>
+              </div>
             </div>
 
             <StudentSliders
               styleProfile={styleProfile}
               personalityProfile={personalityProfile}
-              onStyleChange={handleStyleChange}
-              onPersonalityChange={handlePersonalityChange}
+              onStyleChange={(idx, val) => {
+                const updated = [...styleProfile];
+                updated[idx] = val;
+                setStyleProfile(updated);
+              }}
+              onPersonalityChange={(idx, val) => {
+                const updated = [...personalityProfile];
+                updated[idx] = val;
+                setPersonalityProfile(updated);
+              }}
             />
 
-            {/* Navigation & Action Buttons */}
+            {/* Save Button */}
             <div
               style={{
+                marginTop: '2rem',
+                paddingTop: '1.5rem',
+                borderTop: '2px solid var(--color-border)',
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                marginTop: '1.25rem',
-                flexWrap: 'wrap',
-                gap: '0.75rem',
+                justifyContent: 'flex-end',
               }}
             >
-              {/* Back to Step 1 */}
               <Button
-                type="button"
-                variant="secondary"
-                onClick={() => requestNavigation({ type: 'tab', tab: 'profile' })}
-                style={{
-                  height: '3rem',
-                  padding: '0 1.25rem',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  fontWeight: 700,
-                }}
-              >
-                <ArrowLeft size={16} /> Back to Personal Info
-              </Button>
-
-              {/* Single Primary Finish Button (Redundant Save Changes Button removed) */}
-              <Button
-                type="button"
+                type="submit"
                 variant="primary"
-                onClick={(e) => handleSaveStep2(e, true)}
-                isLoading={isSaving}
+                disabled={isSaving}
                 style={{
-                  height: '3rem',
-                  padding: '0 1.75rem',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.5rem',
                   fontWeight: 800,
+                  padding: '0.75rem 2rem',
                 }}
               >
-                <Home size={16} /> {returnTo ? 'Save & Return to Find Tutors →' : 'Save & Back to Home →'}
+                <Save size={18} strokeWidth={2.4} />
+                {isSaving ? 'Saving Changes...' : 'Save Sliders'}
               </Button>
             </div>
-          </form>
+          </Card>
+        </form>
+      )}
+
+      {/* TAB 3: Weekly Schedule (Optional general availability) */}
+      {activeTab === 'availability' && (
+        <Card
+          style={{
+            padding: '2rem',
+            backgroundColor: 'var(--bg-canvas)',
+            border: '2px solid var(--color-border)',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem', borderBottom: '2px solid var(--color-border)', paddingBottom: '1rem' }}>
+            <span
+              style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-primary-tint)',
+                color: 'var(--color-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Calendar size={20} strokeWidth={2.4} />
+            </span>
+            <div>
+              <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
+                Weekly Study Schedule
+              </h2>
+              <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: 0 }}>
+                Choose the days and hours you are generally free to study. These will automatically pre-fill when you search for tutors.
+              </p>
+            </div>
+          </div>
+
+          <StudentAvailabilityGrid
+            value={availabilitySlots}
+            onChange={setAvailabilitySlots}
+            hideHeader={true}
+            onSaveSuccess={() => {
+              setSuccessMessage('Weekly study schedule saved successfully.');
+              setErrorMessage(null);
+            }}
+          />
         </Card>
       )}
 
-      {/* Red Unsaved Changes Warning Modal */}
-      {showUnsavedModal && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="unsaved-modal-title"
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 9999,
-            backgroundColor: 'rgba(17, 24, 39, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '1.25rem',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget && !isModalSaving) {
-              handleCancelNavigation();
-            }
-          }}
-        >
-          <div
-            style={{
-              backgroundColor: '#ffffff',
-              borderRadius: 'var(--radius-lg)',
-              border: '3px solid var(--color-danger)',
-              width: '100%',
-              maxWidth: '520px',
-              padding: '1.75rem',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1.25rem',
-              boxShadow: 'none',
-            }}
-          >
-            {/* Red Alert Banner */}
-            <div
-              style={{
-                backgroundColor: '#fef2f2',
-                border: '2px solid #ef4444',
-                borderRadius: 'var(--radius-md)',
-                padding: '1.125rem',
-                display: 'flex',
-                gap: '0.875rem',
-                alignItems: 'flex-start',
-              }}
-            >
-              <AlertTriangle
-                size={26}
-                color="#dc2626"
-                strokeWidth={2.4}
-                style={{ flexShrink: 0, marginTop: '0.125rem' }}
-              />
-              <div style={{ flex: 1 }}>
-                <div
-                  id="unsaved-modal-title"
-                  style={{
-                    fontWeight: 800,
-                    fontSize: '1.0625rem',
-                    color: '#991b1b',
-                    marginBottom: '0.35rem',
-                  }}
-                >
-                  Unsaved Changes Detected
-                </div>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: '0.875rem',
-                    color: '#b91c1c',
-                    lineHeight: 1.5,
-                    fontWeight: 600,
-                  }}
-                >
-                  {pendingNav?.type === 'tab' && pendingNav.tab === 'sliders'
-                    ? 'You have modified information that has not been saved yet. Before proceeding to the next step, please choose whether to save your changes to the database or discard them.'
-                    : 'You have modified information that has not been saved yet. If you leave now without saving, these changes will be discarded and will not be updated in the database.'}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={handleCancelNavigation}
-                disabled={isModalSaving}
-                aria-label="Close dialog"
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#991b1b',
-                  cursor: isModalSaving ? 'not-allowed' : 'pointer',
-                  padding: '0.2rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                }}
-              >
-                <X size={18} strokeWidth={2.4} />
-              </button>
-            </div>
-
-            <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--fg-main)' }}>
-              {pendingNav?.type === 'tab' && pendingNav.tab === 'sliders'
-                ? 'Please choose whether to save your changes or discard them before proceeding to Step 2:'
-                : 'Please choose how you want to proceed before leaving:'}
-            </div>
-
-            {/* Action Decisions Stash */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-              {/* Option 1: Save & Continue */}
-              <Button
-                type="button"
-                variant="primary"
-                onClick={handleModalSaveAndProceed}
-                isLoading={isModalSaving}
-                style={{
-                  height: '3rem',
-                  width: '100%',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  fontWeight: 800,
-                  fontSize: '0.9375rem',
-                }}
-              >
-                <Check size={18} strokeWidth={2.5} />{' '}
-                {pendingNav?.type === 'tab' && pendingNav.tab === 'sliders'
-                  ? 'Save Changes & Proceed to Step 2 →'
-                  : 'Save Changes & Continue'}
-              </Button>
-
-              {/* Option 2: Discard & Leave (Let go) */}
-              <button
-                type="button"
-                onClick={handleConfirmDiscardAndProceed}
-                disabled={isModalSaving}
-                style={{
-                  height: '3rem',
-                  width: '100%',
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '0.5rem',
-                  fontWeight: 800,
-                  fontSize: '0.9375rem',
-                  backgroundColor: '#fee2e2',
-                  color: '#dc2626',
-                  border: '2px solid #ef4444',
-                  borderRadius: 'var(--radius-md)',
-                  cursor: isModalSaving ? 'not-allowed' : 'pointer',
-                  opacity: isModalSaving ? 0.6 : 1,
-                  transition: 'all 0.15s ease',
-                }}
-              >
-                <Trash2 size={16} strokeWidth={2.2} />{' '}
-                {pendingNav?.type === 'tab' && pendingNav.tab === 'sliders'
-                  ? 'Discard Changes & Proceed to Step 2 →'
-                  : 'Discard & Leave Without Saving'}
-              </button>
-
-              {/* Option 3: Keep Editing (Cancel) */}
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={handleCancelNavigation}
-                disabled={isModalSaving}
-                style={{
-                  height: '2.75rem',
-                  width: '100%',
-                  justifyContent: 'center',
-                  fontWeight: 700,
-                  fontSize: '0.875rem',
-                }}
-              >
-                Keep Editing (Stay Here)
-              </Button>
-            </div>
-          </div>
+      {/* Red Unsaved Changes Warning Modal (Request 2) */}
+      <Modal
+        isOpen={isUnsavedModalOpen}
+        onClose={() => setIsUnsavedModalOpen(false)}
+        title="Unsaved Changes"
+        variant="danger"
+        primaryActionText={isSaving ? 'Saving...' : 'Save & Continue'}
+        onPrimaryAction={handleSaveAndProceed}
+        secondaryActionText="Discard Changes"
+        onSecondaryAction={handleDiscardChanges}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <p style={{ margin: 0, fontWeight: 700, color: '#991b1b', fontSize: '0.9375rem' }}>
+            You have unsaved changes in your {
+              activeTab === 'profile'
+                ? 'personal details'
+                : activeTab === 'sliders'
+                ? 'learning style preferences'
+                : 'weekly study schedule'
+            }.
+          </p>
+          <p style={{ margin: 0, fontSize: '0.875rem', color: '#4b5563', lineHeight: 1.55 }}>
+            Would you like to save these changes to your profile before leaving this section, or discard them and revert to your previous settings?
+          </p>
         </div>
-      )}
+      </Modal>
     </div>
   );
 };

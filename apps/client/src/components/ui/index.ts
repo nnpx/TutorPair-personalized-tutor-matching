@@ -4,3 +4,4 @@ export * from './Alert';
 export * from './SaveButton';
 export * from './PageHeader';
 export * from './Feedback';
+export * from './Modal';

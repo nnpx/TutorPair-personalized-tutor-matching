@@ -28,9 +28,6 @@ export const LoginPage: React.FC = () => {
       localStorage.removeItem('tutorpair_dev_student_profile');
       localStorage.removeItem('tutorpair_dev_student_availability');
       localStorage.removeItem('tutorpair_dev_student_subjects');
-      localStorage.removeItem('tutorpair_student_step_1_guest');
-      localStorage.removeItem('tutorpair_student_step_2_guest');
-      localStorage.removeItem('tutorpair_student_step_3_guest');
     } catch {
       // ignore
     }

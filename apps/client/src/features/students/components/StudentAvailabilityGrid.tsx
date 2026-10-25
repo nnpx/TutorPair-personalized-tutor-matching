@@ -25,6 +25,7 @@ export interface StudentAvailabilityGridProps {
   onChange?: (slots: StudentAvailabilitySlotDto[]) => void;
   showSaveButton?: boolean;
   onSaveSuccess?: () => void;
+  hideHeader?: boolean;
 }
 
 export const StudentAvailabilityGrid: React.FC<StudentAvailabilityGridProps> = ({
@@ -32,6 +33,7 @@ export const StudentAvailabilityGrid: React.FC<StudentAvailabilityGridProps> = (
   onChange,
   showSaveButton = true,
   onSaveSuccess,
+  hideHeader = false,
 }) => {
   const { data: serverSlots = [] } = useStudentAvailability();
   const setAvailabilityMutation = useSetStudentAvailability();
@@ -123,14 +125,16 @@ export const StudentAvailabilityGrid: React.FC<StudentAvailabilityGridProps> = (
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Header Description */}
-      <div>
-        <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
-          Weekly Availability Schedule
-        </h3>
-        <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
-          Select recurring time slots when you are available for tutoring lessons. These pre-fill your matching requests so you can pick specific times per session without re-entering your schedule.
-        </p>
-      </div>
+      {!hideHeader && (
+        <div>
+          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
+            Weekly Availability Schedule
+          </h3>
+          <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
+            Select recurring time slots when you are available for tutoring lessons. These pre-fill your matching requests so you can pick specific times per session without re-entering your schedule.
+          </p>
+        </div>
+      )}
 
       {/* Add Slot Control Card */}
       <Card style={{ padding: '1.5rem', backgroundColor: 'var(--color-muted)' }}>

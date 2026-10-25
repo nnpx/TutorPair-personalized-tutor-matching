@@ -8,7 +8,9 @@ import { ProtectedRoute } from './routes/ProtectedRoute';
 import { LoginPage } from './features/auth/LoginPage';
 import { LandingPage } from './features/landing/LandingPage';
 import { StudentProfilePage } from './features/students/StudentProfilePage';
+import { StudentOnboardingPage } from './features/students/StudentOnboardingPage';
 import { MatchingPage, MatchHistoryPage } from './features/matching/MatchingPage';
+import { MatchRequestPage } from './features/matching/MatchRequestPage';
 import {
   TutorProfilePage,
   TutorOnboardingPage,
@@ -32,12 +34,15 @@ export const App: React.FC = () => {
       <Route element={<ProtectedRoute allowedRoles={[UserRole.STUDENT]} />}>
         <Route path="/student" element={<StudentLayout />}>
           <Route index element={<Navigate to="/student/matching" replace />} />
+          <Route path="onboarding" element={<StudentOnboardingPage />} />
           <Route path="matching" element={<MatchingPage />} />
+          <Route path="matching/request" element={<MatchRequestPage />} />
+          <Route path="matches" element={<MatchHistoryPage />} />
           <Route path="history" element={<MatchHistoryPage />} />
           <Route path="profile" element={<StudentProfilePage />} />
           <Route path="subjects" element={<Navigate to="/student/matching" replace />} />
-          <Route path="sliders" element={<Navigate to="/student/profile?tab=sliders" replace />} />
-          <Route path="availability" element={<Navigate to="/student/profile?tab=availability" replace />} />
+          <Route path="sliders" element={<Navigate to="/student/profile" replace />} />
+          <Route path="availability" element={<Navigate to="/student/profile" replace />} />
           <Route path="review/:recommendationId" element={<ReviewSubmissionPage />} />
         </Route>
       </Route>

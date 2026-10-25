@@ -40,25 +40,6 @@ export const StudentRoadmap: React.FC<StudentRoadmapProps> = ({
       {/* Header Hero (if showHeader = true) */}
       {showHeader && (
         <div style={{ textAlign: 'center', marginBottom: '0.25rem' }}>
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              padding: '0.3rem 0.75rem',
-              backgroundColor: 'var(--color-primary-tint)',
-              color: 'var(--color-primary)',
-              borderRadius: 'var(--radius-full)',
-              fontWeight: 800,
-              fontSize: '0.75rem',
-              textTransform: 'uppercase',
-              letterSpacing: '0.05em',
-              marginBottom: '0.5rem',
-            }}
-          >
-            <Sparkles size={14} strokeWidth={2.4} />
-            <span>Student Pathway</span>
-          </div>
           <h2 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--fg-main)', letterSpacing: '-0.02em', margin: '0 0 0.5rem 0' }}>
             {title}
           </h2>
@@ -275,7 +256,7 @@ export const StudentRoadmap: React.FC<StudentRoadmapProps> = ({
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
-                    2. 1 Subject & Match Request
+                    2. Select Subject & Match
                   </h2>
                   <span
                     style={{
@@ -288,7 +269,7 @@ export const StudentRoadmap: React.FC<StudentRoadmapProps> = ({
                       textTransform: 'uppercase',
                     }}
                   >
-                    Single Subject
+                    Subject Selection
                   </span>
                 </div>
 
@@ -626,7 +607,7 @@ export const StudentRoadmap: React.FC<StudentRoadmapProps> = ({
                   </Link>
                 )
               ) : (
-                <Link to="/student/profile?tab=sliders&returnTo=/student/matching" style={{ textDecoration: 'none' }}>
+                <Link to="/student/profile" style={{ textDecoration: 'none' }}>
                   <Button variant="secondary" style={{ width: '100%', height: '2.5rem', fontSize: '0.8125rem', fontWeight: 700 }}>
                     Adjust Sliders / Info
                   </Button>
@@ -678,12 +659,12 @@ export const StudentRoadmap: React.FC<StudentRoadmapProps> = ({
                     textTransform: 'uppercase',
                   }}
                 >
-                  Single Subject
+                  Subject Selection
                 </span>
               </div>
 
               <h3 style={{ fontSize: '1.1875rem', fontWeight: 800, color: 'var(--fg-main)', margin: '0 0 0.5rem 0' }}>
-                2. 1 Subject & Match Request
+                2. Select Subject & Match
               </h3>
               <p style={{ fontSize: '0.8125rem', color: '#4b5563', lineHeight: 1.5, margin: '0 0 1rem 0' }}>
                 Select 1 specific subject/test variant from the 3-step catalog, your lesson budget (THB/hr), and preferred day.
