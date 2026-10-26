@@ -76,6 +76,11 @@ Error responses are handled centrally by [`errorHandler`](../apps/server/src/com
 # Part 1: Module 3 — Student Profile & Preferences
 
 > **Jira Epic:** TP-50: Development — Student Profile & Preferences  
+> **Sub-Tasks:**  
+> • **TP-58**: Develop student profile functionality  
+> • **TP-57**: Develop student learning preference functionality (1–5 Sliders)  
+> • **TP-54**: Develop student availability and requirement (Budget, Tutor Type & Time Slots)  
+>
 > **Access Role:** Student endpoints require the `STUDENT` role enforced via backend `requireRole(['STUDENT'])` middleware.
 
 ## 1. Executive Summary & Cross-Module Context
@@ -131,11 +136,12 @@ Clients **never** pass a `student_id` in route paths or request bodies for self-
 
 ---
 
-## 3. Standard Response Envelope
+## 3. Response Envelope & Global Error Handling Template
 
-All endpoints conform to [`ApiResponse<T>`](../packages/shared/src/types/index.ts):
+All API responses strictly implement [`ApiResponse<T>`](../packages/shared/src/types/index.ts) formatted centrally via [`apps/server/src/common/utils/response.util.ts`](../apps/server/src/common/utils/response.util.ts).
 
-### Success Structure (`200 OK`, `201 Created`):
+### 3.1. Success Response Structure (`200 OK`, `201 Created`)
+
 ```json
 {
   "success": true,
@@ -144,7 +150,10 @@ All endpoints conform to [`ApiResponse<T>`](../packages/shared/src/types/index.t
 }
 ```
 
-### Error Structure (`400 Bad Request`, `401 Unauthorized`, `403 Forbidden`, `404 Not Found`):
+### 3.2. Global Error Response Structure
+
+Error responses are caught and formatted centrally by [`errorHandler`](../apps/server/src/common/errors/error-handler.ts) using typed `AppError` subclasses from [`apps/server/src/common/errors/http-errors.ts`](../apps/server/src/common/errors/http-errors.ts):
+
 ```json
 {
   "success": false,
@@ -153,17 +162,57 @@ All endpoints conform to [`ApiResponse<T>`](../packages/shared/src/types/index.t
 }
 ```
 
+#### Request Validation Error Example (`400 Bad Request` / Zod Validation):
+When incoming payload fails type checking or boundary validation via `validateRequest(Schema)`:
+
+```json
+{
+  "success": false,
+  "message": "Request validation failed",
+  "details": [
+    {
+      "field": "phone_number",
+      "message": "Phone number is required"
+    },
+    {
+      "field": "grade_level",
+      "message": "Grade level must be between G1 and G12 (e.g. G10)"
+    },
+    {
+      "field": "style_profile",
+      "message": "Style profile requires exactly 5 ratings"
+    }
+  ]
+}
+```
+
+### 3.3. HTTP Status Codes Reference
+
+| Status Code | Error Class | When Used in Module 3 |
+|---|---|---|
+| `200 OK` | — | Successful retrieval (`GET /students/profile`, `GET /students/availability`, `GET /students/subjects`), update (`PATCH /students/profile`), or atomic replacement (`PUT /students/availability`, `PUT /students/subjects`) |
+| `201 Created` | — | Successful creation of initial student profile (`POST /students/profile`) |
+| `400 Bad Request` | `BadRequestError` | Zod schema validation failed, missing required fields, `grade_level` not matching G1–G12, slider ratings out of 1–5 range, `budget_max <= 0`, `start_time >= end_time`, overlapping availability slots on the same day, duplicate subject variants, or empty update payload |
+| `401 Unauthorized` | `UnauthorizedError` | Missing, expired, or malformed Cognito JWT (`Authorization: Bearer <token>`) or missing user record |
+| `403 Forbidden` | `ForbiddenError` | Authenticated user lacks `STUDENT` role (e.g., tutor or admin attempting to modify student profile) |
+| `404 Not Found` | `NotFoundError` | Student profile does not exist for the authenticated user, or referenced `variant_id` does not exist in `subject_variants` |
+| `409 Conflict` | `ConflictError` | Student profile already exists for this user on `POST /students/profile` |
+| `422 Unprocessable Entity` | `UnprocessableEntityError` | Semantically invalid payload violating business logic rules |
+| `500 Internal Server Error` | `InternalServerError` | Unhandled server or database exception (sanitized in production) |
+
 ---
 
 ## 4. Endpoints Summary
 
 | Sub-Task | Method | Endpoint | Description | Frontend Client Use Case |
 |---|---|---|---|---|
-| **TP-58 / TP-57 / TP-54** | `GET` | `/students/profile` | Retrieve student profile, preferences & budget | Pre-fills `StudentProfilePage` and matching pre-checks |
+| **TP-58 / TP-57 / TP-54** | `GET` | `/students/profile` *(alias: `/students/me/profile`)* | Retrieve student profile, preferences & budget | Pre-fills `StudentProfilePage` and matching pre-checks |
 | **TP-58 / TP-57 / TP-54** | `POST` | `/students/profile` | Create initial student profile & sliders | First-time onboarding / profile completion |
-| **TP-58 / TP-57 / TP-54** | `PATCH` | `/students/profile` | Partially update student profile or preferences | Profile settings update & quick slider adjustments |
+| **TP-58 / TP-57 / TP-54** | `PATCH` | `/students/profile` *(alias: `/students/me/profile`)* | Partially update student profile or preferences | Profile settings update & quick slider adjustments |
 | **TP-54** | `GET` | `/students/availability` | Get recurring weekly availability slots | Populates student availability grid |
 | **TP-54** | `PUT` | `/students/availability` | Overwrite recurring weekly availability slots | Saves weekly student schedule for matching overlap |
+| **TP-58** | `GET` | `/students/subjects` | Get selected target subjects & variants | Populates student subject requirement selector |
+| **TP-58** | `PUT` | `/students/subjects` | Overwrite selected target subject variants | Saves student subject requirements for matching |
 
 ---
 
@@ -173,6 +222,7 @@ All endpoints conform to [`ApiResponse<T>`](../packages/shared/src/types/index.t
 
 Retrieves the authenticated student's profile, contact channels, grade level, 1–5 learning/personality preferences, and budget.
 
+* **Endpoints:** `GET /api/students/profile` *(Alias: `GET /api/students/me/profile`)*
 * **Headers:** `Authorization: Bearer <token>`
 * **Role:** `STUDENT`
 
@@ -198,12 +248,44 @@ Retrieves the authenticated student's profile, contact channels, grade level, 1�
 
 > **Note on `email`:** Extracted from the authenticated session (`users` table) for display as a readonly field.
 
-#### Response `404 Not Found`
+#### Error Responses
+
+##### `401 Unauthorized`
+*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+```json
+{
+  "success": false,
+  "message": "Missing or malformed Authorization header",
+  "details": null
+}
+```
+
+##### `403 Forbidden`
+*(Returned when authenticated user has a role other than `STUDENT`)*
+```json
+{
+  "success": false,
+  "message": "Access denied. Required role: [STUDENT], Current role: TUTOR",
+  "details": null
+}
+```
+
+##### `404 Not Found`
 *(Returned when user is authenticated with `STUDENT` role but has not yet completed the initial profile)*
 ```json
 {
   "success": false,
   "message": "Student profile not found",
+  "details": null
+}
+```
+
+##### `500 Internal Server Error`
+*(Returned when database connectivity fails or an unexpected operational error occurs)*
+```json
+{
+  "success": false,
+  "message": "Internal Server Error",
   "details": null
 }
 ```
@@ -234,10 +316,10 @@ Creates the student profile record upon initial registration/onboarding.
 ```
 
 #### Field Validation Rules:
-* `first_name`: Required string, 1–100 chars.
-* `last_name`: Required string, 1–100 chars.
-* `phone_number`: Optional string, max 20 chars. Valid Thai mobile format recommended (`08...`, `09...`, `06...`).
-* `line_id`: Optional string, max 100 chars.
+* `first_name`: Required string, 1–100 chars. Leading/trailing whitespace trimmed.
+* `last_name`: Required string, 1–100 chars. Leading/trailing whitespace trimmed.
+* `phone_number`: Required string, 1–20 chars. Valid Thai mobile format recommended (`08...`, `09...`, `06...`).
+* `line_id`: Optional string, max 100 chars (or `null`).
 * `grade_level`: Required string matching G1–G12 (`'G1'` through `'G12'`).
 * `tutor_type_pref`: Enum value from `TutorTypePref`: `'UNDERGRADUATE'`, `'FREELANCE'`, `'INSTITUTIONAL'`, or `'ANY'`.
 * `style_profile`: Exactly 5 integer ratings, each between 1 and 5.
@@ -264,12 +346,68 @@ Creates the student profile record upon initial registration/onboarding.
 }
 ```
 
-#### Response `409 Conflict`
-*(If profile already exists for this user)*
+#### Error Responses
+
+##### `400 Bad Request`
+*(Returned when request payload violates Zod schema constraints or business rules)*
 ```json
 {
   "success": false,
-  "message": "Student profile already exists for this user"
+  "message": "Request validation failed",
+  "details": [
+    {
+      "field": "grade_level",
+      "message": "Grade level must be between G1 and G12 (e.g. G10)"
+    },
+    {
+      "field": "style_profile",
+      "message": "Style profile requires exactly 5 ratings"
+    },
+    {
+      "field": "budget_max",
+      "message": "Budget must be greater than 0"
+    }
+  ]
+}
+```
+
+##### `401 Unauthorized`
+*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+```json
+{
+  "success": false,
+  "message": "Missing or malformed Authorization header",
+  "details": null
+}
+```
+
+##### `403 Forbidden`
+*(Returned when authenticated user is not in `STUDENT` role)*
+```json
+{
+  "success": false,
+  "message": "Access denied. Required role: [STUDENT], Current role: TUTOR",
+  "details": null
+}
+```
+
+##### `409 Conflict`
+*(Returned if student profile already exists for this authenticated user)*
+```json
+{
+  "success": false,
+  "message": "Student profile already exists for this user",
+  "details": null
+}
+```
+
+##### `500 Internal Server Error`
+*(Returned when database insertion fails or unhandled operational exception occurs)*
+```json
+{
+  "success": false,
+  "message": "Internal Server Error",
+  "details": null
 }
 ```
 
@@ -279,9 +417,10 @@ Creates the student profile record upon initial registration/onboarding.
 
 Updates any subset of profile fields, contact info, sliders, or budget.
 
+* **Endpoints:** `PATCH /api/students/profile` *(Alias: `PATCH /api/students/me/profile`)*
 * **Headers:** `Authorization: Bearer <token>`
 * **Role:** `STUDENT`
-* **Validation Schema:** `UpdateStudentProfileSchema` (all fields optional)
+* **Validation Schema:** `UpdateStudentProfileSchema` (requires at least one valid field to update)
 
 #### Request Body (Example: Updating contact and budget only)
 ```json
@@ -319,6 +458,58 @@ Updates any subset of profile fields, contact info, sliders, or budget.
 }
 ```
 
+#### Error Responses
+
+##### `400 Bad Request`
+*(Returned when request body is empty, contains invalid slider ratings, negative budget, or invalid grade level)*
+```json
+{
+  "success": false,
+  "message": "At least one field must be provided to update profile",
+  "details": null
+}
+```
+
+##### `401 Unauthorized`
+*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+```json
+{
+  "success": false,
+  "message": "Missing or malformed Authorization header",
+  "details": null
+}
+```
+
+##### `403 Forbidden`
+*(Returned when authenticated user is not in `STUDENT` role)*
+```json
+{
+  "success": false,
+  "message": "Access denied. Required role: [STUDENT], Current role: TUTOR",
+  "details": null
+}
+```
+
+##### `404 Not Found`
+*(Returned when student profile does not exist for this user)*
+```json
+{
+  "success": false,
+  "message": "Student profile not found",
+  "details": null
+}
+```
+
+##### `500 Internal Server Error`
+*(Returned when database update fails or unhandled operational exception occurs)*
+```json
+{
+  "success": false,
+  "message": "Internal Server Error",
+  "details": null
+}
+```
+
 ---
 
 ### 5.4. `GET /api/students/availability` (TP-54)
@@ -349,6 +540,48 @@ Retrieves the student's recurring weekly availability time slots.
 }
 ```
 
+#### Error Responses
+
+##### `401 Unauthorized`
+*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+```json
+{
+  "success": false,
+  "message": "Missing or malformed Authorization header",
+  "details": null
+}
+```
+
+##### `403 Forbidden`
+*(Returned when authenticated user is not in `STUDENT` role)*
+```json
+{
+  "success": false,
+  "message": "Access denied. Required role: [STUDENT], Current role: TUTOR",
+  "details": null
+}
+```
+
+##### `404 Not Found`
+*(Returned when student profile does not exist for this user)*
+```json
+{
+  "success": false,
+  "message": "Student profile not found",
+  "details": null
+}
+```
+
+##### `500 Internal Server Error`
+*(Returned when query execution fails)*
+```json
+{
+  "success": false,
+  "message": "Internal Server Error",
+  "details": null
+}
+```
+
 ---
 
 ### 5.5. `PUT /api/students/availability` (TP-54)
@@ -357,12 +590,12 @@ Overwrites the student's recurring weekly availability time slots. Existing slot
 
 * **Headers:** `Authorization: Bearer <token>`
 * **Role:** `STUDENT`
-* **Validation Schema:** `SetStudentAvailabilitySchema`
+* **Validation Schema:** `SetStudentAvailabilitySchema` (accepts `{ "availability": [...] }` as primary, with `{ "slots": [...] }` supported as a backwards-compatible alias)
 
 #### Request Body
 ```json
 {
-  "slots": [
+  "availability": [
     {
       "day_of_week": "MONDAY",
       "start_time": "17:00",
@@ -416,9 +649,62 @@ Overwrites the student's recurring weekly availability time slots. Existing slot
 }
 ```
 
+#### Error Responses
+
+##### `400 Bad Request`
+*(Returned when slot timing is invalid or slots overlap on the same day)*
+```json
+{
+  "success": false,
+  "message": "Overlapping availability slots detected for MONDAY: (17:00-19:00) and (18:00-20:00)",
+  "details": null
+}
+```
+*(Or when time bounds fail: `Invalid time slot for MONDAY: start_time (19:00) must be earlier than end_time (17:00)`)*
+
+##### `401 Unauthorized`
+*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+```json
+{
+  "success": false,
+  "message": "Missing or malformed Authorization header",
+  "details": null
+}
+```
+
+##### `403 Forbidden`
+*(Returned when authenticated user is not in `STUDENT` role)*
+```json
+{
+  "success": false,
+  "message": "Access denied. Required role: [STUDENT], Current role: TUTOR",
+  "details": null
+}
+```
+
+##### `404 Not Found`
+*(Returned when student profile does not exist for this user)*
+```json
+{
+  "success": false,
+  "message": "Student profile not found",
+  "details": null
+}
+```
+
+##### `500 Internal Server Error`
+*(Returned when database transaction replacement fails)*
+```json
+{
+  "success": false,
+  "message": "Internal Server Error",
+  "details": null
+}
+```
+
 ---
 
-### 5.6. `GET /api/students/subjects`
+### 5.6. `GET /api/students/subjects` (TP-58)
 
 Retrieves the student's selected target subjects with category and learning goal details.
 
@@ -431,14 +717,14 @@ Retrieves the student's selected target subjects with category and learning goal
   "success": true,
   "data": [
     {
-      "variant_id": "var-math-school-uuid",
+      "variant_id": "3a1b2c4d-0001-4000-8000-111122223333",
       "subject_name": "Mathematics",
       "variant_name": "School Curriculum Mathematics",
       "category": "GENERAL_LEARNING",
       "learning_goal": "SCHOOL_CURRICULUM"
     },
     {
-      "variant_id": "var-sat-math-uuid",
+      "variant_id": "3a1b2c4d-0002-4000-8000-111122223333",
       "subject_name": "Digital SAT",
       "variant_name": "Digital SAT Math (700+)",
       "category": "UNIVERSITY_ENTRANCE",
@@ -448,9 +734,51 @@ Retrieves the student's selected target subjects with category and learning goal
 }
 ```
 
+#### Error Responses
+
+##### `401 Unauthorized`
+*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+```json
+{
+  "success": false,
+  "message": "Missing or malformed Authorization header",
+  "details": null
+}
+```
+
+##### `403 Forbidden`
+*(Returned when authenticated user is not in `STUDENT` role)*
+```json
+{
+  "success": false,
+  "message": "Access denied. Required role: [STUDENT], Current role: TUTOR",
+  "details": null
+}
+```
+
+##### `404 Not Found`
+*(Returned when student profile does not exist for this user)*
+```json
+{
+  "success": false,
+  "message": "Student profile not found",
+  "details": null
+}
+```
+
+##### `500 Internal Server Error`
+*(Returned when database query execution fails)*
+```json
+{
+  "success": false,
+  "message": "Internal Server Error",
+  "details": null
+}
+```
+
 ---
 
-### 5.7. `PUT /api/students/subjects`
+### 5.7. `PUT /api/students/subjects` (TP-58)
 
 Replaces the student's selected target subject requirements.
 
@@ -462,11 +790,16 @@ Replaces the student's selected target subject requirements.
 ```json
 {
   "variant_ids": [
-    "var-math-school-uuid",
-    "var-sat-math-uuid"
+    "3a1b2c4d-0001-4000-8000-111122223333",
+    "3a1b2c4d-0002-4000-8000-111122223333"
   ]
 }
 ```
+
+#### Field Validation Rules:
+* `variant_ids`: Required array containing at least 1 valid UUID string.
+* Duplicate subject variant UUIDs are strictly rejected.
+* Every referenced UUID must exist in the `subject_variants` catalog.
 
 #### Response `200 OK`
 ```json
@@ -474,14 +807,74 @@ Replaces the student's selected target subject requirements.
   "success": true,
   "data": [
     {
-      "variant_id": "var-math-school-uuid",
+      "variant_id": "3a1b2c4d-0001-4000-8000-111122223333",
       "subject_name": "Mathematics",
       "variant_name": "School Curriculum Mathematics",
       "category": "GENERAL_LEARNING",
       "learning_goal": "SCHOOL_CURRICULUM"
+    },
+    {
+      "variant_id": "3a1b2c4d-0002-4000-8000-111122223333",
+      "subject_name": "Digital SAT",
+      "variant_name": "Digital SAT Math (700+)",
+      "category": "UNIVERSITY_ENTRANCE",
+      "learning_goal": "STANDARDIZED_EXAMS"
     }
   ],
   "message": "Student target subjects updated successfully"
+}
+```
+
+#### Error Responses
+
+##### `400 Bad Request`
+*(Returned when `variant_ids` array is empty, contains non-UUID strings, or contains duplicate variants)*
+```json
+{
+  "success": false,
+  "message": "Duplicate subject variants are not allowed",
+  "details": null
+}
+```
+*(Or Zod validation error when empty: `At least one subject variant is required`)*
+
+##### `401 Unauthorized`
+*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+```json
+{
+  "success": false,
+  "message": "Missing or malformed Authorization header",
+  "details": null
+}
+```
+
+##### `403 Forbidden`
+*(Returned when authenticated user is not in `STUDENT` role)*
+```json
+{
+  "success": false,
+  "message": "Access denied. Required role: [STUDENT], Current role: TUTOR",
+  "details": null
+}
+```
+
+##### `404 Not Found`
+*(Returned when student profile does not exist OR referenced subject variant ID does not exist in `subject_variants`)*
+```json
+{
+  "success": false,
+  "message": "Subject variant(s) not found: 3a1b2c4d-0009-4000-8000-111122223333",
+  "details": null
+}
+```
+
+##### `500 Internal Server Error`
+*(Returned when database transaction replacement fails)*
+```json
+{
+  "success": false,
+  "message": "Internal Server Error",
+  "details": null
 }
 ```
 

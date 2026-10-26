@@ -7,6 +7,7 @@ import {
   BadRequestError,
   ConflictError,
   NotFoundError,
+  UnauthorizedError,
 } from '../../common/errors/http-errors.js';
 
 describe('StudentsService Unit Tests', () => {
@@ -240,6 +241,236 @@ describe('StudentsService Unit Tests', () => {
     } finally {
       studentsRepository.findProfileByUserId = originalFind;
       studentsRepository.createProfile = originalCreate;
+    }
+  });
+
+  it('should throw UnauthorizedError if userId is empty on getProfile', async () => {
+    await assert.rejects(async () => {
+      await studentsService.getProfile('');
+    }, UnauthorizedError);
+  });
+
+  it('should throw BadRequestError if grade_level is invalid on createProfile', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    studentsRepository.findProfileByUserId = async () => null;
+
+    try {
+      await assert.rejects(
+        async () => {
+          await studentsService.createProfile('mock-student-id', {
+            first_name: 'Pitchaya',
+            last_name: 'Siriwong',
+            phone_number: '0891234567',
+            grade_level: 'G13', // Invalid grade
+            tutor_type_pref: TutorTypePref.ANY,
+            style_profile: [3, 4, 2, 4, 3],
+            personality_profile: [4, 5, 3, 4],
+            budget_max: 650,
+          });
+        },
+        BadRequestError
+      );
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+    }
+  });
+
+  it('should throw BadRequestError if style_profile ratings are out of 1-5 range', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    studentsRepository.findProfileByUserId = async () => null;
+
+    try {
+      await assert.rejects(
+        async () => {
+          await studentsService.createProfile('mock-student-id', {
+            first_name: 'Pitchaya',
+            last_name: 'Siriwong',
+            phone_number: '0891234567',
+            grade_level: 'G10',
+            tutor_type_pref: TutorTypePref.ANY,
+            style_profile: [3, 6, 2, 4, 3], // 6 is invalid
+            personality_profile: [4, 5, 3, 4],
+            budget_max: 650,
+          });
+        },
+        BadRequestError
+      );
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+    }
+  });
+
+  it('should throw BadRequestError if personality_profile ratings are out of 1-5 range', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    studentsRepository.findProfileByUserId = async () => null;
+
+    try {
+      await assert.rejects(
+        async () => {
+          await studentsService.createProfile('mock-student-id', {
+            first_name: 'Pitchaya',
+            last_name: 'Siriwong',
+            phone_number: '0891234567',
+            grade_level: 'G10',
+            tutor_type_pref: TutorTypePref.ANY,
+            style_profile: [3, 4, 2, 4, 3],
+            personality_profile: [0, 5, 3, 4], // 0 is invalid
+            budget_max: 650,
+          });
+        },
+        BadRequestError
+      );
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+    }
+  });
+
+  it('should throw BadRequestError if updateProfile payload is empty', async () => {
+    await assert.rejects(async () => {
+      await studentsService.updateProfile('mock-student-id', {});
+    }, BadRequestError);
+  });
+
+  it('should throw NotFoundError if updateProfile student does not exist', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    studentsRepository.findProfileByUserId = async () => null;
+
+    try {
+      await assert.rejects(async () => {
+        await studentsService.updateProfile('mock-student-id', { first_name: 'NewName' });
+      }, NotFoundError);
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+    }
+  });
+
+  it('should throw BadRequestError if availability slot is missing required fields', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    studentsRepository.findProfileByUserId = async () => mockStudent;
+
+    try {
+      await assert.rejects(
+        async () => {
+          await studentsService.setAvailability('mock-student-id', {
+            availability: [
+              {
+                day_of_week: DayOfWeek.MONDAY,
+                start_time: '',
+                end_time: '19:00',
+              },
+            ],
+          });
+        },
+        BadRequestError
+      );
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+    }
+  });
+
+  it('should accept availability passed as { slots: [...] }', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    const originalReplace = studentsRepository.replaceAvailability;
+    studentsRepository.findProfileByUserId = async () => mockStudent;
+
+    let savedSlots: any = null;
+    studentsRepository.replaceAvailability = async (_userId, slots) => {
+      savedSlots = slots;
+      return slots as any;
+    };
+
+    try {
+      await studentsService.setAvailability('mock-student-id', {
+        slots: [
+          {
+            day_of_week: DayOfWeek.MONDAY,
+            start_time: '10:00',
+            end_time: '12:00',
+          },
+        ],
+      } as any);
+      assert.equal(savedSlots.length, 1);
+      assert.equal(savedSlots[0].day_of_week, DayOfWeek.MONDAY);
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+      studentsRepository.replaceAvailability = originalReplace;
+    }
+  });
+
+  it('should throw BadRequestError if empty variant_ids are submitted in setSubjects', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    studentsRepository.findProfileByUserId = async () => mockStudent;
+
+    try {
+      await assert.rejects(async () => {
+        await studentsService.setSubjects('mock-student-id', []);
+      }, BadRequestError);
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+    }
+  });
+
+  it('should throw BadRequestError if duplicate subject variants are submitted in setSubjects', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    studentsRepository.findProfileByUserId = async () => mockStudent;
+
+    try {
+      await assert.rejects(async () => {
+        await studentsService.setSubjects('mock-student-id', [
+          '3a1b2c4d-0001-4000-8000-111122223333',
+          '3a1b2c4d-0001-4000-8000-111122223333',
+        ]);
+      }, BadRequestError);
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+    }
+  });
+
+  it('should throw NotFoundError if subject variant does not exist in database on setSubjects', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    const originalVerify = studentsRepository.verifyVariantIdsExist;
+    studentsRepository.findProfileByUserId = async () => mockStudent;
+    studentsRepository.verifyVariantIdsExist = async () => []; // None found
+
+    try {
+      await assert.rejects(async () => {
+        await studentsService.setSubjects('mock-student-id', [
+          '3a1b2c4d-0001-4000-8000-111122223333',
+        ]);
+      }, NotFoundError);
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+      studentsRepository.verifyVariantIdsExist = originalVerify;
+    }
+  });
+
+  it('should successfully set subjects when variants exist and are unique', async () => {
+    const originalFind = studentsRepository.findProfileByUserId;
+    const originalVerify = studentsRepository.verifyVariantIdsExist;
+    const originalReplace = studentsRepository.replaceSubjects;
+    studentsRepository.findProfileByUserId = async () => mockStudent;
+    studentsRepository.verifyVariantIdsExist = async (ids) => ids;
+
+    const mockSubjectsResult = [
+      {
+        variant_id: '3a1b2c4d-0001-4000-8000-111122223333',
+        subject_name: 'Mathematics',
+        variant_name: 'School Curriculum Mathematics',
+        category: 'GENERAL_LEARNING' as any,
+        learning_goal: 'SCHOOL_CURRICULUM' as any,
+      },
+    ];
+    studentsRepository.replaceSubjects = async () => mockSubjectsResult;
+
+    try {
+      const result = await studentsService.setSubjects('mock-student-id', [
+        '3a1b2c4d-0001-4000-8000-111122223333',
+      ]);
+      assert.deepEqual(result, mockSubjectsResult);
+    } finally {
+      studentsRepository.findProfileByUserId = originalFind;
+      studentsRepository.verifyVariantIdsExist = originalVerify;
+      studentsRepository.replaceSubjects = originalReplace;
     }
   });
 });

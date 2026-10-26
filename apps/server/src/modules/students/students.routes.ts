@@ -19,8 +19,10 @@ router.use(requireRole([UserRole.STUDENT]));
 
 // 1. Personal Profile & Preferences (TP-58, TP-57, TP-54)
 router.get('/profile', studentsController.getProfile);
+router.get('/me/profile', studentsController.getProfile);
 router.post('/profile', validateRequest(StudentProfileSchema), studentsController.createProfile);
 router.patch('/profile', validateRequest(UpdateStudentProfileSchema), studentsController.updateProfile);
+router.patch('/me/profile', validateRequest(UpdateStudentProfileSchema), studentsController.updateProfile);
 
 // 2. Weekly Availability Schedule (TP-54)
 router.get('/availability', studentsController.getAvailability);

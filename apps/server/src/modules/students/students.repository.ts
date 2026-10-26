@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import {
   students,
@@ -177,6 +177,20 @@ export const studentsRepository = {
   },
 
   /**
+   * Verify that specified subject variant IDs exist in the database
+   */
+  async verifyVariantIdsExist(variantIds: string[]): Promise<string[]> {
+    if (variantIds.length === 0) return [];
+
+    const rows = await db
+      .select({ id: subjectVariants.id })
+      .from(subjectVariants)
+      .where(inArray(subjectVariants.id, variantIds));
+
+    return rows.map((r) => r.id);
+  },
+
+  /**
    * Replace student's selected subject requirements
    */
   async replaceSubjects(userId: string, variantIds: string[]): Promise<StudentSubjectItemDto[]> {
@@ -185,9 +199,10 @@ export const studentsRepository = {
         .delete(studentSubjectRequirements)
         .where(eq(studentSubjectRequirements.student_id, userId));
 
-      if (variantIds.length > 0) {
+      const uniqueIds = Array.from(new Set(variantIds));
+      if (uniqueIds.length > 0) {
         await tx.insert(studentSubjectRequirements).values(
-          variantIds.map((vId) => ({
+          uniqueIds.map((vId) => ({
             student_id: userId,
             variant_id: vId,
           }))
