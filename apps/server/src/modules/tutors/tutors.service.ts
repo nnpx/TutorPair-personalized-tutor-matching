@@ -123,11 +123,26 @@ export const tutorsService = {
       throw new NotFoundError('Tutor profile not found');
     }
 
+    const slotsByDay = new Map<string, Array<{ start_time: string; end_time: string }>>();
     for (const slot of input.availability) {
       if (slot.start_time >= slot.end_time) {
         throw new BadRequestError(
           `Invalid time slot for ${slot.day_of_week}: start_time (${slot.start_time}) must be earlier than end_time (${slot.end_time})`
         );
+      }
+      const daySlots = slotsByDay.get(slot.day_of_week) || [];
+      daySlots.push(slot);
+      slotsByDay.set(slot.day_of_week, daySlots);
+    }
+
+    for (const [day, daySlots] of slotsByDay.entries()) {
+      daySlots.sort((a, b) => a.start_time.localeCompare(b.start_time));
+      for (let i = 1; i < daySlots.length; i++) {
+        if (daySlots[i].start_time < daySlots[i - 1].end_time) {
+          throw new ConflictError(
+            `Overlapping availability slots detected for ${day}: (${daySlots[i - 1].start_time}-${daySlots[i - 1].end_time}) and (${daySlots[i].start_time}-${daySlots[i].end_time})`
+          );
+        }
       }
     }
 

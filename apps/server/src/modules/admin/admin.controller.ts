@@ -2,11 +2,11 @@ import { Request, Response } from 'express';
 import { asyncHandler } from '../../common/utils/async-handler.js';
 import { successResponse } from '../../common/utils/response.util.js';
 import { adminService } from './admin.service.js';
-import { VerifyTutorInput } from '@tutorpair/shared';
+import { VerifyTutorInput, AdminTutorsQueryInput } from '@tutorpair/shared';
 
 export const adminController = {
   getTutorsQueue: asyncHandler(async (req: Request, res: Response) => {
-    const status = req.query.status as string | undefined;
+    const { status } = req.query as unknown as AdminTutorsQueryInput;
     const tutors = await adminService.getTutorsQueue(status);
     res.status(200).json(successResponse(tutors, 'Tutors queue retrieved successfully'));
   }),

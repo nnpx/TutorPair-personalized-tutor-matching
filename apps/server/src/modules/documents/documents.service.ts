@@ -25,6 +25,10 @@ export const documentsService = {
       throw new BadRequestError('Total uploaded document storage exceeds 100MB limit for this account.');
     }
 
+    if (input.document_type === DocumentType.SUBJECT_QUALIFICATION && !input.variant_id) {
+      throw new BadRequestError('variant_id is required for SUBJECT_QUALIFICATION document type');
+    }
+
     const rawExt = path.extname(input.file_name).toLowerCase() || '.pdf';
     const allowedExts = ['.pdf', '.png', '.jpg', '.jpeg'];
     const ext = allowedExts.includes(rawExt) ? rawExt : '.pdf';
@@ -60,6 +64,10 @@ export const documentsService = {
   },
 
   async confirmUpload(tutorId: string, input: ConfirmUploadInput) {
+    if (input.document_type === DocumentType.SUBJECT_QUALIFICATION && !input.variant_id) {
+      throw new BadRequestError('variant_id is required for SUBJECT_QUALIFICATION document type');
+    }
+
     const doc = await documentsRepository.createDocument({
       tutor_id: tutorId,
       document_type: input.document_type,
