@@ -1,16 +1,48 @@
 import React from 'react';
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
-import { Sparkles, History, User, LogOut } from 'lucide-react';
+import { queryClient } from '../services/query-client';
+import { useStudentProfile } from '../features/students/hooks/useStudents';
+import { Sparkles, History, User, LogOut, Lock } from 'lucide-react';
 
 export const StudentLayout: React.FC = () => {
   const { user, clearUser } = useAuthStore();
   const location = useLocation();
+  const { data: profile } = useStudentProfile();
+
+  const isProfileComplete = Boolean(
+    profile &&
+    profile.first_name &&
+    profile.last_name &&
+    profile.grade_level &&
+    profile.style_profile &&
+    profile.style_profile.length === 5 &&
+    profile.personality_profile &&
+    profile.personality_profile.length === 4
+  );
+
+  // Guard: If onboarding is incomplete, redirect directly from profile to onboarding
+  if (!isProfileComplete && location.pathname === '/student/profile') {
+    return <Navigate to="/student/onboarding" replace />;
+  }
+
+  const handleLogout = () => {
+    queryClient.clear();
+    queryClient.removeQueries();
+    try {
+      localStorage.removeItem('tutorpair_dev_student_profile');
+      localStorage.removeItem('tutorpair_dev_student_availability');
+      localStorage.removeItem('tutorpair_dev_student_subjects');
+    } catch {
+      // ignore
+    }
+    clearUser();
+  };
 
   const navItems = [
-    { label: 'Find Tutors', path: '/student/matching', icon: Sparkles },
-    { label: 'Matching History', path: '/student/history', icon: History },
-    { label: 'My Profile', path: '/student/profile', icon: User },
+    { label: 'Find Tutors', path: '/student/matching', icon: Sparkles, locked: false },
+    { label: 'Matching History', path: '/student/history', icon: History, locked: false },
+    { label: 'My Profile', path: '/student/profile', icon: User, locked: !isProfileComplete },
   ];
 
   return (
@@ -28,7 +60,7 @@ export const StudentLayout: React.FC = () => {
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
           <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'center' }}>
-            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <Link to="/student/matching" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
               <span
                 style={{
                   display: 'inline-flex',
@@ -70,6 +102,33 @@ export const StudentLayout: React.FC = () => {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
+
+                if (item.locked) {
+                  return (
+                    <div
+                      key={item.path}
+                      title="Complete onboarding setup to unlock profile settings"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.625rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        fontWeight: 600,
+                        color: 'var(--color-muted-text, #9ca3af)',
+                        backgroundColor: 'transparent',
+                        cursor: 'not-allowed',
+                        opacity: 0.65,
+                        userSelect: 'none',
+                      }}
+                    >
+                      <Icon size={18} strokeWidth={2.2} />
+                      {item.label}
+                      <Lock size={13} strokeWidth={2.4} style={{ marginLeft: '0.125rem', opacity: 0.8 }} />
+                    </div>
+                  );
+                }
+
                 return (
                   <Link
                     key={item.path}
@@ -99,7 +158,7 @@ export const StudentLayout: React.FC = () => {
               {user?.email}
             </span>
             <button
-              onClick={clearUser}
+              onClick={handleLogout}
               className="flat-btn flat-btn-secondary flat-btn-sm"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
             >
