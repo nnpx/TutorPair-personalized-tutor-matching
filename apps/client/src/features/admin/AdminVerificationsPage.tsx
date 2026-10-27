@@ -1108,9 +1108,9 @@ export const AdminVerificationsPage: React.FC = () => {
                     </div>
 
                     <p style={{ fontSize: '0.9375rem', color: '#4b5563', lineHeight: 1.5 }}>
-                      State clearly why the application was rejected (e.g. illegible transcript,
-                      unaccredited test score, or missing diploma). This will be sent directly to the
-                      tutor via automated Amazon SES email so they can rectify and resubmit.
+                      State clearly why the application was rejected (e.g., illegible transcript,
+                      unaccredited test score, or missing diploma). An email status update will be
+                      sent to the tutor.
                     </p>
 
                     <textarea
