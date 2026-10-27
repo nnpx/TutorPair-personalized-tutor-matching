@@ -395,36 +395,6 @@ export const StudentSubjectSelector: React.FC<StudentSubjectSelectorProps> = ({
           Hourly Rate for this Subject (THB / hr) *
         </label>
 
-        {/* Quick Tiers */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
-          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280' }}>Quick Tiers:</span>
-          {[
-            { label: '฿350 (Entry)', val: 350 },
-            { label: '฿500 (Popular)', val: 500 },
-            { label: '฿750 (Experienced)', val: 750 },
-            { label: '฿1,000 (Expert)', val: 1000 },
-          ].map((tier) => (
-            <button
-              key={tier.val}
-              type="button"
-              onClick={() => onChangeBudget(tier.val)}
-              style={{
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                padding: '0.25rem 0.5rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: budget === tier.val ? 'var(--color-primary)' : 'var(--bg-canvas)',
-                color: budget === tier.val ? '#ffffff' : 'var(--fg-main)',
-                border: budget === tier.val ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
-                cursor: 'pointer',
-                transition: 'all 0.15s ease',
-              }}
-            >
-              {tier.label}
-            </button>
-          ))}
-        </div>
-
         <div style={{ position: 'relative', display: 'flex', alignItems: 'center', maxWidth: '320px' }}>
           <span
             style={{
