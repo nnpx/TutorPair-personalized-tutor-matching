@@ -91,12 +91,24 @@ const BUDGET_WEIGHT = 0.2;
 // tutor type and the tutor is a different one; ANY and an exact match are never penalized.
 export const TUTOR_TYPE_MISMATCH_PENALTY = 10;
 
+function areValidSliders(values: unknown, expectedLength: number): boolean {
+  return (
+    Array.isArray(values) &&
+    values.length === expectedLength &&
+    values.every((v) => Number.isInteger(v) && v >= 1 && v <= 5)
+  );
+}
+
+/** True when both slider sets have the right length and every rating is an integer in 1-5. */
+export function hasValidSliderProfile(style: unknown, personality: unknown): boolean {
+  return (
+    areValidSliders(style, STYLE_SLIDER_COUNT) &&
+    areValidSliders(personality, PERSONALITY_SLIDER_COUNT)
+  );
+}
+
 function assertSliders(values: number[], expectedLength: number, label: string): void {
-  if (
-    !Array.isArray(values) ||
-    values.length !== expectedLength ||
-    !values.every((v) => Number.isInteger(v) && v >= 1 && v <= 5)
-  ) {
+  if (!areValidSliders(values, expectedLength)) {
     throw new BadRequestError(
       `${label} must contain exactly ${expectedLength} integer ratings between 1 and 5`
     );

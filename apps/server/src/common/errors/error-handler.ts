@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { AppError } from './app-error.js';
+import { getPgErrorCode, PG_FOREIGN_KEY_VIOLATION } from './pg-error.js';
 import { errorResponse } from '../utils/response.util.js';
 import { env } from '../../config/env.js';
 
@@ -24,21 +25,25 @@ export function errorHandler(
     return;
   }
 
+  // Body larger than the express.json limit (1mb): a client error, not a server fault
+  if ('type' in err && (err as { type: string }).type === 'entity.too.large') {
+    res.status(413).json(errorResponse('Request body too large'));
+    return;
+  }
+
   // Handle common PostgreSQL database error codes defensively
-  if ('code' in err) {
-    const pgCode = (err as { code: string }).code;
-    if (pgCode === '22P02') {
-      res.status(400).json(errorResponse('Invalid parameter format: expected valid UUID'));
-      return;
-    }
-    if (pgCode === '23505') {
-      res.status(409).json(errorResponse('A record with these details already exists'));
-      return;
-    }
-    if (pgCode === '23503') {
-      res.status(400).json(errorResponse('Referenced record does not exist'));
-      return;
-    }
+  const pgCode = getPgErrorCode(err);
+  if (pgCode === '22P02') {
+    res.status(400).json(errorResponse('Invalid parameter format: expected valid UUID'));
+    return;
+  }
+  if (pgCode === '23505') {
+    res.status(409).json(errorResponse('A record with these details already exists'));
+    return;
+  }
+  if (pgCode === PG_FOREIGN_KEY_VIOLATION) {
+    res.status(400).json(errorResponse('Referenced record does not exist'));
+    return;
   }
 
   console.error('Unhandled Application Error:', err);

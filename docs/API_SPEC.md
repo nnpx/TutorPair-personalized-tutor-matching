@@ -68,6 +68,7 @@ Error responses are handled centrally by [`errorHandler`](../apps/server/src/com
 | `403 Forbidden` | `ForbiddenError` | Authenticated user lacks required role or tries to access another user's private resource |
 | `404 Not Found` | `NotFoundError` | Tutor profile, subject variant, document, or route does not exist |
 | `409 Conflict` | `ConflictError` | Tutor profile already exists for this user, or schedule contains overlapping slots on the same day |
+| `413 Payload Too Large` | — | Request body is larger than the 1 MB JSON limit |
 | `422 Unprocessable Entity` | `UnprocessableEntityError` | Semantically invalid input violating business rules |
 | `500 Internal Server Error` | `InternalServerError` | Unhandled server or database exception |
 
@@ -2207,9 +2208,19 @@ The server incorporates application-level fallbacks ensuring that unhandled rout
        "details": null
      }
      ```
-3. **Database Constraint Fallback Handling**:
-   - Postgres error codes `22P02` (invalid syntax/UUID), `23505` (unique constraint violation), and `23503` (foreign key violation) map cleanly to `400 Bad Request` or `409 Conflict`.
-4. **Unhandled Server Exceptions (`500 Internal Server Error`)**:
+3. **Oversized Body (`413 Payload Too Large`)**:
+   - A JSON body above the 1 MB limit returns:
+     ```json
+     {
+       "success": false,
+       "message": "Request body too large",
+       "details": null
+     }
+     ```
+4. **Database Constraint Fallback Handling**:
+   - Postgres error codes `22P02` (invalid syntax/UUID), `23505` (unique constraint violation), and `23503` (foreign key violation) map cleanly to `400 Bad Request` or `409 Conflict`. The code is read from the error itself or from its `cause` chain, because the ORM wraps database errors.
+   - Modules that can hit these in a known race translate them first into a more precise error (see Module 6 §5).
+5. **Unhandled Server Exceptions (`500 Internal Server Error`)**:
    - Unexpected operational exceptions return:
      ```json
      {
@@ -2325,11 +2336,13 @@ A student keeps **one open request per variant**: running a match again for the 
 
 | Status | Error Class | When |
 |---|---|---|
-| `400` | `BadRequestError` | `variant_id` missing or not a UUID; or a stored tutor/student slider set is not 5 style + 4 personality integers in 1–5 |
+| `400` | `BadRequestError` | Body is not valid JSON, or `variant_id` is missing or not a UUID |
 | `401` | `UnauthorizedError` | Missing or invalid bearer token |
 | `403` | `ForbiddenError` | Caller is not a `STUDENT` |
 | `404` | `NotFoundError` | The student has no profile yet, or the variant does not exist |
-| `422` | `UnprocessableEntityError` | The student has no weekly availability: *"Set your weekly availability before matching"* |
+| `409` | `ConflictError` | A tutor or the variant was removed while the match was being saved: *"The tutor list changed while matching. Please try again"* |
+| `413` | — | Body larger than 1 MB |
+| `422` | `UnprocessableEntityError` | The student has no weekly availability (*"Set your weekly availability before matching"*), or the student's saved sliders are invalid (*"Your learning preferences are incomplete. Please update your profile before matching"*) |
 
 ```bash
 curl -X POST http://localhost:4000/api/matching \
@@ -2388,9 +2401,73 @@ No contact details are returned. Revealing contact channels belongs to Module 7.
 
 | Status | Error Class | When |
 |---|---|---|
-| `400` | `BadRequestError` | Body missing a field or a value is not a UUID |
+| `400` | `BadRequestError` | Body is not valid JSON, or a field is missing or not a UUID |
 | `401` | `UnauthorizedError` | Missing or invalid bearer token |
 | `403` | `ForbiddenError` | Caller is not a `STUDENT` |
 | `404` | `NotFoundError` | Request id unknown or malformed, **or the request belongs to another student** (same response, so another student's request is never revealed); or the recommendation is not part of this request |
 | `409` | `ConflictError` | The request is already `CONFIRMED` (including the loser of two simultaneous confirms) |
-| `422` | `UnprocessableEntityError` | `tutor_id` does not match the recommendation, or the tutor is no longer approved: *"This tutor is no longer available"* |
+| `413` | — | Body larger than 1 MB |
+| `422` | `UnprocessableEntityError` | `tutor_id` does not match the recommendation, or the tutor is no longer approved or was removed meanwhile: *"This tutor is no longer available"* |
+
+## 5. Error Handling & Input Guards (Module 6)
+
+Every failure returns the standard envelope from the [global template](#2-standard-error-response-structure): `{ "success": false, "message": "...", "details": ... }`. Unknown routes, malformed JSON, oversized bodies and unhandled exceptions follow the global fallbacks in the *Global API Fallbacks & Resilience* section above.
+
+### 5.1 Order in which a request is checked
+
+| # | Check | Where | Failure |
+|---|---|---|---|
+| 1 | JSON body parses and is within 1 MB | `express.json` | `400` malformed JSON / `413` too large |
+| 2 | `Authorization: Bearer <token>` is present and valid | `authenticate` | `401` |
+| 3 | Caller has the `STUDENT` role | `requireRole` | `403` |
+| 4 | Body shape and types (Zod) | `validateRequest` | `400` with `details: [{ field, message }]` |
+| 5 | `:matchRequestId` is a UUID (confirm only) | service | `404` (a malformed id can never exist, so it is reported like an unknown one) |
+| 6 | Business rules and ownership | service | `404` / `409` / `422` (see below) |
+| 7 | Database failures | repository / global handler | `409` race, otherwise `500` |
+
+### 5.2 Input guards
+
+| Input | Guard |
+|---|---|
+| `variant_id` (match) | required, string, UUID. Any other body field is ignored, so grade, sliders, budget and availability can only come from the saved profile |
+| `recommendation_id`, `tutor_id` (confirm) | both required, strings, UUID |
+| `:matchRequestId` | UUID, else `404` |
+| Student slider data | 5 style + 4 personality integers in 1–5, else `422` pointing at the profile |
+| Tutor slider data | same rule; a tutor who fails it is **skipped and logged** so one bad row cannot fail the student's request |
+| Ownership | a request is only found for its own student; another student's request is indistinguishable from an unknown id (`404`) |
+
+### 5.3 Error catalogue
+
+**`POST /api/matching`**
+
+| Status | Message | Cause |
+|---|---|---|
+| `400` | `Malformed JSON in request body` | body is not parseable JSON |
+| `400` | `Request validation failed` (+ `details`) | `variant_id` missing / not a UUID |
+| `401` | `Missing or malformed Authorization header` or a token error | no or invalid token |
+| `403` | `Access denied. Required role: [STUDENT], …` | caller is a `TUTOR` or `ADMIN` |
+| `404` | `Student profile not found` | student has not created a profile |
+| `404` | `Subject variant not found` | `variant_id` does not exist |
+| `409` | `The tutor list changed while matching. Please try again` | tutor or variant deleted between loading and saving |
+| `413` | `Request body too large` | body above 1 MB |
+| `422` | `Set your weekly availability before matching` | student has no availability slots |
+| `422` | `Your learning preferences are incomplete. Please update your profile before matching` | stored student sliders invalid |
+| `500` | `An unexpected error occurred. Please try again later.` | unhandled failure, e.g. database unreachable |
+
+No eligible tutor is **not** an error: the response is `200` with `recommendations: []`.
+
+**`POST /api/matching/:matchRequestId/confirm`**
+
+| Status | Message | Cause |
+|---|---|---|
+| `400` | `Malformed JSON in request body` / `Request validation failed` (+ `details`) | bad JSON, or a field missing / not a UUID |
+| `401` / `403` | as above | auth or role |
+| `404` | `Match request not found` | unknown id, malformed id, or **another student's request** |
+| `404` | `Recommendation not found for this match request` | `recommendation_id` is not part of this request |
+| `409` | `This match request has already been confirmed` | already `CONFIRMED`, including the loser of two simultaneous confirms |
+| `413` | `Request body too large` | body above 1 MB |
+| `422` | `tutor_id does not match the selected recommendation` | ids disagree |
+| `422` | `This tutor is no longer available` | tutor no longer `APPROVED`, or removed during the confirm |
+| `500` | `An unexpected error occurred. Please try again later.` | unhandled failure |
+
+Confirm is all-or-nothing: if any step fails, the request stays `PENDING`, no recommendation is selected and no notification is created.

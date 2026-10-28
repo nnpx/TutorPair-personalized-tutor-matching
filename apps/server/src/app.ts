@@ -2,6 +2,7 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import { env } from './config/env.js';
 import { errorHandler } from './common/errors/error-handler.js';
+import { NotFoundError } from './common/errors/http-errors.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import { studentsRouter } from './modules/students/students.routes.js';
@@ -59,6 +60,11 @@ export function createApp(): Express {
   app.use('/api/admin', adminRouter);
   app.use('/api/matching', matchingRouter);
   app.use('/api/reviews', reviewsRouter);
+
+  // 404 Handler for undefined API routes (JSON envelope instead of Express's HTML page)
+  app.use((_req, _res, next) => {
+    next(new NotFoundError('API endpoint not found'));
+  });
 
   // Global Error Handler (must be last)
   app.use(errorHandler);

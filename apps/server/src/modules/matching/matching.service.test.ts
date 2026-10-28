@@ -11,7 +11,11 @@ import {
 import { matchingService } from './matching.service.js';
 import { matchingRepository, type CandidateTutor } from './matching.repository.js';
 import { studentsRepository } from '../students/students.repository.js';
-import { NotFoundError, UnprocessableEntityError } from '../../common/errors/http-errors.js';
+import {
+  ConflictError,
+  NotFoundError,
+  UnprocessableEntityError,
+} from '../../common/errors/http-errors.js';
 
 const STUDENT_ID = 'student-1';
 const VARIANT_ID = 'variant-math-primary';
@@ -254,5 +258,104 @@ describe('MatchingService.findTop3 (TP-8)', () => {
     const first = await matchingService.findTop3(STUDENT_ID, { variant_id: VARIANT_ID });
     const second = await matchingService.findTop3(STUDENT_ID, { variant_id: VARIANT_ID });
     assert.deepEqual(first, second);
+  });
+});
+
+describe('MatchingService.findTop3: error handling for bad data and races', () => {
+  const orig = {
+    profile: studentsRepository.getProfileWithAvailability,
+    variant: matchingRepository.findVariantById,
+    candidates: matchingRepository.findCandidateTutors,
+    create: matchingRepository.createRequestWithRecommendations,
+    warn: console.warn,
+  };
+  let warnings: unknown[][];
+
+  beforeEach(() => {
+    warnings = [];
+    console.warn = (...args: unknown[]) => {
+      warnings.push(args);
+    };
+    studentsRepository.getProfileWithAvailability = async () => student();
+    matchingRepository.findVariantById = async () => ({
+      id: VARIANT_ID,
+      learning_goal: LearningGoal.SCHOOL_CURRICULUM,
+    });
+    matchingRepository.findCandidateTutors = async () => [tutor('good')];
+    matchingRepository.createRequestWithRecommendations = async (_s, _v, recs) => ({
+      match_request_id: 'req-1',
+      recommendations: recs.map((r) => ({ ...r, recommendation_id: `rec-${r.tutor_id}` })),
+    });
+  });
+
+  afterEach(() => {
+    studentsRepository.getProfileWithAvailability = orig.profile;
+    matchingRepository.findVariantById = orig.variant;
+    matchingRepository.findCandidateTutors = orig.candidates;
+    matchingRepository.createRequestWithRecommendations = orig.create;
+    console.warn = orig.warn;
+  });
+
+  it('skips a tutor whose stored sliders are corrupt and still ranks the others', async () => {
+    matchingRepository.findCandidateTutors = async () => [
+      tutor('corrupt-style', { style_profile: [3, 3, 3] }),
+      tutor('corrupt-value', { personality_profile: [3, 3, 9, 3] }),
+      tutor('good'),
+    ];
+    const result = await matchingService.findTop3(STUDENT_ID, { variant_id: VARIANT_ID });
+    assert.deepEqual(
+      result.recommendations.map((r) => r.tutor.tutor_id),
+      ['good']
+    );
+  });
+
+  it('logs which tutor was skipped so the bad row can be fixed', async () => {
+    matchingRepository.findCandidateTutors = async () => [
+      tutor('corrupt', { style_profile: [] }),
+      tutor('good'),
+    ];
+    await matchingService.findTop3(STUDENT_ID, { variant_id: VARIANT_ID });
+    assert.equal(warnings.length, 1);
+    assert.match(String(warnings[0].join(' ')), /corrupt/);
+  });
+
+  it('does not blame the student for corrupt tutor data (no 400 from a tutor row)', async () => {
+    matchingRepository.findCandidateTutors = async () => [
+      tutor('corrupt', { style_profile: [0, 0, 0, 0, 0] }),
+    ];
+    const result = await matchingService.findTop3(STUDENT_ID, { variant_id: VARIANT_ID });
+    assert.deepEqual(result.recommendations, []);
+  });
+
+  it('returns 422 pointing at the profile when the student sliders are invalid', async () => {
+    studentsRepository.getProfileWithAvailability = async () =>
+      student({ style_profile: [3, 3] });
+    await assert.rejects(
+      matchingService.findTop3(STUDENT_ID, { variant_id: VARIANT_ID }),
+      (err: unknown) =>
+        err instanceof UnprocessableEntityError && /profile/i.test((err as Error).message)
+    );
+  });
+
+  it('returns 409 (retry) when a tutor or variant disappears between load and save', async () => {
+    matchingRepository.createRequestWithRecommendations = async () => {
+      throw Object.assign(new Error('Failed query: insert into "match_recommendations"'), {
+        cause: Object.assign(new Error('violates foreign key'), { code: '23503' }),
+      });
+    };
+    await assert.rejects(
+      matchingService.findTop3(STUDENT_ID, { variant_id: VARIANT_ID }),
+      (err: unknown) => err instanceof ConflictError && /try again/i.test((err as Error).message)
+    );
+  });
+
+  it('lets unrelated database errors through unchanged (global handler returns 500)', async () => {
+    matchingRepository.createRequestWithRecommendations = async () => {
+      throw new Error('connection terminated');
+    };
+    await assert.rejects(
+      matchingService.findTop3(STUDENT_ID, { variant_id: VARIANT_ID }),
+      /connection terminated/
+    );
   });
 });

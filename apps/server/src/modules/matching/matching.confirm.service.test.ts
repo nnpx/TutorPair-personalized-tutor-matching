@@ -181,6 +181,20 @@ describe('MatchingService.confirmSelection (TP-9)', () => {
     }
   });
 
+  it('returns 422 "no longer available" when the tutor is deleted mid-confirm (FK violation)', async () => {
+    notificationService.createNotification = (async () => {
+      throw Object.assign(new Error('Failed query: insert into "notifications"'), {
+        cause: Object.assign(new Error('violates foreign key'), { code: '23503' }),
+      });
+    }) as unknown as typeof notificationService.createNotification;
+    await assert.rejects(
+      confirm(),
+      (err: unknown) =>
+        err instanceof UnprocessableEntityError && /no longer available/i.test((err as Error).message)
+    );
+    assert.equal(committed, false);
+  });
+
   it('does not commit when creating the notification fails (selection rolls back with it)', async () => {
     notificationService.createNotification = (async () => {
       throw new Error('db down');

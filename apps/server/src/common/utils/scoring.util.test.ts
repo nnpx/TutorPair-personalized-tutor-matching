@@ -10,6 +10,7 @@ import {
 import { BadRequestError } from '../errors/http-errors.js';
 import {
   calculateCompatibilityScore,
+  hasValidSliderProfile,
   rankTop3,
   TOP_N,
   TUTOR_TYPE_MISMATCH_PENALTY,
@@ -379,6 +380,38 @@ describe('calculateCompatibilityScore (TP-7 stage 2)', () => {
       assert.ok(score >= 0 && score <= 100);
       assert.equal(score, Math.round(score * 100) / 100);
     });
+  });
+});
+
+describe('hasValidSliderProfile (guard used before scoring)', () => {
+  it('accepts 5 style + 4 personality integer ratings in 1-5', () => {
+    assert.equal(hasValidSliderProfile([1, 2, 3, 4, 5], [5, 4, 3, 2]), true);
+  });
+
+  it('rejects wrong lengths, out-of-range, non-integer and non-array values', () => {
+    assert.equal(hasValidSliderProfile([1, 2, 3, 4], [5, 4, 3, 2]), false);
+    assert.equal(hasValidSliderProfile([1, 2, 3, 4, 5], [5, 4, 3]), false);
+    assert.equal(hasValidSliderProfile([0, 2, 3, 4, 5], [5, 4, 3, 2]), false);
+    assert.equal(hasValidSliderProfile([1, 2, 3, 4, 6], [5, 4, 3, 2]), false);
+    assert.equal(hasValidSliderProfile([1, 2, 3, 4, 2.5], [5, 4, 3, 2]), false);
+    assert.equal(hasValidSliderProfile(null, [5, 4, 3, 2]), false);
+    assert.equal(hasValidSliderProfile([1, 2, 3, 4, 5], undefined), false);
+    assert.equal(hasValidSliderProfile('12345', [5, 4, 3, 2]), false);
+  });
+
+  it('agrees with the scorer: a valid profile never makes it throw', () => {
+    assert.doesNotThrow(() =>
+      calculateCompatibilityScore({
+        studentStyle: [1, 2, 3, 4, 5],
+        tutorStyle: [5, 4, 3, 2, 1],
+        studentPersonality: [1, 2, 3, 4],
+        tutorPersonality: [4, 3, 2, 1],
+        studentBudget: 500,
+        tutorRate: 300,
+        tutorTypePref: TutorTypePref.ANY,
+        tutorType: TutorType.FREELANCE,
+      })
+    );
   });
 });
 

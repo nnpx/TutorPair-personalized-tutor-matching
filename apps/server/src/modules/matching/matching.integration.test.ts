@@ -210,6 +210,15 @@ describe('Matching Module — POST /api/matching Integration Tests', () => {
     await createTutor('pending', { rate: 50, status: VerificationStatus.PENDING });
     await createTutor('g12only', { rate: 50, grades: ['G12'] });
     await createTutor('tuesday', { rate: 50, slot: [DayOfWeek.TUESDAY, '18:00', '20:00'] });
+    // Cheapest tutor of all, but with corrupt slider data: must be skipped, not fail the request.
+    const corruptId = await createTutor('corrupt', { rate: 1 });
+    await db
+      .update(tutors)
+      .set({ style_profile: [9, 9, 9, 9, 9] })
+      .where(eq(tutors.user_id, corruptId));
+    // A student whose stored sliders are invalid (has a slot, so only the sliders are wrong).
+    const brokenId = await createStudent('student-badsliders', true);
+    await db.update(students).set({ style_profile: [] }).where(eq(students.user_id, brokenId));
   });
 
   after(async () => {
@@ -356,7 +365,36 @@ describe('Matching Module — POST /api/matching Integration Tests', () => {
     assert.equal(open[0].id, second.match_request_id);
   });
 
-  it('12. zero survivors returns 200 with an empty list and still records the request', async () => {
+  it('12. a tutor with corrupt slider data is skipped; the request still succeeds (200)', async () => {
+    const res = await post('student', { variant_id: variantId });
+    assert.equal(res.status, 200);
+    const data = (await getJson<MatchResultDto>(res)).data!;
+    const ids = data.recommendations.map((r) => r.tutor.tutor_id);
+    assert.equal(ids.includes(tutorIdByName.get('corrupt')!), false);
+    assert.equal(data.recommendations.length, 3);
+  });
+
+  it('13. 422 pointing at the profile when the student sliders are invalid', async () => {
+    const res = await post('student-badsliders', { variant_id: variantId });
+    assert.equal(res.status, 422);
+    assert.match((await getJson(res)).message ?? '', /profile/i);
+  });
+
+  it('14. 400 for malformed JSON and 413 for an oversized body, as JSON envelopes', async () => {
+    const bad = await fetch(`${baseUrl}/api/matching`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: token('student') },
+      body: '{"variant_id": ',
+    });
+    assert.equal(bad.status, 400);
+    assert.equal((await getJson(bad)).success, false);
+
+    const big = await post('student', { variant_id: variantId, padding: 'x'.repeat(1_100_000) });
+    assert.equal(big.status, 413);
+    assert.equal((await getJson(big)).success, false);
+  });
+
+  it('15. zero survivors returns 200 with an empty list and still records the request', async () => {
     const res = await post('student', { variant_id: emptyVariantId });
     assert.equal(res.status, 200);
     const data = (await getJson<MatchResultDto>(res)).data!;
