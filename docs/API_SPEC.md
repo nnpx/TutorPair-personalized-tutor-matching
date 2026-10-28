@@ -2218,3 +2218,123 @@ The server incorporates application-level fallbacks ensuring that unhandled rout
        "details": null
      }
      ```
+
+
+---
+
+# Module 6: Tutor Matching
+
+> **Jira Epic:** TP-4: Development — Tutor Matching  
+> **Sub-Tasks:** TP-6 hard filtering · TP-7 weighted compatibility scoring · TP-8 Top 3 ranking · TP-9 tutor selection (documented with its endpoint)
+>
+> **Access Role:** `STUDENT` only (`authenticate` → `requireRole(['STUDENT'])` → `validateRequest`).  
+> **Identity:** the student is resolved from the bearer token. Clients never send a `student_id`.  
+> **Mock auth:** `Authorization: Bearer mock-token-<cognito_sub>` works in `development` / `test`.
+
+## 1. Endpoints Summary
+
+| Task | Method | Path | Purpose |
+|---|---|---|---|
+| **TP-8** | `POST` | `/api/matching` | Run the two-stage match and return the Top 3 tutors for one subject variant |
+
+## 2. How the Match Works
+
+The client sends **only the requested subject variant**. Everything else comes from the student's saved Module 3 profile via `studentsRepository.getProfileWithAvailability`: grade level, 5 style sliders, 4 personality sliders, `budget_max`, `tutor_type_pref` and weekly availability.
+
+### Stage 1 — Hard filters (strict pass/fail)
+
+A tutor is eliminated unless **all** of these hold:
+
+| Gate | Rule |
+|---|---|
+| Verified | `verification_status = 'APPROVED'` |
+| Variant | the tutor teaches exactly the requested `variant_id` (Math ≠ Science, Primary ≠ Secondary) |
+| Grade | only when the variant's `learning_goal = 'SCHOOL_CURRICULUM'`: the tutor's `grade_levels` for that variant must include the student's `grade_level`. A tutor with no grade levels is eliminated. Other learning goals skip this gate. |
+| Availability | at least one student slot and one tutor slot on the **same day** overlap by **≥ 60 minutes** (`MIN_OVERLAP_MINUTES`). Slots that only touch (`16:00–17:00` and `17:00–18:00`) do not overlap. |
+
+> **Online/Onsite mode** is listed as a hard filter in `PROJECT_CONTEXT.md` §3.3, but no mode column exists and all sessions are online by default (see the Module 4 format note), so this gate is not applied.
+
+### Stage 2 — Weighted compatibility score (0–100)
+
+```
+style       = 1 − Σ|student_i − tutor_i| / 20     (5 sliders, Manhattan distance)
+personality = 1 − Σ|student_i − tutor_i| / 16     (4 sliders)
+budget      = rate > budget_max ? 0 : 0.5 + 0.5 × (1 − rate / budget_max)
+score       = 100 × (0.45·style + 0.35·personality + 0.20·budget) − type_penalty
+type_penalty = 10 when tutor_type_pref ≠ ANY and ≠ the tutor's type, otherwise 0
+```
+
+The score is clamped to 0–100 and rounded to 2 decimals. It is deterministic: the same inputs always give the same score. `hourly_rate` is the tutor's rate **for the requested variant**. The gender preference is not scored (no column exists).
+
+### Ranking
+
+Candidates are sorted by score (descending), then by `tutor_id` (ascending) so equal scores always rank the same way. The first **3** get `rank` 1..n. Fewer than 3 survivors returns what exists; zero survivors returns `recommendations: []` with `200`.
+
+## 3. `POST /api/matching` (TP-8)
+
+#### Request Body
+
+```json
+{ "variant_id": "3f2b8c1e-5a4d-4e6f-9a7b-1c2d3e4f5a6b" }
+```
+
+* `variant_id`: required UUID of a `subject_variants` row (from the 3-step subject selection).
+* Any other field is ignored. Profile data cannot be overridden from the request.
+
+#### Response `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "match_request_id": "0b9c7f52-1d2e-4f3a-8b4c-5d6e7f8a9b0c",
+    "variant_id": "3f2b8c1e-5a4d-4e6f-9a7b-1c2d3e4f5a6b",
+    "status": "PENDING",
+    "recommendations": [
+      {
+        "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "rank": 1,
+        "score": 95,
+        "tutor": {
+          "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+          "first_name": "Somchai",
+          "last_name": "Jaidee",
+          "description": "Experienced Mathematics tutor",
+          "tutor_type": "UNDERGRADUATE",
+          "average_rating": 4.5,
+          "review_count": 12,
+          "hourly_rate": 250,
+          "teaching_focus": "Kangaroo Math"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Public fields only.** The response never contains `phone_number`, `line_id`, `rejection_reason`, verification documents or slider values. Contact channels are revealed only after a tutor is confirmed (Module 7).
+
+#### Persistence
+
+In **one transaction** the server writes a `match_requests` row (`status = 'PENDING'`, with the requested `variant_id`) and its `match_recommendations` rows (`rank`, `score`, `is_selected = false`).
+
+A student keeps **one open request per variant**: running a match again for the same variant replaces the previous `PENDING` request, so the result always reflects the current profile. `CONFIRMED` requests are never replaced.
+
+#### Error Responses
+
+| Status | Error Class | When |
+|---|---|---|
+| `400` | `BadRequestError` | `variant_id` missing or not a UUID; or a stored tutor/student slider set is not 5 style + 4 personality integers in 1–5 |
+| `401` | `UnauthorizedError` | Missing or invalid bearer token |
+| `403` | `ForbiddenError` | Caller is not a `STUDENT` |
+| `404` | `NotFoundError` | The student has no profile yet, or the variant does not exist |
+| `422` | `UnprocessableEntityError` | The student has no weekly availability: *"Set your weekly availability before matching"* |
+
+```bash
+curl -X POST http://localhost:4000/api/matching \
+  -H "Authorization: Bearer mock-token-mock-student-id" \
+  -H "Content-Type: application/json" \
+  -d '{"variant_id":"<uuid from GET /api/subjects>"}'
+```
+
+> **Performance:** one variant lookup, one profile read, one candidate query (tutors ⋈ subjects ⟕ availabilities, no N+1) and one transaction. Target is under 3 seconds (`PROJECT_CONTEXT.md` §4).

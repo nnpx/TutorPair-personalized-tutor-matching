@@ -157,3 +157,18 @@ export function calculateCompatibilityScore({
   const finalScore = Math.min(100, Math.max(0, base - penalty));
   return Math.round(finalScore * 100) / 100;
 }
+
+export const TOP_N = 3;
+
+/**
+ * Orders by score (already rounded to 2 decimals) descending, then tutor_id ascending so equal
+ * scores always rank the same way. Plain `<` keeps the order independent of locale.
+ */
+export function rankTop3<T extends { tutor_id: string; score: number }>(
+  scored: T[]
+): Array<T & { rank: number }> {
+  return [...scored]
+    .sort((a, b) => b.score - a.score || (a.tutor_id < b.tutor_id ? -1 : a.tutor_id > b.tutor_id ? 1 : 0))
+    .slice(0, TOP_N)
+    .map((item, index) => ({ ...item, rank: index + 1 }));
+}

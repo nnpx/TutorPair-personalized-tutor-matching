@@ -5,8 +5,10 @@ import {
   tutorSubjects,
   subjectVariants,
   availabilities,
+  matchRequests,
+  matchRecommendations,
 } from '../../db/schema/index.js';
-import { VerificationStatus, type TutorType } from '@tutorpair/shared';
+import { MatchRequestStatus, VerificationStatus, type TutorType } from '@tutorpair/shared';
 import type { TimeSlot, HardFilterVariant } from '../../common/utils/scoring.util.js';
 
 /**
@@ -30,6 +32,17 @@ export interface CandidateTutor {
   grade_levels: string[] | null;
   teaching_focus: string | null;
   availabilities: TimeSlot[];
+}
+
+export interface NewRecommendation {
+  tutor_id: string;
+  rank: number;
+  score: number;
+}
+
+export interface SavedMatchRequest {
+  match_request_id: string;
+  recommendations: Array<NewRecommendation & { recommendation_id: string }>;
 }
 
 export const matchingRepository = {
@@ -99,5 +112,64 @@ export const matchingRepository = {
       }
     }
     return [...byTutor.values()];
+  },
+
+  /**
+   * Writes the request and its 0-3 recommendations in one transaction.
+   * A student keeps one open (PENDING) request per variant: re-running a match replaces the
+   * previous unconfirmed one, so results always reflect the current profile. Confirmed requests
+   * are never touched.
+   * shortcut: two simultaneous requests can both insert before the delete sees the other;
+   * upgrade with a partial unique index on (student_id, variant_id) WHERE status = 'PENDING'.
+   */
+  async createRequestWithRecommendations(
+    studentId: string,
+    variantId: string,
+    recs: NewRecommendation[]
+  ): Promise<SavedMatchRequest> {
+    return await db.transaction(async (tx) => {
+      await tx
+        .delete(matchRequests)
+        .where(
+          and(
+            eq(matchRequests.student_id, studentId),
+            eq(matchRequests.variant_id, variantId),
+            eq(matchRequests.status, MatchRequestStatus.PENDING)
+          )
+        );
+
+      const [request] = await tx
+        .insert(matchRequests)
+        .values({ student_id: studentId, variant_id: variantId, status: MatchRequestStatus.PENDING })
+        .returning({ id: matchRequests.id });
+
+      if (recs.length === 0) {
+        return { match_request_id: request.id, recommendations: [] };
+      }
+
+      const rows = await tx
+        .insert(matchRecommendations)
+        .values(
+          recs.map((r) => ({
+            match_request_id: request.id,
+            tutor_id: r.tutor_id,
+            rank: r.rank,
+            score: r.score.toFixed(2),
+          }))
+        )
+        .returning({
+          recommendation_id: matchRecommendations.id,
+          tutor_id: matchRecommendations.tutor_id,
+          rank: matchRecommendations.rank,
+          score: matchRecommendations.score,
+        });
+
+      return {
+        match_request_id: request.id,
+        recommendations: rows
+          .map((r) => ({ ...r, score: Number(r.score) }))
+          .sort((a, b) => a.rank - b.rank),
+      };
+    });
   },
 };

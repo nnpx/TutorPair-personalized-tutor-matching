@@ -10,6 +10,8 @@ import {
 import { BadRequestError } from '../errors/http-errors.js';
 import {
   calculateCompatibilityScore,
+  rankTop3,
+  TOP_N,
   TUTOR_TYPE_MISMATCH_PENALTY,
   hasAvailabilityOverlap,
   passesHardFilters,
@@ -377,5 +379,49 @@ describe('calculateCompatibilityScore (TP-7 stage 2)', () => {
       assert.ok(score >= 0 && score <= 100);
       assert.equal(score, Math.round(score * 100) / 100);
     });
+  });
+});
+
+describe('rankTop3 (TP-8 ranking)', () => {
+  const c = (tutor_id: string, score: number) => ({ tutor_id, score });
+
+  it('keeps at most 3 results', () => {
+    const ranked = rankTop3([c('a', 10), c('b', 20), c('c', 30), c('d', 40), c('e', 50)]);
+    assert.equal(ranked.length, 3);
+    assert.equal(TOP_N, 3);
+  });
+
+  it('orders by score descending and assigns rank 1..n', () => {
+    const ranked = rankTop3([c('a', 10), c('b', 90), c('c', 50)]);
+    assert.deepEqual(
+      ranked.map((r) => [r.tutor_id, r.rank]),
+      [['b', 1], ['c', 2], ['a', 3]]
+    );
+  });
+
+  it('returns what exists when fewer than 3 survive', () => {
+    assert.deepEqual(rankTop3([c('a', 10), c('b', 20)]).map((r) => r.rank), [1, 2]);
+  });
+
+  it('returns an empty list for zero survivors', () => {
+    assert.deepEqual(rankTop3([]), []);
+  });
+
+  it('breaks equal scores by tutor_id ascending, whatever the input order', () => {
+    const forward = rankTop3([c('b', 80), c('a', 80), c('c', 80), c('d', 80)]);
+    const reverse = rankTop3([c('d', 80), c('c', 80), c('a', 80), c('b', 80)]);
+    assert.deepEqual(forward.map((r) => r.tutor_id), ['a', 'b', 'c']);
+    assert.deepEqual(reverse.map((r) => r.tutor_id), ['a', 'b', 'c']);
+  });
+
+  it('uses plain code-point order, not locale order', () => {
+    // localeCompare would put 'a' before 'B'; code-point order puts 'B' (66) before 'a' (97).
+    assert.deepEqual(rankTop3([c('a', 5), c('B', 5)]).map((r) => r.tutor_id), ['B', 'a']);
+  });
+
+  it('does not mutate its input', () => {
+    const input = [c('b', 1), c('a', 2)];
+    rankTop3(input);
+    assert.deepEqual(input.map((r) => r.tutor_id), ['b', 'a']);
   });
 });

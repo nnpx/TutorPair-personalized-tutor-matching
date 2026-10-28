@@ -69,3 +69,8 @@ export enum EmailStatus {
   SENT = 'SENT',
   FAILED = 'FAILED',
 }
+
+export enum MatchRequestStatus {
+  PENDING = 'PENDING',
+  CONFIRMED = 'CONFIRMED',
+}

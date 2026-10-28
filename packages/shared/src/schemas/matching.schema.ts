@@ -1,25 +1,12 @@
-/**
- * NOTE: This is an initial draft / baseline schema.
- * It can be revised, expanded, or modified when developing this specific module in detail.
- */
 import { z } from 'zod';
-import { TutorTypePref, DayOfWeek } from '../enums/index.js';
-import { SliderValueSchema } from './student.schema.js';
 
-export const AvailabilitySlotSchema = z.object({
-  day_of_week: z.nativeEnum(DayOfWeek),
-  start_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, 'Invalid time format (HH:mm)'),
-  end_time: z.string().regex(/^([01]\d|2[0-3]):([0-5]\d)(:([0-5]\d))?$/, 'Invalid time format (HH:mm)'),
-});
-
+/**
+ * POST /api/matching. Grade, sliders, budget, tutor-type preference and availability are read from
+ * the student's saved profile (Module 3), so the only client input is the requested subject variant.
+ * Unknown keys are stripped by zod, so a client cannot override profile data.
+ */
 export const MatchRequestSchema = z.object({
   variant_id: z.string().uuid('Subject variant ID is required'),
-  grade_level: z.string().optional().nullable(),
-  style_profile: z.array(SliderValueSchema).length(5, 'Style profile requires 5 ratings'),
-  personality_profile: z.array(SliderValueSchema).length(4, 'Personality profile requires 4 ratings'),
-  budget_max: z.number().positive('Budget must be greater than 0'),
-  tutor_type_pref: z.nativeEnum(TutorTypePref),
-  availabilities: z.array(AvailabilitySlotSchema).optional().default([]),
 });
 
 export const ConfirmTutorSelectionSchema = z.object({
@@ -27,6 +14,5 @@ export const ConfirmTutorSelectionSchema = z.object({
   tutor_id: z.string().uuid(),
 });
 
-export type AvailabilitySlotInput = z.infer<typeof AvailabilitySlotSchema>;
 export type MatchRequestInput = z.infer<typeof MatchRequestSchema>;
 export type ConfirmTutorSelectionInput = z.infer<typeof ConfirmTutorSelectionSchema>;

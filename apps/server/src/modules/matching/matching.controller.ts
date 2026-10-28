@@ -1,9 +1,12 @@
+import { Response } from 'express';
 import { asyncHandler } from '../../common/utils/async-handler.js';
 import { successResponse } from '../../common/utils/response.util.js';
+import { AuthRequest } from '../../common/middlewares/authenticate-jwt.js';
+import { matchingService } from './matching.service.js';
 
-// TODO: Implement matching request/response handlers wrapped in asyncHandler
-// Example:
-// export const runMatch = asyncHandler(async (req, res) => {
-//   res.status(200).json(successResponse(data));
-// });
-export const matchingController = {};
+export const matchingController = {
+  runMatch: asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await matchingService.findTop3(req.user!.id, req.body);
+    res.status(200).json(successResponse(result));
+  }),
+};

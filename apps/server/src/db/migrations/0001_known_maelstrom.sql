@@ -1,0 +1,2 @@
+ALTER TABLE "match_requests" ADD COLUMN "variant_id" uuid NOT NULL;--> statement-breakpoint
+ALTER TABLE "match_requests" ADD CONSTRAINT "match_requests_variant_id_subject_variants_id_fk" FOREIGN KEY ("variant_id") REFERENCES "public"."subject_variants"("id") ON DELETE cascade ON UPDATE no action;

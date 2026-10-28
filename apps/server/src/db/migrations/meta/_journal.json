@@ -8,6 +8,13 @@
       "when": 1792669450583,
       "tag": "0000_worried_big_bertha",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793221418201,
+      "tag": "0001_known_maelstrom",
+      "breakpoints": true
     }
   ]
 }

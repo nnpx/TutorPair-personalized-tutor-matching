@@ -65,36 +65,36 @@ Server test command: `npm test --workspace=server` · Full: `npm run build && np
 ### T4: Shared contract
 **Description:** Trim `MatchRequestSchema` to `{ variant_id }`. Delete the unused `AvailabilitySlotSchema` / `AvailabilitySlotInput`. Add `MatchRequestStatus { PENDING, CONFIRMED }` and the DTOs `MatchResultDto`, `MatchRecommendationDto`, `PublicTutorCardDto`, `ConfirmSelectionResultDto`.
 **Acceptance:**
-- [ ] Grep shows no remaining importers of the removed symbols
-- [ ] Schema rejects a missing or non-uuid `variant_id`
+- [x] Grep shows no remaining importers of the removed symbols
+- [x] Schema rejects a missing or non-uuid `variant_id`
 **Verify:** `npm run build:shared && npm run build`
 **Depends on:** T2, T3 · **Files:** `packages/shared/src/schemas/matching.schema.ts`, `enums/index.ts`, `types/index.ts` · **Size:** S
 
 ### T5: *(only if Q2 = yes)* `match_requests.variant_id`
 **Description:** Add a `variant_id` FK (NOT NULL) to `matchRequests`, then `npm run db:generate`, commit the SQL, `npm run db:migrate`.
 **Acceptance:**
-- [ ] New migration file is committed; no `drizzle-kit push`
+- [x] New migration file is committed; no `drizzle-kit push`
 **Verify:** `npm run db:studio` → https://local.drizzle.studio: column type, FK to `subject_variants`
 **Depends on:** T4 · **Files:** `db/schema/matching.schema.ts`, `db/migrations/*` · **Size:** XS
 
 ### T6: Ranking + `findTop3` service
 **Description:** `rankTop3(scored)` sorts by rounded score desc, then `tutor_id` asc with `<`, slices 3, and assigns rank 1..n. `matchingService.findTop3(userId, { variant_id })` loads the profile (404 if missing), the variant (404 if unknown), checks for no slots (Q6: 422), then candidates → filter → score → rank → persist.
 **Acceptance:**
-- [ ] Ties are ordered by `tutor_id`; 5 survivors → 3; 2 → 2; 0 → `[]` (request still persisted)
-- [ ] Service unit tests mock `studentsRepository` and `matchingRepository` (pattern: `tutors.service.test.ts`)
+- [x] Ties are ordered by `tutor_id`; 5 survivors → 3; 2 → 2; 0 → `[]` (request still persisted)
+- [x] Service unit tests mock `studentsRepository` and `matchingRepository` (pattern: `tutors.service.test.ts`)
 **Verify:** `npm test --workspace=server`
 **Depends on:** T4 (T5) · **Files:** `common/utils/scoring.util.ts` (+test), `modules/matching/matching.service.ts`, `modules/matching/matching.service.test.ts` · **Size:** M
 
 ### T7: Route, persistence, integration, docs
 **Description:** `router.post('/', authenticate, requireRole(['STUDENT']), validateRequest(MatchRequestSchema), runMatch)`. `matchingRepository.createRequestWithRecommendations` writes both tables in one tx. Add an integration test file, and an API_SPEC Module 6 section for `POST /api/matching`.
 **Acceptance:**
-- [ ] 401 without token; 403 for TUTOR and ADMIN; 400 for `{}` and `{variant_id:'x'}`; 404 for an unknown variant; 200 shape per SPEC
-- [ ] Deep key scan finds no `phone_number`, `line_id`, `rejection_reason`, `file_key`; rows exist in both tables with matching rank and score
-- [ ] Works with `Bearer mock-token-<cognito_sub>`
+- [x] 401 without token; 403 for TUTOR and ADMIN; 400 for `{}` and `{variant_id:'x'}`; 404 for an unknown variant; 200 shape per SPEC
+- [x] Deep key scan finds no `phone_number`, `line_id`, `rejection_reason`, `file_key`; rows exist in both tables with matching rank and score
+- [x] Works with `Bearer mock-token-<cognito_sub>`
 **Verify:** `npm test --workspace=server`; sample curl from SPEC §4
 **Depends on:** T6 · **Files:** `matching.routes.ts`, `matching.controller.ts`, `matching.repository.ts`, `matching.integration.test.ts`, `docs/API_SPEC.md` · **Size:** M
 
-- [ ] **Commit** `feat(matching): add POST /api/matching top-3 ranking (TP-8)`
+- [x] **Commit** `feat(matching): add POST /api/matching top-3 ranking (TP-8)`
 
 ### Checkpoint 3
 - [ ] Build and tests green · [ ] curl returns ≤3 ranked tutors · [ ] (if T5) Drizzle Studio inspected by human
