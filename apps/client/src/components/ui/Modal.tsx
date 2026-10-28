@@ -1,56 +1,57 @@
 import React, { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
+import { Button } from './Button';
 
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title?: string;
+  // 'primary' | 'secondary' are used by the admin dialogs; they render like 'default'.
+  variant?: 'danger' | 'default' | 'primary' | 'secondary';
   subtitle?: string;
   icon?: React.ReactNode;
-  children: React.ReactNode;
+  // Custom footer (admin dialogs); replaces the primary/secondary buttons when given.
   footerActions?: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'danger';
   maxWidth?: string;
   ariaLabel?: string;
+  children: React.ReactNode;
+  primaryActionText?: string;
+  onPrimaryAction?: () => void;
+  secondaryActionText?: string;
+  onSecondaryAction?: () => void;
 }
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
-  title,
+  title = 'Notification',
+  variant = 'default',
   subtitle,
   icon,
-  children,
   footerActions,
-  variant = 'secondary',
-  maxWidth = '520px',
+  maxWidth = '480px',
   ariaLabel,
+  children,
+  primaryActionText = 'Close',
+  onPrimaryAction,
+  secondaryActionText,
+  onSecondaryAction,
 }) => {
+  // Close on Escape key press
   useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
+    window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
-  const getBorderColor = () => {
-    switch (variant) {
-      case 'danger':
-        return 'var(--color-danger)';
-      case 'primary':
-        return 'var(--color-primary)';
-      case 'secondary':
-      default:
-        return 'var(--color-secondary)';
-    }
-  };
+  const isDanger = variant === 'danger';
 
   return (
     <div
@@ -60,12 +61,12 @@ export const Modal: React.FC<ModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(17, 24, 39, 0.6)',
+        zIndex: 9999,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 999,
-        padding: '1.5rem',
+        padding: '1.25rem',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -74,97 +75,141 @@ export const Modal: React.FC<ModalProps> = ({
       }}
     >
       <div
-        className="flat-card"
         style={{
-          maxWidth,
           width: '100%',
-          backgroundColor: 'var(--color-white)',
-          border: `3px solid ${getBorderColor()}`,
+          maxWidth,
+          backgroundColor: '#ffffff',
           borderRadius: 'var(--radius-lg)',
-          padding: '2rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '1.25rem',
+          border: isDanger ? '2px solid #ef4444' : '2px solid var(--color-border)',
+          overflow: 'hidden',
           boxShadow: 'none',
-          position: 'relative',
+          animation: 'fadeIn 0.15s ease-out',
         }}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close modal"
+        {/* Modal Header */}
+        <div
           style={{
-            position: 'absolute',
-            top: '1.25rem',
-            right: '1.25rem',
-            backgroundColor: 'transparent',
-            border: 'none',
-            color: '#6b7280',
-            cursor: 'pointer',
-            padding: '0.25rem',
+            padding: '1.25rem 1.5rem',
+            backgroundColor: isDanger ? '#fef2f2' : 'var(--color-muted)',
+            borderBottom: isDanger ? '2px solid #fee2e2' : '2px solid var(--color-border)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 'var(--radius-sm)',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
           }}
         >
-          <X size={20} />
-        </button>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingRight: '2rem' }}>
-          {icon && (
-            <div
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              {icon}
-            </div>
-          )}
-          <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            {icon ?? (isDanger && (
+              <span style={{ color: '#ef4444', display: 'inline-flex' }}>
+                <AlertCircle size={22} strokeWidth={2.4} />
+              </span>
+            ))}
             <h3
               style={{
-                fontSize: '1.375rem',
+                fontSize: '1.125rem',
                 fontWeight: 800,
-                color: 'var(--color-text-main)',
-                lineHeight: 1.2,
+                color: isDanger ? '#991b1b' : 'var(--fg-main)',
+                margin: 0,
               }}
             >
               {title}
             </h3>
             {subtitle && (
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                {subtitle}
-              </p>
+              <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.125rem 0 0' }}>{subtitle}</p>
             )}
           </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close modal"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: isDanger ? '#991b1b' : '#6b7280',
+              padding: '0.25rem',
+              borderRadius: 'var(--radius-sm)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <X size={20} strokeWidth={2.4} />
+          </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Modal Body */}
+        <div
+          style={{
+            padding: '1.5rem',
+            fontSize: '0.9375rem',
+            color: '#374151',
+            lineHeight: 1.55,
+          }}
+        >
           {children}
         </div>
 
-        {footerActions && (
-          <div
+        {/* Modal Footer */}
+        <div
+          style={{
+            padding: '1rem 1.5rem',
+            backgroundColor: '#ffffff',
+            borderTop: '2px solid var(--color-border)',
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '0.75rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          {footerActions ?? (
+            <>
+          {secondaryActionText && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                if (onSecondaryAction) {
+                  onSecondaryAction();
+                } else {
+                  onClose();
+                }
+              }}
+              style={{
+                fontWeight: 700,
+                fontSize: '0.875rem',
+                padding: '0 1.25rem',
+                height: '2.5rem',
+              }}
+            >
+              {secondaryActionText}
+            </Button>
+          )}
+
+          <Button
+            type="button"
+            variant={isDanger ? 'danger' : 'primary'}
+            onClick={() => {
+              if (onPrimaryAction) {
+                onPrimaryAction();
+              } else {
+                onClose();
+              }
+            }}
             style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '0.75rem',
-              marginTop: '0.5rem',
+              fontWeight: 800,
+              fontSize: '0.875rem',
+              padding: '0 1.5rem',
+              height: '2.5rem',
             }}
           >
-            {footerActions}
-          </div>
-        )}
+            {primaryActionText}
+          </Button>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
 };
-
-export default Modal;

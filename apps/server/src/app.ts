@@ -2,7 +2,6 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import { env } from './config/env.js';
 import { errorHandler } from './common/errors/error-handler.js';
-import { NotFoundError } from './common/errors/http-errors.js';
 import { authRouter } from './modules/auth/auth.routes.js';
 import { usersRouter } from './modules/users/users.routes.js';
 import { studentsRouter } from './modules/students/students.routes.js';
@@ -16,19 +15,28 @@ import { reviewsRouter } from './modules/reviews/reviews.routes.js';
 export function createApp(): Express {
   const app = express();
 
-  // CORS Configuration - allows both port 5173, 5174, etc.
+  // Development Request Logger
+  if (env.NODE_ENV === 'development') {
+    app.use((req, _res, next) => {
+      console.log(`[HTTP] ${req.method} ${req.url}`);
+      next();
+    });
+  }
+
+  // CORS Configuration
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || origin.startsWith('http://localhost:')) {
+        // Allow same-origin, dev tools, or allowed origins
+        if (!origin || env.NODE_ENV === 'development' || origin === env.ALLOWED_ORIGIN) {
           callback(null, true);
         } else {
-          callback(null, origin === env.ALLOWED_ORIGIN);
+          callback(new Error('Not allowed by CORS'));
         }
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Mock-Email', 'x-mock-email'],
     })
   );
 
@@ -51,11 +59,6 @@ export function createApp(): Express {
   app.use('/api/admin', adminRouter);
   app.use('/api/matching', matchingRouter);
   app.use('/api/reviews', reviewsRouter);
-
-  // 404 Handler for undefined API routes
-  app.use((_req, _res, next) => {
-    next(new NotFoundError('API endpoint not found'));
-  });
 
   // Global Error Handler (must be last)
   app.use(errorHandler);
