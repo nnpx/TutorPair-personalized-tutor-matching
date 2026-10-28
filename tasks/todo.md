@@ -47,13 +47,13 @@ Server test command: `npm test --workspace=server` · Full: `npm run build && np
 ### T3: Validated score + tutor-type modifier
 **Description:** Validate 5/4 integer sliders in 1–5 for student and tutor (`BadRequestError`). Remove the `?? 3` fallback. Add `tutorTypePref` / `tutorType` params and `TUTOR_TYPE_MISMATCH_PENALTY` (clamp 0–100). Fix the misleading budget comment. Keep Manhattan distance and the 45/35/20 weights.
 **Acceptance:**
-- [ ] Identical vectors → full style/personality points; max distance → 0; length 4/6 or value 0/6/2.5 → throws
-- [ ] Budget: rate < / = / > budget and rate 0; ANY and match unchanged; mismatch −penalty; clamp at 0
-- [ ] SPEC worked numbers A–E (95/90/80/70/80 cases) asserted; the same input called twice gives an identical result
+- [x] Identical vectors → full style/personality points; max distance → 0; length 4/6 or value 0/6/2.5 → throws
+- [x] Budget: rate < / = / > budget and rate 0; ANY and match unchanged; mismatch −penalty; clamp at 0
+- [x] SPEC worked numbers A–E (95/90/80/70/80 cases) asserted; the same input called twice gives an identical result
 **Verify:** `npm test --workspace=server`
 **Depends on:** T0 · **Files:** `common/utils/scoring.util.ts`, `common/utils/scoring.util.test.ts` · **Size:** S
 
-- [ ] **Commit** `feat(matching): validate sliders and add tutor-type modifier to scoring (TP-7)`
+- [x] **Commit** `feat(matching): validate sliders and add tutor-type modifier to scoring (TP-7)`
 
 ### Checkpoint 1–2
 - [ ] `npm run build && npm test` green · [ ] Human reviews constants (Q3, Q4, Q5) before the endpoint ships

@@ -1,4 +1,5 @@
-import { LearningGoal, VerificationStatus } from '@tutorpair/shared';
+import { LearningGoal, TutorType, TutorTypePref, VerificationStatus } from '@tutorpair/shared';
+import { BadRequestError } from '../errors/http-errors.js';
 
 /**
  * Stage 1 — hard filters (PROJECT_CONTEXT §3.3). Pure strict-boolean gate, no I/O.
@@ -70,16 +71,43 @@ export function passesHardFilters(
 }
 
 /**
- * NOTE: This is an initial draft / baseline scoring formula.
- * It should be reviewed, tested, and fine-tuned by the matching system developer.
+ * Stage 2 — weighted compatibility score (PROJECT_CONTEXT §3.2-3.3). Pure and deterministic:
+ * same input, same output; no clock, randomness or locale involved.
+ *
+ * score = 100 * (0.45 * style + 0.35 * personality + 0.20 * budget) - tutor-type mismatch penalty
+ * Style/personality use Manhattan distance, normalised by the maximum possible distance.
+ * Gender preference is not scored: the schema has no gender column.
  */
 
-/**
- * Calculates compatibility score between student preferences and tutor profile.
- * Both profiles have:
- * - style_profile: 5 sliders (1 to 5)
- * - personality_profile: 4 sliders (1 to 5)
- */
+const STYLE_SLIDER_COUNT = 5;
+const PERSONALITY_SLIDER_COUNT = 4;
+const MAX_SLIDER_DIFF = 4; // |5 - 1|
+
+const STYLE_WEIGHT = 0.45;
+const PERSONALITY_WEIGHT = 0.35;
+const BUDGET_WEIGHT = 0.2;
+
+// Docs do not define the magnitude. Applied only when the student asked for a specific
+// tutor type and the tutor is a different one; ANY and an exact match are never penalized.
+export const TUTOR_TYPE_MISMATCH_PENALTY = 10;
+
+function assertSliders(values: number[], expectedLength: number, label: string): void {
+  if (
+    !Array.isArray(values) ||
+    values.length !== expectedLength ||
+    !values.every((v) => Number.isInteger(v) && v >= 1 && v <= 5)
+  ) {
+    throw new BadRequestError(
+      `${label} must contain exactly ${expectedLength} integer ratings between 1 and 5`
+    );
+  }
+}
+
+function similarity(student: number[], tutor: number[]): number {
+  const diff = student.reduce((sum, v, i) => sum + Math.abs(v - tutor[i]), 0);
+  return 1 - diff / (student.length * MAX_SLIDER_DIFF);
+}
+
 export function calculateCompatibilityScore({
   studentStyle,
   tutorStyle,
@@ -87,6 +115,8 @@ export function calculateCompatibilityScore({
   tutorPersonality,
   studentBudget,
   tutorRate,
+  tutorTypePref,
+  tutorType,
 }: {
   studentStyle: number[];
   tutorStyle: number[];
@@ -94,27 +124,18 @@ export function calculateCompatibilityScore({
   tutorPersonality: number[];
   studentBudget: number;
   tutorRate: number;
+  tutorTypePref: TutorTypePref;
+  tutorType: TutorType;
 }): number {
-  // Max possible difference per question is |5 - 1| = 4
+  assertSliders(studentStyle, STYLE_SLIDER_COUNT, 'Student style profile');
+  assertSliders(tutorStyle, STYLE_SLIDER_COUNT, 'Tutor style profile');
+  assertSliders(studentPersonality, PERSONALITY_SLIDER_COUNT, 'Student personality profile');
+  assertSliders(tutorPersonality, PERSONALITY_SLIDER_COUNT, 'Tutor personality profile');
 
-  // 1. Style similarity (weight: 45%)
-  let styleDiff = 0;
-  for (let i = 0; i < 5; i++) {
-    styleDiff += Math.abs((studentStyle[i] ?? 3) - (tutorStyle[i] ?? 3));
-  }
-  const maxStyleDiff = 5 * 4; // 20
-  const styleScore = Math.max(0, 1 - styleDiff / maxStyleDiff);
+  const styleScore = similarity(studentStyle, tutorStyle);
+  const personalityScore = similarity(studentPersonality, tutorPersonality);
 
-  // 2. Personality similarity (weight: 35%)
-  let personalityDiff = 0;
-  for (let i = 0; i < 4; i++) {
-    personalityDiff += Math.abs((studentPersonality[i] ?? 3) - (tutorPersonality[i] ?? 3));
-  }
-  const maxPersonalityDiff = 4 * 4; // 16
-  const personalityScore = Math.max(0, 1 - personalityDiff / maxPersonalityDiff);
-
-  // 3. Budget favorability (weight: 20%)
-  // If tutor is under budget, score is 1.0; if tutor is at budget, 0.8; etc.
+  // Over budget -> 0. Within budget -> 0.5 at the budget line up to 1.0 for a free tutor.
   let budgetScore = 1.0;
   if (tutorRate > studentBudget) {
     budgetScore = 0.0;
@@ -122,6 +143,17 @@ export function calculateCompatibilityScore({
     budgetScore = 0.5 + 0.5 * (1 - tutorRate / studentBudget);
   }
 
-  const finalScore = (styleScore * 0.45 + personalityScore * 0.35 + budgetScore * 0.20) * 100;
+  const base =
+    (styleScore * STYLE_WEIGHT +
+      personalityScore * PERSONALITY_WEIGHT +
+      budgetScore * BUDGET_WEIGHT) *
+    100;
+
+  const penalty =
+    tutorTypePref !== TutorTypePref.ANY && (tutorTypePref as string) !== (tutorType as string)
+      ? TUTOR_TYPE_MISMATCH_PENALTY
+      : 0;
+
+  const finalScore = Math.min(100, Math.max(0, base - penalty));
   return Math.round(finalScore * 100) / 100;
 }

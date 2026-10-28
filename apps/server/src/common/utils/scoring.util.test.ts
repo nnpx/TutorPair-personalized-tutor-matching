@@ -1,7 +1,16 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { DayOfWeek, LearningGoal, VerificationStatus } from '@tutorpair/shared';
 import {
+  DayOfWeek,
+  LearningGoal,
+  TutorType,
+  TutorTypePref,
+  VerificationStatus,
+} from '@tutorpair/shared';
+import { BadRequestError } from '../errors/http-errors.js';
+import {
+  calculateCompatibilityScore,
+  TUTOR_TYPE_MISMATCH_PENALTY,
   hasAvailabilityOverlap,
   passesHardFilters,
   MIN_OVERLAP_MINUTES,
@@ -180,5 +189,193 @@ describe('passesHardFilters (TP-6 stage 1)', () => {
       ),
       true
     );
+  });
+});
+
+describe('calculateCompatibilityScore (TP-7 stage 2)', () => {
+  const SAME_STYLE = [3, 3, 3, 3, 3];
+  const SAME_PERSONALITY = [2, 2, 2, 2];
+
+  // Base case from SPEC: identical sliders, rate == budget (500), type matches.
+  const base = {
+    studentStyle: SAME_STYLE,
+    tutorStyle: SAME_STYLE,
+    studentPersonality: SAME_PERSONALITY,
+    tutorPersonality: SAME_PERSONALITY,
+    studentBudget: 500,
+    tutorRate: 500,
+    tutorTypePref: TutorTypePref.FREELANCE,
+    tutorType: TutorType.FREELANCE,
+  };
+
+  it('uses a 10 point tutor-type mismatch penalty', () => {
+    assert.equal(TUTOR_TYPE_MISMATCH_PENALTY, 10);
+  });
+
+  describe('SPEC worked numbers (budget 500)', () => {
+    it('A: identical sliders, rate == budget -> 90', () => {
+      assert.equal(calculateCompatibilityScore(base), 90);
+    });
+
+    it('B: identical sliders, half price -> 95', () => {
+      assert.equal(calculateCompatibilityScore({ ...base, tutorRate: 250 }), 95);
+    });
+
+    it('C: identical sliders, 1 baht over budget -> 80', () => {
+      assert.equal(calculateCompatibilityScore({ ...base, tutorRate: 501 }), 80);
+    });
+
+    it('D: every slider off by 1 -> 70', () => {
+      assert.equal(
+        calculateCompatibilityScore({
+          ...base,
+          tutorStyle: [4, 4, 4, 4, 4],
+          tutorPersonality: [3, 3, 3, 3],
+        }),
+        70
+      );
+    });
+
+    it('E: tutor type mismatch -> 80', () => {
+      assert.equal(
+        calculateCompatibilityScore({ ...base, tutorType: TutorType.UNDERGRADUATE }),
+        80
+      );
+    });
+  });
+
+  describe('distance', () => {
+    it('identical vectors give full style and personality points (free tutor, budget 500 -> 100)', () => {
+      assert.equal(calculateCompatibilityScore({ ...base, tutorRate: 0 }), 100);
+    });
+
+    it('maximum distance gives zero style and personality points (only budget remains)', () => {
+      assert.equal(
+        calculateCompatibilityScore({
+          ...base,
+          studentStyle: [1, 1, 1, 1, 1],
+          tutorStyle: [5, 5, 5, 5, 5],
+          studentPersonality: [1, 1, 1, 1],
+          tutorPersonality: [5, 5, 5, 5],
+        }),
+        10
+      );
+    });
+
+    it('is symmetric in student and tutor sliders', () => {
+      const a = calculateCompatibilityScore({
+        ...base,
+        studentStyle: [1, 2, 3, 4, 5],
+        tutorStyle: [5, 4, 3, 2, 1],
+      });
+      const b = calculateCompatibilityScore({
+        ...base,
+        studentStyle: [5, 4, 3, 2, 1],
+        tutorStyle: [1, 2, 3, 4, 5],
+      });
+      assert.equal(a, b);
+    });
+  });
+
+  describe('slider validation', () => {
+    const bad: Array<[string, Partial<typeof base>]> = [
+      ['student style too short', { studentStyle: [3, 3, 3, 3] }],
+      ['student style too long', { studentStyle: [3, 3, 3, 3, 3, 3] }],
+      ['tutor style too short', { tutorStyle: [3, 3, 3, 3] }],
+      ['student personality too long', { studentPersonality: [2, 2, 2, 2, 2] }],
+      ['tutor personality too short', { tutorPersonality: [2, 2, 2] }],
+      ['value below range (0)', { studentStyle: [0, 3, 3, 3, 3] }],
+      ['value above range (6)', { tutorStyle: [3, 3, 3, 3, 6] }],
+      ['non-integer value (2.5)', { studentPersonality: [2, 2.5, 2, 2] }],
+      ['NaN value', { tutorPersonality: [2, NaN, 2, 2] }],
+    ];
+
+    for (const [name, override] of bad) {
+      it(`throws BadRequestError: ${name}`, () => {
+        assert.throws(() => calculateCompatibilityScore({ ...base, ...override }), BadRequestError);
+      });
+    }
+  });
+
+  describe('budget', () => {
+    it('rate below budget scores higher than rate at budget', () => {
+      assert.ok(
+        calculateCompatibilityScore({ ...base, tutorRate: 400 }) >
+          calculateCompatibilityScore({ ...base, tutorRate: 500 })
+      );
+    });
+
+    it('free tutor gets the full budget points', () => {
+      assert.equal(calculateCompatibilityScore({ ...base, tutorRate: 0 }), 100);
+    });
+
+    it('any rate over budget gets zero budget points', () => {
+      assert.equal(calculateCompatibilityScore({ ...base, tutorRate: 5000 }), 80);
+    });
+  });
+
+  describe('tutor-type modifier', () => {
+    it('ANY never penalizes', () => {
+      for (const tutorType of Object.values(TutorType)) {
+        assert.equal(
+          calculateCompatibilityScore({ ...base, tutorTypePref: TutorTypePref.ANY, tutorType }),
+          90
+        );
+      }
+    });
+
+    it('exact match is not penalized', () => {
+      assert.equal(calculateCompatibilityScore(base), 90);
+    });
+
+    it('mismatch subtracts exactly the penalty', () => {
+      assert.equal(
+        calculateCompatibilityScore({ ...base, tutorType: TutorType.INSTITUTIONAL }),
+        90 - TUTOR_TYPE_MISMATCH_PENALTY
+      );
+    });
+
+    it('clamps at 0 and never goes negative', () => {
+      const score = calculateCompatibilityScore({
+        ...base,
+        studentStyle: [1, 1, 1, 1, 1],
+        tutorStyle: [5, 5, 5, 5, 5],
+        studentPersonality: [1, 1, 1, 1],
+        tutorPersonality: [5, 5, 5, 5],
+        tutorRate: 5000,
+        tutorType: TutorType.UNDERGRADUATE,
+      });
+      assert.equal(score, 0);
+    });
+  });
+
+  describe('determinism and range', () => {
+    it('same input always gives the same output', () => {
+      const input = {
+        ...base,
+        studentStyle: [1, 4, 2, 5, 3],
+        tutorStyle: [2, 4, 1, 3, 3],
+        tutorRate: 333,
+      };
+      const first = calculateCompatibilityScore(input);
+      for (let i = 0; i < 50; i++) assert.equal(calculateCompatibilityScore(input), first);
+    });
+
+    it('does not mutate its inputs', () => {
+      const studentStyle = [1, 2, 3, 4, 5];
+      calculateCompatibilityScore({ ...base, studentStyle });
+      assert.deepEqual(studentStyle, [1, 2, 3, 4, 5]);
+    });
+
+    it('is rounded to 2 decimals and stays within 0-100', () => {
+      const score = calculateCompatibilityScore({
+        ...base,
+        studentStyle: [1, 4, 2, 5, 3],
+        tutorStyle: [2, 4, 1, 3, 3],
+        tutorRate: 333,
+      });
+      assert.ok(score >= 0 && score <= 100);
+      assert.equal(score, Math.round(score * 100) / 100);
+    });
   });
 });
