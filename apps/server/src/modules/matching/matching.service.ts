@@ -1,10 +1,20 @@
+import { z } from 'zod';
 import {
   MatchRequestStatus,
+  NotificationEventType,
+  VerificationStatus,
+  type ConfirmSelectionResultDto,
+  type ConfirmTutorSelectionInput,
   type MatchRequestInput,
   type MatchResultDto,
   type TutorTypePref,
 } from '@tutorpair/shared';
-import { NotFoundError, UnprocessableEntityError } from '../../common/errors/http-errors.js';
+import {
+  ConflictError,
+  NotFoundError,
+  UnprocessableEntityError,
+} from '../../common/errors/http-errors.js';
+import { notificationService } from '../../common/notifications/notification.service.js';
 import {
   calculateCompatibilityScore,
   passesHardFilters,
@@ -12,6 +22,12 @@ import {
 } from '../../common/utils/scoring.util.js';
 import { studentsRepository } from '../students/students.repository.js';
 import { matchingRepository } from './matching.repository.js';
+
+// Message text is fixed by docs/NOTIFICATIONS.md ("Flow: Tutor Selected Notification").
+const TUTOR_SELECTED_MESSAGE =
+  'A student has selected you as their tutor. Please check your contact details.';
+
+const isUuid = (value: string) => z.string().uuid().safeParse(value).success;
 
 export const matchingService = {
   /**
@@ -81,5 +97,63 @@ export const matchingService = {
         };
       }),
     };
+  },
+
+  /**
+   * Student confirms exactly one of the recommended tutors. One transaction: lock the request,
+   * validate, mark it CONFIRMED + the recommendation selected, and queue the TUTOR_SELECTED
+   * notification (the email goes out later via the worker, never from here).
+   */
+  async confirmSelection(
+    studentId: string,
+    matchRequestId: string,
+    input: ConfirmTutorSelectionInput
+  ): Promise<ConfirmSelectionResultDto> {
+    // A malformed id can never match a row; answer 404 instead of letting Postgres raise a 500.
+    if (!isUuid(matchRequestId)) throw new NotFoundError('Match request not found');
+
+    return matchingRepository.transaction(async (tx) => {
+      const request = await matchingRepository.lockRequest(tx, matchRequestId);
+      // Unknown and "not yours" look identical so we never reveal another student's request.
+      if (!request || request.student_id !== studentId) {
+        throw new NotFoundError('Match request not found');
+      }
+      if (request.status === MatchRequestStatus.CONFIRMED) {
+        throw new ConflictError('This match request has already been confirmed');
+      }
+
+      const recommendation = await matchingRepository.findRecommendation(
+        tx,
+        matchRequestId,
+        input.recommendation_id
+      );
+      if (!recommendation) throw new NotFoundError('Recommendation not found for this match request');
+      if (recommendation.tutor_id !== input.tutor_id) {
+        throw new UnprocessableEntityError('tutor_id does not match the selected recommendation');
+      }
+
+      // The tutor may have been rejected or removed since the Top 3 was computed.
+      const tutorStatus = await matchingRepository.findTutorVerificationStatus(tx, input.tutor_id);
+      if (tutorStatus !== VerificationStatus.APPROVED) {
+        throw new UnprocessableEntityError('This tutor is no longer available');
+      }
+
+      await matchingRepository.markSelected(tx, matchRequestId, recommendation.id);
+      await notificationService.createNotification(
+        {
+          userId: input.tutor_id,
+          eventType: NotificationEventType.TUTOR_SELECTED,
+          message: TUTOR_SELECTED_MESSAGE,
+          requiresEmail: true,
+        },
+        tx
+      );
+
+      return {
+        match_request_id: matchRequestId,
+        status: MatchRequestStatus.CONFIRMED,
+        selected: { recommendation_id: recommendation.id, tutor_id: input.tutor_id },
+      };
+    });
   },
 };

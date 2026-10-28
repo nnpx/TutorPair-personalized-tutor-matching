@@ -1,5 +1,5 @@
 import { and, eq } from 'drizzle-orm';
-import { db } from '../../db/client.js';
+import { db, type DbExecutor } from '../../db/client.js';
 import {
   tutors,
   tutorSubjects,
@@ -171,5 +171,76 @@ export const matchingRepository = {
           .sort((a, b) => a.rank - b.rank),
       };
     });
+  },
+
+  /** Runs `fn` in one DB transaction; throwing inside rolls everything back. */
+  async transaction<T>(fn: (tx: DbExecutor) => Promise<T>): Promise<T> {
+    return await db.transaction(fn);
+  },
+
+  /** Locks the request row (FOR UPDATE) so concurrent confirms for it run one after another. */
+  async lockRequest(
+    tx: DbExecutor,
+    matchRequestId: string
+  ): Promise<{ id: string; student_id: string; status: string } | null> {
+    const [row] = await tx
+      .select({
+        id: matchRequests.id,
+        student_id: matchRequests.student_id,
+        status: matchRequests.status,
+      })
+      .from(matchRequests)
+      .where(eq(matchRequests.id, matchRequestId))
+      .for('update')
+      .limit(1);
+    return row ?? null;
+  },
+
+  async findRecommendation(
+    tx: DbExecutor,
+    matchRequestId: string,
+    recommendationId: string
+  ): Promise<{ id: string; tutor_id: string } | null> {
+    const [row] = await tx
+      .select({ id: matchRecommendations.id, tutor_id: matchRecommendations.tutor_id })
+      .from(matchRecommendations)
+      .where(
+        and(
+          eq(matchRecommendations.id, recommendationId),
+          eq(matchRecommendations.match_request_id, matchRequestId)
+        )
+      )
+      .limit(1);
+    return row ?? null;
+  },
+
+  async findTutorVerificationStatus(tx: DbExecutor, tutorId: string): Promise<string | null> {
+    const [row] = await tx
+      .select({ status: tutors.verification_status })
+      .from(tutors)
+      .where(eq(tutors.user_id, tutorId))
+      .limit(1);
+    return row?.status ?? null;
+  },
+
+  /** Marks the request CONFIRMED and flags exactly the chosen recommendation as selected. */
+  async markSelected(
+    tx: DbExecutor,
+    matchRequestId: string,
+    recommendationId: string
+  ): Promise<void> {
+    await tx
+      .update(matchRequests)
+      .set({ status: MatchRequestStatus.CONFIRMED })
+      .where(eq(matchRequests.id, matchRequestId));
+    await tx
+      .update(matchRecommendations)
+      .set({ is_selected: true })
+      .where(
+        and(
+          eq(matchRecommendations.id, recommendationId),
+          eq(matchRecommendations.match_request_id, matchRequestId)
+        )
+      );
   },
 };

@@ -9,4 +9,13 @@ export const matchingController = {
     const result = await matchingService.findTop3(req.user!.id, req.body);
     res.status(200).json(successResponse(result));
   }),
+
+  confirmSelection: asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await matchingService.confirmSelection(
+      req.user!.id,
+      req.params.matchRequestId,
+      req.body
+    );
+    res.status(200).json(successResponse(result, 'Tutor selected successfully'));
+  }),
 };

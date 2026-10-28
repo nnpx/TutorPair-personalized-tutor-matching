@@ -106,20 +106,20 @@ Server test command: `npm test --workspace=server` · Full: `npm run build && np
 ### T8: Transaction-aware notification creation
 **Description:** Give `notificationRepository.create(data, executor = db)` and `notificationService.createNotification(params, executor?)` an optional executor. Existing callers are unchanged.
 **Acceptance:**
-- [ ] Grep shows all callers still compile; a call inside a rolled-back tx leaves no row
+- [x] Grep shows all callers still compile; a call inside a rolled-back tx leaves no row
 **Verify:** `npm run build && npm test --workspace=server`
 **Depends on:** T7 · **Files:** `common/notifications/notification.repository.ts`, `notification.service.ts` · **Size:** XS
 
 ### T9: `confirmSelection` + route + docs
 **Description:** `POST /:matchRequestId/confirm` (STUDENT, `ConfirmTutorSelectionSchema`). In one tx: lock the request `FOR UPDATE` → 404 (missing or not owner) → 409 (already CONFIRMED) → 404 (recommendation not in request) → 422 (`tutor_id` ≠ recommendation's tutor) → set CONFIRMED + `is_selected` → `TUTOR_SELECTED` notification with `requiresEmail: true` and the exact NOTIFICATIONS.md text. Add an API_SPEC section.
 **Acceptance:**
-- [ ] Unit tests for each error mapping (repos mocked); integration: 401/403/400/404/409/422, a malformed `:matchRequestId` gives 404 not 500
-- [ ] Exactly one `is_selected = true`; one notification row with `requires_email = true`, `email_status = 'PENDING'`
-- [ ] `Promise.all` of two confirms → statuses `{200, 409}`, still one selected row and one notification
+- [x] Unit tests for each error mapping (repos mocked); integration: 401/403/400/404/409/422, a malformed `:matchRequestId` gives 404 not 500
+- [x] Exactly one `is_selected = true`; one notification row with `requires_email = true`, `email_status = 'PENDING'`
+- [x] `Promise.all` of two confirms → statuses `{200, 409}`, still one selected row and one notification
 **Verify:** `npm test --workspace=server`
 **Depends on:** T8 · **Files:** `matching.service.ts` (+test), `matching.repository.ts`, `matching.routes.ts`, `matching.controller.ts`, `matching.integration.test.ts`, `docs/API_SPEC.md` · **Size:** M (6 files; docs edit is small)
 
-- [ ] **Commit** `feat(matching): add tutor selection confirm with TUTOR_SELECTED notification (TP-9)`
+- [x] **Commit** `feat(matching): add tutor selection confirm with TUTOR_SELECTED notification (TP-9)`
 
 ### Checkpoint 4 — Done
 - [ ] `npm run build:shared && npm run build && npm test` green

@@ -2225,7 +2225,7 @@ The server incorporates application-level fallbacks ensuring that unhandled rout
 # Module 6: Tutor Matching
 
 > **Jira Epic:** TP-4: Development — Tutor Matching  
-> **Sub-Tasks:** TP-6 hard filtering · TP-7 weighted compatibility scoring · TP-8 Top 3 ranking · TP-9 tutor selection (documented with its endpoint)
+> **Sub-Tasks:** TP-6 hard filtering · TP-7 weighted compatibility scoring · TP-8 Top 3 ranking · TP-9 tutor selection
 >
 > **Access Role:** `STUDENT` only (`authenticate` → `requireRole(['STUDENT'])` → `validateRequest`).  
 > **Identity:** the student is resolved from the bearer token. Clients never send a `student_id`.  
@@ -2236,6 +2236,7 @@ The server incorporates application-level fallbacks ensuring that unhandled rout
 | Task | Method | Path | Purpose |
 |---|---|---|---|
 | **TP-8** | `POST` | `/api/matching` | Run the two-stage match and return the Top 3 tutors for one subject variant |
+| **TP-9** | `POST` | `/api/matching/:matchRequestId/confirm` | Confirm exactly one of the recommended tutors and notify them |
 
 ## 2. How the Match Works
 
@@ -2338,3 +2339,58 @@ curl -X POST http://localhost:4000/api/matching \
 ```
 
 > **Performance:** one variant lookup, one profile read, one candidate query (tutors ⋈ subjects ⟕ availabilities, no N+1) and one transaction. Target is under 3 seconds (`PROJECT_CONTEXT.md` §4).
+
+## 4. `POST /api/matching/:matchRequestId/confirm` (TP-9)
+
+The student confirms **exactly one** of the recommended tutors. Middleware: `authenticate` → `requireRole(['STUDENT'])` → `validateRequest(ConfirmTutorSelectionSchema)`.
+
+#### Request Body
+
+```json
+{
+  "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f"
+}
+```
+
+* `:matchRequestId`: the `match_request_id` returned by `POST /api/matching`.
+* `recommendation_id` and `tutor_id`: both required UUIDs, and they must describe the same recommendation.
+
+#### What happens (one database transaction)
+
+1. The `match_requests` row is locked (`SELECT … FOR UPDATE`), so two simultaneous confirms for the same request run one after the other.
+2. Checks, in order: request exists and belongs to the caller → not already confirmed → recommendation belongs to this request → `tutor_id` matches it → the tutor is still `APPROVED`.
+3. `match_requests.status` becomes `CONFIRMED` and the chosen recommendation gets `is_selected = true`. Other recommendations stay unselected.
+4. A `TUTOR_SELECTED` notification is created for the tutor with `requires_email = true` and `email_status = 'PENDING'`, message *"A student has selected you as their tutor. Please check your contact details."* If any step fails, nothing is saved.
+
+The email is sent later by the background worker. This request never calls SES.
+
+#### Response `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "match_request_id": "0b9c7f52-1d2e-4f3a-8b4c-5d6e7f8a9b0c",
+    "status": "CONFIRMED",
+    "selected": {
+      "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+      "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f"
+    }
+  },
+  "message": "Tutor selected successfully"
+}
+```
+
+No contact details are returned. Revealing contact channels belongs to Module 7.
+
+#### Error Responses
+
+| Status | Error Class | When |
+|---|---|---|
+| `400` | `BadRequestError` | Body missing a field or a value is not a UUID |
+| `401` | `UnauthorizedError` | Missing or invalid bearer token |
+| `403` | `ForbiddenError` | Caller is not a `STUDENT` |
+| `404` | `NotFoundError` | Request id unknown or malformed, **or the request belongs to another student** (same response, so another student's request is never revealed); or the recommendation is not part of this request |
+| `409` | `ConflictError` | The request is already `CONFIRMED` (including the loser of two simultaneous confirms) |
+| `422` | `UnprocessableEntityError` | `tutor_id` does not match the recommendation, or the tutor is no longer approved: *"This tutor is no longer available"* |

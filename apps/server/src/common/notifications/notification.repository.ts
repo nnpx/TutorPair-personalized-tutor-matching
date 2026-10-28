@@ -2,14 +2,14 @@
  * NOTE: This is an initial draft / baseline implementation.
  * It should be reviewed, tested, and revised when implementing the notification database layer.
  */
-import { db } from '../../db/client.js';
+import { db, type DbExecutor } from '../../db/client.js';
 import { notifications, NewNotification } from '../../db/schema/index.js';
 import { eq, and } from 'drizzle-orm';
 import { EmailStatus } from '@tutorpair/shared';
 
 export const notificationRepository = {
-  create: async (data: NewNotification) => {
-    const [row] = await db.insert(notifications).values(data).returning();
+  create: async (data: NewNotification, executor: DbExecutor = db) => {
+    const [row] = await executor.insert(notifications).values(data).returning();
     return row;
   },
 
