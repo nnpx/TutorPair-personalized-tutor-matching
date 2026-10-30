@@ -42,25 +42,19 @@ export const authenticate = asyncHandler(
       }
     }
 
-    let user: User | undefined;
-    try {
-      const [dbUser] = await db
-        .select()
-        .from(users)
-        .where(eq(users.cognito_sub, cognitoSub))
-        .limit(1);
-      user = dbUser;
-    } catch {
-      // Local database might not be running in frontend-only development mode
-    }
+    let [user] = await db
+      .select()
+      .from(users)
+      .where(eq(users.cognito_sub, cognitoSub))
+      .limit(1);
 
     // In development or test mode, auto-provision mock user if not yet in database
     if (!user && (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && token.startsWith('mock-token-')) {
       const mockRole = cognitoSub.toLowerCase().includes('student')
         ? UserRole.STUDENT
         : cognitoSub.toLowerCase().includes('admin')
-        ? UserRole.ADMIN
-        : UserRole.TUTOR;
+          ? UserRole.ADMIN
+          : UserRole.TUTOR;
 
       const mockEmail =
         typeof req.headers['x-mock-email'] === 'string' && req.headers['x-mock-email'].trim()
@@ -89,12 +83,11 @@ export const authenticate = asyncHandler(
             .returning();
 
           if (!user) {
-            const [found] = await db
+            [user] = await db
               .select()
               .from(users)
               .where(eq(users.cognito_sub, cognitoSub))
               .limit(1);
-            user = found;
           }
         }
       } catch {
@@ -103,18 +96,6 @@ export const authenticate = asyncHandler(
     }
 
     if (!user) {
-      if (env.NODE_ENV === 'development' && (cognitoSub === 'mock-admin-id' || cognitoSub.includes('admin'))) {
-        req.user = {
-          id: 'mock-admin-id',
-          cognito_sub: 'mock-admin-id',
-          email: 'admin@tutorpair.local',
-          role: UserRole.ADMIN,
-          created_at: new Date(),
-          updated_at: new Date(),
-        } as unknown as User;
-        next();
-        return;
-      }
       throw new UnauthorizedError('User profile not found. Please sync your account.');
     }
 

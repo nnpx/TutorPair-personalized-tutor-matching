@@ -60,7 +60,7 @@ export function createApp(): Express {
   app.use('/api/matching', matchingRouter);
   app.use('/api/reviews', reviewsRouter);
 
-  // 404 Handler for undefined API routes
+  // 404 Handler for undefined API routes (JSON envelope instead of Express's HTML page)
   app.use((_req, _res, next) => {
     next(new NotFoundError('API endpoint not found'));
   });

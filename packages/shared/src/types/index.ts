@@ -8,6 +8,7 @@ import {
   LearningGoal,
   DocumentType,
   DayOfWeek,
+  MatchRequestStatus,
 } from '../enums/index.js';
 
 export interface ApiResponse<T = unknown> {
@@ -124,20 +125,6 @@ export interface TutorVerificationStatusDto {
   }>;
 }
 
-export interface MatchRecommendationDto {
-  id: string;
-  tutor_id: string;
-  tutor: TutorSummaryDto;
-  rank: number;
-  score: number;
-  is_selected: boolean;
-}
-
-export interface MatchResultResponse {
-  match_request_id: string;
-  recommendations: MatchRecommendationDto[];
-}
-
 export interface NotificationDto {
   id: string;
   user_id: string;
@@ -205,4 +192,42 @@ export interface AdminTutorDetailDto {
   created_at: string;
   subjects: AdminTutorSubjectDto[];
   documents: AdminDocumentDto[];
+}
+
+// ---- Module 6: Tutor Matching ----
+
+/** Public tutor card in match results. Never carries contact details or verification data. */
+export interface PublicTutorCardDto {
+  tutor_id: string;
+  first_name: string;
+  last_name: string;
+  description: string | null;
+  tutor_type: TutorType;
+  average_rating: number;
+  review_count: number;
+  hourly_rate: number;
+  teaching_focus: string | null;
+}
+
+export interface MatchRecommendationDto {
+  recommendation_id: string;
+  rank: number;
+  score: number;
+  tutor: PublicTutorCardDto;
+}
+
+export interface MatchResultDto {
+  match_request_id: string;
+  variant_id: string;
+  status: MatchRequestStatus;
+  recommendations: MatchRecommendationDto[];
+}
+
+export interface ConfirmSelectionResultDto {
+  match_request_id: string;
+  status: MatchRequestStatus;
+  selected: {
+    recommendation_id: string;
+    tutor_id: string;
+  };
 }

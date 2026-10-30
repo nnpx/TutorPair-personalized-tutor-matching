@@ -1,12 +1,17 @@
 import { pgTable, uuid, varchar, timestamp, integer, decimal, boolean } from 'drizzle-orm/pg-core';
 import { students } from './students.schema.js';
 import { tutors } from './tutors.schema.js';
+import { subjectVariants } from './subjects.schema.js';
 
 export const matchRequests = pgTable('match_requests', {
   id: uuid('id').defaultRandom().primaryKey(),
   student_id: uuid('student_id')
     .notNull()
     .references(() => students.user_id, { onDelete: 'cascade' }),
+  // The subject variant the student asked to be matched on (needed for Module 7 history).
+  variant_id: uuid('variant_id')
+    .notNull()
+    .references(() => subjectVariants.id, { onDelete: 'cascade' }),
   status: varchar('status', { length: 50 }).default('PENDING').notNull(),
   created_at: timestamp('created_at').defaultNow().notNull(),
 });

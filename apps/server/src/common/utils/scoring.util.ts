@@ -1,14 +1,125 @@
-/**
- * NOTE: This is an initial draft / baseline scoring formula.
- * It should be reviewed, tested, and fine-tuned by the matching system developer.
- */
+import { LearningGoal, TutorType, TutorTypePref, VerificationStatus } from '@tutorpair/shared';
+import { BadRequestError } from '../errors/http-errors.js';
 
 /**
- * Calculates compatibility score between student preferences and tutor profile.
- * Both profiles have:
- * - style_profile: 5 sliders (1 to 5)
- * - personality_profile: 4 sliders (1 to 5)
+ * Stage 1 — hard filters (PROJECT_CONTEXT §3.3). Pure strict-boolean gate, no I/O.
+ * The Online/Onsite mode gate is intentionally absent: the schema has no mode column and
+ * API_SPEC states all sessions are online by default.
  */
+
+// Docs only say "at least 1 overlapping slot"; 60 min keeps every survivor able to book one lesson.
+export const MIN_OVERLAP_MINUTES = 60;
+
+export interface TimeSlot {
+  day_of_week: string;
+  start_time: string; // 'HH:mm' (input) or 'HH:MM:SS' (Postgres time)
+  end_time: string;
+}
+
+export interface HardFilterTutor {
+  verification_status: string;
+  /** The variant this candidate row teaches (tutor_subjects.variant_id). */
+  variant_id: string;
+  grade_levels: string[] | null;
+  availabilities: TimeSlot[];
+}
+
+export interface HardFilterStudent {
+  grade_level: string;
+  availabilities: TimeSlot[];
+}
+
+export interface HardFilterVariant {
+  id: string;
+  learning_goal: string;
+}
+
+function toSeconds(time: string): number {
+  const [h, m, s] = time.split(':').map(Number);
+  return h * 3600 + m * 60 + (s ?? 0);
+}
+
+/** True when any student/tutor slot pair shares a day and overlaps by >= MIN_OVERLAP_MINUTES. */
+export function hasAvailabilityOverlap(studentSlots: TimeSlot[], tutorSlots: TimeSlot[]): boolean {
+  const minSeconds = MIN_OVERLAP_MINUTES * 60;
+  return studentSlots.some((a) =>
+    tutorSlots.some(
+      (b) =>
+        a.day_of_week === b.day_of_week &&
+        Math.min(toSeconds(a.end_time), toSeconds(b.end_time)) -
+          Math.max(toSeconds(a.start_time), toSeconds(b.start_time)) >=
+          minSeconds
+    )
+  );
+}
+
+/** A tutor survives only if ALL gates hold: approved, teaches the variant, grade (curriculum only), availability. */
+export function passesHardFilters(
+  tutor: HardFilterTutor,
+  student: HardFilterStudent,
+  variant: HardFilterVariant
+): boolean {
+  if (tutor.verification_status !== VerificationStatus.APPROVED) return false;
+  if (tutor.variant_id !== variant.id) return false;
+  if (
+    variant.learning_goal === LearningGoal.SCHOOL_CURRICULUM &&
+    !tutor.grade_levels?.includes(student.grade_level)
+  ) {
+    return false;
+  }
+  return hasAvailabilityOverlap(student.availabilities, tutor.availabilities);
+}
+
+/**
+ * Stage 2 — weighted compatibility score (PROJECT_CONTEXT §3.2-3.3). Pure and deterministic:
+ * same input, same output; no clock, randomness or locale involved.
+ *
+ * score = 100 * (0.45 * style + 0.35 * personality + 0.20 * budget) - tutor-type mismatch penalty
+ * Style/personality use Manhattan distance, normalised by the maximum possible distance.
+ * Gender preference is not scored: the schema has no gender column.
+ */
+
+const STYLE_SLIDER_COUNT = 5;
+const PERSONALITY_SLIDER_COUNT = 4;
+const MAX_SLIDER_DIFF = 4; // |5 - 1|
+
+const STYLE_WEIGHT = 0.45;
+const PERSONALITY_WEIGHT = 0.35;
+const BUDGET_WEIGHT = 0.2;
+
+// Docs do not define the magnitude. Applied only when the student asked for a specific
+// tutor type and the tutor is a different one; ANY and an exact match are never penalized.
+export const TUTOR_TYPE_MISMATCH_PENALTY = 10;
+
+function areValidSliders(values: unknown, expectedLength: number): boolean {
+  return (
+    Array.isArray(values) &&
+    values.length === expectedLength &&
+    values.every((v) => Number.isInteger(v) && v >= 1 && v <= 5)
+  );
+}
+
+/** True when both slider sets have the right length and every rating is an integer in 1-5. */
+export function hasValidSliderProfile(style: unknown, personality: unknown): boolean {
+  return (
+    areValidSliders(style, STYLE_SLIDER_COUNT) &&
+    areValidSliders(personality, PERSONALITY_SLIDER_COUNT)
+  );
+}
+
+function assertSliders(values: number[], expectedLength: number, label: string): void {
+  if (!areValidSliders(values, expectedLength)) {
+    throw new BadRequestError(
+      `${label} must contain exactly ${expectedLength} integer ratings between 1 and 5`
+    );
+  }
+}
+
+function similarity(student: number[], tutor: number[]): number {
+  const diff = student.reduce((sum, v, i) => sum + Math.abs(v - tutor[i]), 0);
+  return 1 - diff / (student.length * MAX_SLIDER_DIFF);
+}
+
 export function calculateCompatibilityScore({
   studentStyle,
   tutorStyle,
@@ -16,6 +127,8 @@ export function calculateCompatibilityScore({
   tutorPersonality,
   studentBudget,
   tutorRate,
+  tutorTypePref,
+  tutorType,
 }: {
   studentStyle: number[];
   tutorStyle: number[];
@@ -23,27 +136,18 @@ export function calculateCompatibilityScore({
   tutorPersonality: number[];
   studentBudget: number;
   tutorRate: number;
+  tutorTypePref: TutorTypePref;
+  tutorType: TutorType;
 }): number {
-  // Max possible difference per question is |5 - 1| = 4
+  assertSliders(studentStyle, STYLE_SLIDER_COUNT, 'Student style profile');
+  assertSliders(tutorStyle, STYLE_SLIDER_COUNT, 'Tutor style profile');
+  assertSliders(studentPersonality, PERSONALITY_SLIDER_COUNT, 'Student personality profile');
+  assertSliders(tutorPersonality, PERSONALITY_SLIDER_COUNT, 'Tutor personality profile');
 
-  // 1. Style similarity (weight: 45%)
-  let styleDiff = 0;
-  for (let i = 0; i < 5; i++) {
-    styleDiff += Math.abs((studentStyle[i] ?? 3) - (tutorStyle[i] ?? 3));
-  }
-  const maxStyleDiff = 5 * 4; // 20
-  const styleScore = Math.max(0, 1 - styleDiff / maxStyleDiff);
+  const styleScore = similarity(studentStyle, tutorStyle);
+  const personalityScore = similarity(studentPersonality, tutorPersonality);
 
-  // 2. Personality similarity (weight: 35%)
-  let personalityDiff = 0;
-  for (let i = 0; i < 4; i++) {
-    personalityDiff += Math.abs((studentPersonality[i] ?? 3) - (tutorPersonality[i] ?? 3));
-  }
-  const maxPersonalityDiff = 4 * 4; // 16
-  const personalityScore = Math.max(0, 1 - personalityDiff / maxPersonalityDiff);
-
-  // 3. Budget favorability (weight: 20%)
-  // If tutor is under budget, score is 1.0; if tutor is at budget, 0.8; etc.
+  // Over budget -> 0. Within budget -> 0.5 at the budget line up to 1.0 for a free tutor.
   let budgetScore = 1.0;
   if (tutorRate > studentBudget) {
     budgetScore = 0.0;
@@ -51,6 +155,32 @@ export function calculateCompatibilityScore({
     budgetScore = 0.5 + 0.5 * (1 - tutorRate / studentBudget);
   }
 
-  const finalScore = (styleScore * 0.45 + personalityScore * 0.35 + budgetScore * 0.20) * 100;
+  const base =
+    (styleScore * STYLE_WEIGHT +
+      personalityScore * PERSONALITY_WEIGHT +
+      budgetScore * BUDGET_WEIGHT) *
+    100;
+
+  const penalty =
+    tutorTypePref !== TutorTypePref.ANY && (tutorTypePref as string) !== (tutorType as string)
+      ? TUTOR_TYPE_MISMATCH_PENALTY
+      : 0;
+
+  const finalScore = Math.min(100, Math.max(0, base - penalty));
   return Math.round(finalScore * 100) / 100;
+}
+
+export const TOP_N = 3;
+
+/**
+ * Orders by score (already rounded to 2 decimals) descending, then tutor_id ascending so equal
+ * scores always rank the same way. Plain `<` keeps the order independent of locale.
+ */
+export function rankTop3<T extends { tutor_id: string; score: number }>(
+  scored: T[]
+): Array<T & { rank: number }> {
+  return [...scored]
+    .sort((a, b) => b.score - a.score || (a.tutor_id < b.tutor_id ? -1 : a.tutor_id > b.tutor_id ? 1 : 0))
+    .slice(0, TOP_N)
+    .map((item, index) => ({ ...item, rank: index + 1 }));
 }

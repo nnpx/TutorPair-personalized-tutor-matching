@@ -10,3 +10,6 @@ export const pool = new Pool({
 });
 
 export const db = drizzle(pool, { schema });
+
+/** Either the shared db or an open transaction handle, so a write can join a caller's transaction. */
+export type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];

@@ -68,6 +68,7 @@ Error responses are handled centrally by [`errorHandler`](../apps/server/src/com
 | `403 Forbidden` | `ForbiddenError` | Authenticated user lacks required role or tries to access another user's private resource |
 | `404 Not Found` | `NotFoundError` | Tutor profile, subject variant, document, or route does not exist |
 | `409 Conflict` | `ConflictError` | Tutor profile already exists for this user, or schedule contains overlapping slots on the same day |
+| `413 Payload Too Large` | — | Request body is larger than the 1 MB JSON limit |
 | `422 Unprocessable Entity` | `UnprocessableEntityError` | Semantically invalid input violating business rules |
 | `500 Internal Server Error` | `InternalServerError` | Unhandled server or database exception |
 
@@ -2207,9 +2208,19 @@ The server incorporates application-level fallbacks ensuring that unhandled rout
        "details": null
      }
      ```
-3. **Database Constraint Fallback Handling**:
-   - Postgres error codes `22P02` (invalid syntax/UUID), `23505` (unique constraint violation), and `23503` (foreign key violation) map cleanly to `400 Bad Request` or `409 Conflict`.
-4. **Unhandled Server Exceptions (`500 Internal Server Error`)**:
+3. **Oversized Body (`413 Payload Too Large`)**:
+   - A JSON body above the 1 MB limit returns:
+     ```json
+     {
+       "success": false,
+       "message": "Request body too large",
+       "details": null
+     }
+     ```
+4. **Database Constraint Fallback Handling**:
+   - Postgres error codes `22P02` (invalid syntax/UUID), `23505` (unique constraint violation), and `23503` (foreign key violation) map cleanly to `400 Bad Request` or `409 Conflict`. The code is read from the error itself or from its `cause` chain, because the ORM wraps database errors.
+   - Modules that can hit these in a known race translate them first into a more precise error (see Module 6 §5).
+5. **Unhandled Server Exceptions (`500 Internal Server Error`)**:
    - Unexpected operational exceptions return:
      ```json
      {
@@ -2218,3 +2229,245 @@ The server incorporates application-level fallbacks ensuring that unhandled rout
        "details": null
      }
      ```
+
+
+---
+
+# Module 6: Tutor Matching
+
+> **Jira Epic:** TP-4: Development — Tutor Matching  
+> **Sub-Tasks:** TP-6 hard filtering · TP-7 weighted compatibility scoring · TP-8 Top 3 ranking · TP-9 tutor selection
+>
+> **Access Role:** `STUDENT` only (`authenticate` → `requireRole(['STUDENT'])` → `validateRequest`).  
+> **Identity:** the student is resolved from the bearer token. Clients never send a `student_id`.  
+> **Mock auth:** `Authorization: Bearer mock-token-<cognito_sub>` works in `development` / `test`.
+
+## 1. Endpoints Summary
+
+| Task | Method | Path | Purpose |
+|---|---|---|---|
+| **TP-8** | `POST` | `/api/matching` | Run the two-stage match and return the Top 3 tutors for one subject variant |
+| **TP-9** | `POST` | `/api/matching/:matchRequestId/confirm` | Confirm exactly one of the recommended tutors and notify them |
+
+## 2. How the Match Works
+
+The client sends **only the requested subject variant**. Everything else comes from the student's saved Module 3 profile via `studentsRepository.getProfileWithAvailability`: grade level, 5 style sliders, 4 personality sliders, `budget_max`, `tutor_type_pref` and weekly availability.
+
+### Stage 1 — Hard filters (strict pass/fail)
+
+A tutor is eliminated unless **all** of these hold:
+
+| Gate | Rule |
+|---|---|
+| Verified | `verification_status = 'APPROVED'` |
+| Variant | the tutor teaches exactly the requested `variant_id` (Math ≠ Science, Primary ≠ Secondary) |
+| Grade | only when the variant's `learning_goal = 'SCHOOL_CURRICULUM'`: the tutor's `grade_levels` for that variant must include the student's `grade_level`. A tutor with no grade levels is eliminated. Other learning goals skip this gate. |
+| Availability | at least one student slot and one tutor slot on the **same day** overlap by **≥ 60 minutes** (`MIN_OVERLAP_MINUTES`). Slots that only touch (`16:00–17:00` and `17:00–18:00`) do not overlap. |
+
+> **Online/Onsite mode** is listed as a hard filter in `PROJECT_CONTEXT.md` §3.3, but no mode column exists and all sessions are online by default (see the Module 4 format note), so this gate is not applied.
+
+### Stage 2 — Weighted compatibility score (0–100)
+
+```
+style       = 1 − Σ|student_i − tutor_i| / 20     (5 sliders, Manhattan distance)
+personality = 1 − Σ|student_i − tutor_i| / 16     (4 sliders)
+budget      = rate > budget_max ? 0 : 0.5 + 0.5 × (1 − rate / budget_max)
+score       = 100 × (0.45·style + 0.35·personality + 0.20·budget) − type_penalty
+type_penalty = 10 when tutor_type_pref ≠ ANY and ≠ the tutor's type, otherwise 0
+```
+
+The score is clamped to 0–100 and rounded to 2 decimals. It is deterministic: the same inputs always give the same score. `hourly_rate` is the tutor's rate **for the requested variant**. The gender preference is not scored (no column exists).
+
+### Ranking
+
+Candidates are sorted by score (descending), then by `tutor_id` (ascending) so equal scores always rank the same way. The first **3** get `rank` 1..n. Fewer than 3 survivors returns what exists; zero survivors returns `recommendations: []` with `200`.
+
+## 3. `POST /api/matching` (TP-8)
+
+#### Request Body
+
+```json
+{ "variant_id": "3f2b8c1e-5a4d-4e6f-9a7b-1c2d3e4f5a6b" }
+```
+
+* `variant_id`: required UUID of a `subject_variants` row (from the 3-step subject selection).
+* Any other field is ignored. Profile data cannot be overridden from the request.
+
+#### Response `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "match_request_id": "0b9c7f52-1d2e-4f3a-8b4c-5d6e7f8a9b0c",
+    "variant_id": "3f2b8c1e-5a4d-4e6f-9a7b-1c2d3e4f5a6b",
+    "status": "PENDING",
+    "recommendations": [
+      {
+        "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "rank": 1,
+        "score": 95,
+        "tutor": {
+          "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+          "first_name": "Somchai",
+          "last_name": "Jaidee",
+          "description": "Experienced Mathematics tutor",
+          "tutor_type": "UNDERGRADUATE",
+          "average_rating": 4.5,
+          "review_count": 12,
+          "hourly_rate": 250,
+          "teaching_focus": "Kangaroo Math"
+        }
+      }
+    ]
+  }
+}
+```
+
+**Public fields only.** The response never contains `phone_number`, `line_id`, `rejection_reason`, verification documents or slider values. Contact channels are revealed only after a tutor is confirmed (Module 7).
+
+#### Persistence
+
+In **one transaction** the server writes a `match_requests` row (`status = 'PENDING'`, with the requested `variant_id`) and its `match_recommendations` rows (`rank`, `score`, `is_selected = false`).
+
+A student keeps **one open request per variant**: running a match again for the same variant replaces the previous `PENDING` request, so the result always reflects the current profile. `CONFIRMED` requests are never replaced.
+
+#### Error Responses
+
+| Status | Error Class | When |
+|---|---|---|
+| `400` | `BadRequestError` | Body is not valid JSON, or `variant_id` is missing or not a UUID |
+| `401` | `UnauthorizedError` | Missing or invalid bearer token |
+| `403` | `ForbiddenError` | Caller is not a `STUDENT` |
+| `404` | `NotFoundError` | The student has no profile yet, or the variant does not exist |
+| `409` | `ConflictError` | A tutor or the variant was removed while the match was being saved: *"The tutor list changed while matching. Please try again"* |
+| `413` | — | Body larger than 1 MB |
+| `422` | `UnprocessableEntityError` | The student has no weekly availability (*"Set your weekly availability before matching"*), or the student's saved sliders are invalid (*"Your learning preferences are incomplete. Please update your profile before matching"*) |
+
+```bash
+curl -X POST http://localhost:4000/api/matching \
+  -H "Authorization: Bearer mock-token-mock-student-id" \
+  -H "Content-Type: application/json" \
+  -d '{"variant_id":"<uuid from GET /api/subjects>"}'
+```
+
+> **Performance:** one variant lookup, one profile read, one candidate query (tutors ⋈ subjects ⟕ availabilities, no N+1) and one transaction. Target is under 3 seconds (`PROJECT_CONTEXT.md` §4).
+
+## 4. `POST /api/matching/:matchRequestId/confirm` (TP-9)
+
+The student confirms **exactly one** of the recommended tutors. Middleware: `authenticate` → `requireRole(['STUDENT'])` → `validateRequest(ConfirmTutorSelectionSchema)`.
+
+#### Request Body
+
+```json
+{
+  "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f"
+}
+```
+
+* `:matchRequestId`: the `match_request_id` returned by `POST /api/matching`.
+* `recommendation_id` and `tutor_id`: both required UUIDs, and they must describe the same recommendation.
+
+#### What happens (one database transaction)
+
+1. The `match_requests` row is locked (`SELECT … FOR UPDATE`), so two simultaneous confirms for the same request run one after the other.
+2. Checks, in order: request exists and belongs to the caller → not already confirmed → recommendation belongs to this request → `tutor_id` matches it → the tutor is still `APPROVED`.
+3. `match_requests.status` becomes `CONFIRMED` and the chosen recommendation gets `is_selected = true`. Other recommendations stay unselected.
+4. A `TUTOR_SELECTED` notification is created for the tutor with `requires_email = true` and `email_status = 'PENDING'`, message *"A student has selected you as their tutor. Please check your contact details."* If any step fails, nothing is saved.
+
+The email is sent later by the background worker. This request never calls SES.
+
+#### Response `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "match_request_id": "0b9c7f52-1d2e-4f3a-8b4c-5d6e7f8a9b0c",
+    "status": "CONFIRMED",
+    "selected": {
+      "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+      "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f"
+    }
+  },
+  "message": "Tutor selected successfully"
+}
+```
+
+No contact details are returned. Revealing contact channels belongs to Module 7.
+
+#### Error Responses
+
+| Status | Error Class | When |
+|---|---|---|
+| `400` | `BadRequestError` | Body is not valid JSON, or a field is missing or not a UUID |
+| `401` | `UnauthorizedError` | Missing or invalid bearer token |
+| `403` | `ForbiddenError` | Caller is not a `STUDENT` |
+| `404` | `NotFoundError` | Request id unknown or malformed, **or the request belongs to another student** (same response, so another student's request is never revealed); or the recommendation is not part of this request |
+| `409` | `ConflictError` | The request is already `CONFIRMED` (including the loser of two simultaneous confirms) |
+| `413` | — | Body larger than 1 MB |
+| `422` | `UnprocessableEntityError` | `tutor_id` does not match the recommendation, or the tutor is no longer approved or was removed meanwhile: *"This tutor is no longer available"* |
+
+## 5. Error Handling & Input Guards (Module 6)
+
+Every failure returns the standard envelope from the [global template](#2-standard-error-response-structure): `{ "success": false, "message": "...", "details": ... }`. Unknown routes, malformed JSON, oversized bodies and unhandled exceptions follow the global fallbacks in the *Global API Fallbacks & Resilience* section above.
+
+### 5.1 Order in which a request is checked
+
+| # | Check | Where | Failure |
+|---|---|---|---|
+| 1 | JSON body parses and is within 1 MB | `express.json` | `400` malformed JSON / `413` too large |
+| 2 | `Authorization: Bearer <token>` is present and valid | `authenticate` | `401` |
+| 3 | Caller has the `STUDENT` role | `requireRole` | `403` |
+| 4 | Body shape and types (Zod) | `validateRequest` | `400` with `details: [{ field, message }]` |
+| 5 | `:matchRequestId` is a UUID (confirm only) | service | `404` (a malformed id can never exist, so it is reported like an unknown one) |
+| 6 | Business rules and ownership | service | `404` / `409` / `422` (see below) |
+| 7 | Database failures | repository / global handler | `409` race, otherwise `500` |
+
+### 5.2 Input guards
+
+| Input | Guard |
+|---|---|
+| `variant_id` (match) | required, string, UUID. Any other body field is ignored, so grade, sliders, budget and availability can only come from the saved profile |
+| `recommendation_id`, `tutor_id` (confirm) | both required, strings, UUID |
+| `:matchRequestId` | UUID, else `404` |
+| Student slider data | 5 style + 4 personality integers in 1–5, else `422` pointing at the profile |
+| Tutor slider data | same rule; a tutor who fails it is **skipped and logged** so one bad row cannot fail the student's request |
+| Ownership | a request is only found for its own student; another student's request is indistinguishable from an unknown id (`404`) |
+
+### 5.3 Error catalogue
+
+**`POST /api/matching`**
+
+| Status | Message | Cause |
+|---|---|---|
+| `400` | `Malformed JSON in request body` | body is not parseable JSON |
+| `400` | `Request validation failed` (+ `details`) | `variant_id` missing / not a UUID |
+| `401` | `Missing or malformed Authorization header` or a token error | no or invalid token |
+| `403` | `Access denied. Required role: [STUDENT], …` | caller is a `TUTOR` or `ADMIN` |
+| `404` | `Student profile not found` | student has not created a profile |
+| `404` | `Subject variant not found` | `variant_id` does not exist |
+| `409` | `The tutor list changed while matching. Please try again` | tutor or variant deleted between loading and saving |
+| `413` | `Request body too large` | body above 1 MB |
+| `422` | `Set your weekly availability before matching` | student has no availability slots |
+| `422` | `Your learning preferences are incomplete. Please update your profile before matching` | stored student sliders invalid |
+| `500` | `An unexpected error occurred. Please try again later.` | unhandled failure, e.g. database unreachable |
+
+No eligible tutor is **not** an error: the response is `200` with `recommendations: []`.
+
+**`POST /api/matching/:matchRequestId/confirm`**
+
+| Status | Message | Cause |
+|---|---|---|
+| `400` | `Malformed JSON in request body` / `Request validation failed` (+ `details`) | bad JSON, or a field missing / not a UUID |
+| `401` / `403` | as above | auth or role |
+| `404` | `Match request not found` | unknown id, malformed id, or **another student's request** |
+| `404` | `Recommendation not found for this match request` | `recommendation_id` is not part of this request |
+| `409` | `This match request has already been confirmed` | already `CONFIRMED`, including the loser of two simultaneous confirms |
+| `413` | `Request body too large` | body above 1 MB |
+| `422` | `tutor_id does not match the selected recommendation` | ids disagree |
+| `422` | `This tutor is no longer available` | tutor no longer `APPROVED`, or removed during the confirm |
+| `500` | `An unexpected error occurred. Please try again later.` | unhandled failure |
+
+Confirm is all-or-nothing: if any step fails, the request stays `PENDING`, no recommendation is selected and no notification is created.
