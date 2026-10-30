@@ -6,6 +6,9 @@ import { useAuthStore } from '../../store/auth.store';
 import { UserRole } from '@tutorpair/shared';
 import { LogIn, Sparkles, ShieldCheck, GraduationCap } from 'lucide-react';
 
+import { queryClient } from '../../services/query-client';
+import apiClient from '../../services/api-client';
+
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { setUser } = useAuthStore();
@@ -17,15 +20,37 @@ export const LoginPage: React.FC = () => {
     setEmail(defaultEmail);
   };
 
-  const handleMockLogin = () => {
+  const handleMockLogin = async () => {
+    // Purge cached query results from previous session
+    queryClient.clear();
+    queryClient.removeQueries();
+
     // Local development quick mock login bypass
+    const sanitizedEmail = email.trim().toLowerCase();
+    const isDefault =
+      sanitizedEmail === 'student@tutorpair.local' ||
+      sanitizedEmail === 'tutor@tutorpair.local' ||
+      sanitizedEmail === 'admin@tutorpair.local';
+
+    const userId = isDefault
+      ? `mock-${selectedRole.toLowerCase()}-id`
+      : `mock-${selectedRole.toLowerCase()}-${sanitizedEmail.replace(/[^a-zA-Z0-9]/g, '-')}`;
+
     setUser({
-      id: `mock-${selectedRole.toLowerCase()}-id`,
-      email,
+      id: userId,
+      email: sanitizedEmail,
       role: selectedRole,
     });
 
+    // Synchronize user to PostgreSQL database users table immediately
+    try {
+      await apiClient.post('/api/auth/sync', { role: selectedRole });
+    } catch (err) {
+      console.warn('Auth sync warning:', err);
+    }
+
     if (selectedRole === UserRole.STUDENT) {
+      // Always direct students to the matching homepage where they see the roadmap & instructions first
       navigate('/student/matching');
     } else if (selectedRole === UserRole.TUTOR) {
       navigate('/tutor/profile');

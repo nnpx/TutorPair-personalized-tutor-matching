@@ -62,25 +62,40 @@ export const authenticate = asyncHandler(
         ? UserRole.ADMIN
         : UserRole.TUTOR;
 
-      try {
-        const [insertedUser] = await db
-          .insert(users)
-          .values({
-            cognito_sub: cognitoSub,
-            email: `${cognitoSub}@tutorpair.local`,
-            role: mockRole,
-          })
-          .onConflictDoNothing()
-          .returning();
-        user = insertedUser;
+      const mockEmail =
+        typeof req.headers['x-mock-email'] === 'string' && req.headers['x-mock-email'].trim()
+          ? (req.headers['x-mock-email'] as string).trim()
+          : `${cognitoSub}@tutorpair.local`;
 
-        if (!user) {
-          const [found] = await db
-            .select()
-            .from(users)
-            .where(eq(users.cognito_sub, cognitoSub))
-            .limit(1);
-          user = found;
+      try {
+        // Check if user with this email already exists
+        const [existingByEmail] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, mockEmail))
+          .limit(1);
+
+        if (existingByEmail) {
+          user = existingByEmail;
+        } else {
+          [user] = await db
+            .insert(users)
+            .values({
+              cognito_sub: cognitoSub,
+              email: mockEmail,
+              role: mockRole,
+            })
+            .onConflictDoNothing()
+            .returning();
+
+          if (!user) {
+            const [found] = await db
+              .select()
+              .from(users)
+              .where(eq(users.cognito_sub, cognitoSub))
+              .limit(1);
+            user = found;
+          }
         }
       } catch {
         // Fallback for offline dev

@@ -16,19 +16,27 @@ import { reviewsRouter } from './modules/reviews/reviews.routes.js';
 export function createApp(): Express {
   const app = express();
 
-  // CORS Configuration - allows both port 5173, 5174, etc.
+  // Development Request Logger
+  if (env.NODE_ENV === 'development') {
+    app.use((req, _res, next) => {
+      console.log(`[HTTP] ${req.method} ${req.url}`);
+      next();
+    });
+  }
+
+  // CORS Configuration - allows both port 5173, 5174, dev tools, or configured origin
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || origin.startsWith('http://localhost:')) {
+        if (!origin || env.NODE_ENV === 'development' || origin.startsWith('http://localhost:') || origin === env.ALLOWED_ORIGIN) {
           callback(null, true);
         } else {
-          callback(null, origin === env.ALLOWED_ORIGIN);
+          callback(new Error('Not allowed by CORS'));
         }
       },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Mock-Email', 'x-mock-email'],
     })
   );
 

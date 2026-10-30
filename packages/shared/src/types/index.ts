@@ -60,6 +60,7 @@ export interface TutorProfileDto {
 
 export interface StudentProfileDto {
   user_id: string;
+  email?: string;
   first_name: string;
   last_name: string;
   phone_number?: string | null;
@@ -69,6 +70,25 @@ export interface StudentProfileDto {
   style_profile: number[];
   personality_profile: number[];
   budget_max: number;
+}
+
+export interface StudentAvailabilitySlotDto {
+  id?: string;
+  day_of_week: DayOfWeek;
+  start_time: string;
+  end_time: string;
+}
+
+export interface StudentWithAvailabilityDto extends StudentProfileDto {
+  availabilities: StudentAvailabilitySlotDto[];
+}
+
+export interface StudentSubjectItemDto {
+  variant_id: string;
+  subject_name: string;
+  variant_name: string;
+  category: SubjectCategory;
+  learning_goal: LearningGoal;
 }
 
 export interface TutorSubjectWithDetailsDto {

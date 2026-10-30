@@ -1,54 +1,68 @@
 import React, { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { X, AlertCircle } from 'lucide-react';
+import { Button } from './Button';
 
 export interface ModalProps {
   isOpen: boolean;
   onClose: () => void;
-  title: string;
+  title?: string;
   subtitle?: string;
   icon?: React.ReactNode;
   children: React.ReactNode;
-  footerActions?: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'danger';
+  variant?: 'primary' | 'secondary' | 'danger' | 'default';
   maxWidth?: string;
   ariaLabel?: string;
+  // Custom footer slot (used by Admin)
+  footerActions?: React.ReactNode;
+  // Standard actions (used by Students / Matching)
+  primaryActionText?: string;
+  onPrimaryAction?: () => void;
+  secondaryActionText?: string;
+  onSecondaryAction?: () => void;
 }
 
 export const Modal: React.FC<ModalProps> = ({
   isOpen,
   onClose,
-  title,
+  title = 'Notification',
   subtitle,
   icon,
   children,
-  footerActions,
-  variant = 'secondary',
+  variant = 'default',
   maxWidth = '520px',
   ariaLabel,
+  footerActions,
+  primaryActionText,
+  onPrimaryAction,
+  secondaryActionText,
+  onSecondaryAction,
 }) => {
+  // Close on Escape key press
   useEffect(() => {
+    if (!isOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
+      if (e.key === 'Escape') {
         onClose();
       }
     };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-    }
+    window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
 
+  const isDanger = variant === 'danger';
+
   const getBorderColor = () => {
     switch (variant) {
       case 'danger':
-        return 'var(--color-danger)';
+        return '#ef4444';
       case 'primary':
-        return 'var(--color-primary)';
+        return 'var(--color-primary, #2563eb)';
       case 'secondary':
+        return 'var(--color-secondary, #4b5563)';
       default:
-        return 'var(--color-secondary)';
+        return 'var(--color-border, #e5e7eb)';
     }
   };
 
@@ -60,12 +74,12 @@ export const Modal: React.FC<ModalProps> = ({
       style={{
         position: 'fixed',
         inset: 0,
-        backgroundColor: 'rgba(17, 24, 39, 0.6)',
+        zIndex: 9999,
+        backgroundColor: 'rgba(15, 23, 42, 0.65)',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        zIndex: 999,
-        padding: '1.5rem',
+        padding: '1.25rem',
       }}
       onClick={(e) => {
         if (e.target === e.currentTarget) {
@@ -76,90 +90,164 @@ export const Modal: React.FC<ModalProps> = ({
       <div
         className="flat-card"
         style={{
-          maxWidth,
           width: '100%',
-          backgroundColor: 'var(--color-white)',
-          border: `3px solid ${getBorderColor()}`,
-          borderRadius: 'var(--radius-lg)',
-          padding: '2rem',
+          maxWidth,
+          backgroundColor: '#ffffff',
+          borderRadius: 'var(--radius-lg, 0.75rem)',
+          border: `2px solid ${getBorderColor()}`,
+          overflow: 'hidden',
+          boxShadow: 'none',
           display: 'flex',
           flexDirection: 'column',
-          gap: '1.25rem',
-          boxShadow: 'none',
           position: 'relative',
         }}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close modal"
+        {/* Modal Header */}
+        <div
           style={{
-            position: 'absolute',
-            top: '1.25rem',
-            right: '1.25rem',
-            backgroundColor: 'transparent',
-            border: 'none',
-            color: '#6b7280',
-            cursor: 'pointer',
-            padding: '0.25rem',
+            padding: '1.25rem 1.5rem',
+            backgroundColor: isDanger ? '#fef2f2' : 'var(--color-muted, #f9fafb)',
+            borderBottom: isDanger ? '2px solid #fee2e2' : '2px solid var(--color-border, #e5e7eb)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            borderRadius: 'var(--radius-sm)',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
           }}
         >
-          <X size={20} />
-        </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
+            {icon ? (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {icon}
+              </div>
+            ) : isDanger ? (
+              <span style={{ color: '#ef4444', display: 'inline-flex', flexShrink: 0 }}>
+                <AlertCircle size={22} strokeWidth={2.4} />
+              </span>
+            ) : null}
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', paddingRight: '2rem' }}>
-          {icon && (
-            <div
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: 'var(--radius-md)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              {icon}
+            <div style={{ minWidth: 0 }}>
+              <h3
+                style={{
+                  fontSize: '1.125rem',
+                  fontWeight: 800,
+                  color: isDanger ? '#991b1b' : 'var(--color-text-main, #111827)',
+                  margin: 0,
+                  lineHeight: 1.3,
+                }}
+              >
+                {title}
+              </h3>
+              {subtitle && (
+                <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.125rem 0 0 0' }}>
+                  {subtitle}
+                </p>
+              )}
             </div>
-          )}
-          <div>
-            <h3
-              style={{
-                fontSize: '1.375rem',
-                fontWeight: 800,
-                color: 'var(--color-text-main)',
-                lineHeight: 1.2,
-              }}
-            >
-              {title}
-            </h3>
-            {subtitle && (
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                {subtitle}
-              </p>
-            )}
           </div>
+
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close modal"
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              color: isDanger ? '#991b1b' : '#6b7280',
+              padding: '0.25rem',
+              borderRadius: 'var(--radius-sm, 0.25rem)',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <X size={20} strokeWidth={2.4} />
+          </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        {/* Modal Body */}
+        <div
+          style={{
+            padding: '1.5rem',
+            fontSize: '0.9375rem',
+            color: '#374151',
+            lineHeight: 1.55,
+          }}
+        >
           {children}
         </div>
 
-        {footerActions && (
+        {/* Modal Footer */}
+        {(footerActions || primaryActionText || secondaryActionText) && (
           <div
             style={{
+              padding: '1rem 1.5rem',
+              backgroundColor: '#ffffff',
+              borderTop: '2px solid var(--color-border, #e5e7eb)',
               display: 'flex',
               justifyContent: 'flex-end',
+              alignItems: 'center',
               gap: '0.75rem',
-              marginTop: '0.5rem',
+              flexWrap: 'wrap',
             }}
           >
-            {footerActions}
+            {footerActions ? (
+              footerActions
+            ) : (
+              <>
+                {secondaryActionText && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      if (onSecondaryAction) {
+                        onSecondaryAction();
+                      } else {
+                        onClose();
+                      }
+                    }}
+                    style={{
+                      fontWeight: 700,
+                      fontSize: '0.875rem',
+                      padding: '0 1.25rem',
+                      height: '2.5rem',
+                    }}
+                  >
+                    {secondaryActionText}
+                  </Button>
+                )}
+
+                {primaryActionText && (
+                  <Button
+                    type="button"
+                    variant={isDanger ? 'danger' : 'primary'}
+                    onClick={() => {
+                      if (onPrimaryAction) {
+                        onPrimaryAction();
+                      } else {
+                        onClose();
+                      }
+                    }}
+                    style={{
+                      fontWeight: 800,
+                      fontSize: '0.875rem',
+                      padding: '0 1.5rem',
+                      height: '2.5rem',
+                    }}
+                  >
+                    {primaryActionText}
+                  </Button>
+                )}
+              </>
+            )}
           </div>
         )}
       </div>
