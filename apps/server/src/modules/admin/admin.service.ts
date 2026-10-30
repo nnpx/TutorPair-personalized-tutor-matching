@@ -52,49 +52,25 @@ export const adminService = {
   },
 
   verifyTutor: async (tutorId: string, input: VerifyTutorInput) => {
-    const tutor = await adminRepository.findTutorById(tutorId);
-    if (!tutor) {
-      throw new NotFoundError(`Tutor with id ${tutorId} not found`);
-    }
-
     if (input.status === VerificationStatus.REJECTED && !input.rejection_reason?.trim()) {
       throw new BadRequestError('Rejection reason is required when rejecting a tutor');
     }
-
-    const rejectionReason =
-      input.status === VerificationStatus.REJECTED ? input.rejection_reason!.trim() : null;
-
-    const updated = await adminRepository.updateVerificationStatus(
-      tutorId,
-      input.status,
-      rejectionReason
-    );
-
-    // Create In-App Notification and queue email for SES background worker
-    try {
-      if (input.status === VerificationStatus.APPROVED) {
-        await notificationService.createNotification({
-          userId: tutorId,
-          eventType: NotificationEventType.VERIFICATION_APPROVED,
-          message: 'Congratulations! Your tutor profile and credentials have been verified and approved.',
-          requiresEmail: true,
-        });
-      } else if (input.status === VerificationStatus.REJECTED) {
-        await notificationService.createNotification({
-          userId: tutorId,
-          eventType: NotificationEventType.VERIFICATION_REJECTED,
-          message: `Your tutor verification application was rejected: ${rejectionReason}`,
-          requiresEmail: true,
-        });
-      }
-    } catch (notifErr) {
-      console.warn('Notification creation skipped in development:', notifErr);
-    }
-
-    return {
-      user_id: tutorId,
-      verification_status: updated.verification_status,
-      rejection_reason: updated.rejection_reason,
-    };
+    const reason = input.status === VerificationStatus.REJECTED ? input.rejection_reason!.trim() : null;
+    return adminRepository.transaction(async tx => {
+      const tutor = await adminRepository.lockTutor(tx, tutorId);
+      if (!tutor) throw new NotFoundError('Tutor not found');
+      // A repeated decision has no side effects. Another status transition is a new event.
+      if (tutor.verification_status === input.status) return {
+        user_id: tutorId, verification_status: tutor.verification_status, rejection_reason: tutor.rejection_reason,
+      };
+      const updated = await adminRepository.saveVerification(tx, tutorId, input.status, reason);
+      await notificationService.createNotification({
+        userId: tutorId,
+        eventType: input.status === VerificationStatus.APPROVED ? NotificationEventType.VERIFICATION_APPROVED : NotificationEventType.VERIFICATION_REJECTED,
+        message: input.status === VerificationStatus.APPROVED ? 'Your tutor application has been approved.' : `Your tutor application needs changes: ${reason}`,
+        requiresEmail: true,
+      }, tx);
+      return { user_id: tutorId, verification_status: updated.verification_status, rejection_reason: updated.rejection_reason };
+    });
   },
 };

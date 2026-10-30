@@ -231,3 +231,16 @@ export interface ConfirmSelectionResultDto {
     tutor_id: string;
   };
 }
+
+/** Public bell payload; email dispatch internals stay on the server. */
+export interface TutorNotificationItem {
+  id: string;
+  event_type: `${NotificationEventType}`;
+  message: string;
+  is_read: boolean;
+  created_at: string;
+}
+export interface TutorNotificationList {
+  items: TutorNotificationItem[];
+  unreadCount: number;
+}
