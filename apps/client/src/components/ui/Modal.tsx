@@ -14,6 +14,7 @@ export interface ModalProps {
   ariaLabel?: string;
   // Custom footer slot (used by Admin)
   footerActions?: React.ReactNode;
+  footerAlign?: 'center' | 'right' | 'end';
   // Standard actions (used by Students / Matching)
   primaryActionText?: string;
   onPrimaryAction?: () => void;
@@ -32,6 +33,7 @@ export const Modal: React.FC<ModalProps> = ({
   maxWidth = '520px',
   ariaLabel,
   footerActions,
+  footerAlign = 'center',
   primaryActionText,
   onPrimaryAction,
   secondaryActionText,
@@ -183,13 +185,13 @@ export const Modal: React.FC<ModalProps> = ({
         {(footerActions || primaryActionText || secondaryActionText) && (
           <div
             style={{
-              padding: '1rem 1.5rem',
+              padding: '1.25rem 1.5rem',
               backgroundColor: '#ffffff',
-              borderTop: '2px solid var(--color-border, #e5e7eb)',
+              borderTop: '1px solid var(--color-border, #e5e7eb)',
               display: 'flex',
-              justifyContent: 'flex-end',
+              justifyContent: footerAlign === 'right' || footerAlign === 'end' ? 'flex-end' : 'center',
               alignItems: 'center',
-              gap: '0.75rem',
+              gap: '0.875rem',
               flexWrap: 'wrap',
             }}
           >
