@@ -91,7 +91,13 @@ export const AdminVerificationsPage: React.FC = () => {
   }, [selectedStatus, tutors, selectedTutorId, isDetailManuallyClosed]);
 
   // 2. Fetch Selected Tutor Details
-  const { data: tutorDetail, isLoading: isDetailLoading } = useQuery<AdminTutorDetailDto>({
+  const {
+    data: tutorDetail,
+    isLoading: isDetailLoading,
+    isError: isDetailError,
+    error: detailError,
+    refetch: refetchDetail,
+  } = useQuery<AdminTutorDetailDto>({
     queryKey: ['admin', 'tutor-detail', selectedTutorId],
     queryFn: async () => {
       if (!selectedTutorId) return null as unknown as AdminTutorDetailDto;
@@ -619,12 +625,32 @@ export const AdminVerificationsPage: React.FC = () => {
         {/* Right: Detailed Inspection & S3 Document Review Panel */}
         {selectedTutorId && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-            {isDetailLoading || !tutorDetail ? (
+            {isDetailLoading ? (
               <div className="flat-card" style={{ padding: '3.5rem', textAlign: 'center' }}>
                 <Spinner size={36} />
                 <p style={{ marginTop: '0.75rem', color: '#6b7280', fontWeight: 600 }}>
                   Loading tutor profile details...
                 </p>
+              </div>
+            ) : isDetailError || !tutorDetail ? (
+              <div className="flat-card" style={{ padding: '2.5rem', textAlign: 'center' }}>
+                <div style={{ display: 'inline-flex', color: '#ef4444', marginBottom: '0.75rem' }}>
+                  <AlertCircle size={36} />
+                </div>
+                <h4 style={{ fontWeight: 800, fontSize: '1.125rem', marginBottom: '0.5rem' }}>
+                  Unable to load tutor profile
+                </h4>
+                <p style={{ color: '#6b7280', fontSize: '0.875rem', marginBottom: '1.25rem' }}>
+                  {(detailError as any)?.response?.data?.message || 'Could not fetch tutor details. Please try again.'}
+                </p>
+                <button
+                  type="button"
+                  className="flat-button flat-button-primary"
+                  onClick={() => refetchDetail()}
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.5rem', margin: '0 auto' }}
+                >
+                  <RefreshCw size={16} /> Retry
+                </button>
               </div>
             ) : (
               <div
