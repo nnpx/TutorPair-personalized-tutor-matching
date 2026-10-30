@@ -36,7 +36,6 @@ apiClient.interceptors.request.use(async (config) => {
 
   // 3. Fallback to local development mock token
   if (!config.headers.Authorization) {
-    const user = useAuthStore.getState().user;
     if (user?.id) {
       config.headers.Authorization = `Bearer mock-token-${user.id}`;
       if (user.email) {

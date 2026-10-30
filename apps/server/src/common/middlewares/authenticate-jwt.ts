@@ -53,41 +53,45 @@ export const authenticate = asyncHandler(
       const mockRole = cognitoSub.toLowerCase().includes('student')
         ? UserRole.STUDENT
         : cognitoSub.toLowerCase().includes('admin')
-        ? UserRole.ADMIN
-        : UserRole.TUTOR;
+          ? UserRole.ADMIN
+          : UserRole.TUTOR;
 
       const mockEmail =
         typeof req.headers['x-mock-email'] === 'string' && req.headers['x-mock-email'].trim()
           ? (req.headers['x-mock-email'] as string).trim()
           : `${cognitoSub}@tutorpair.local`;
 
-      // Check if user with this email already exists
-      const [existingByEmail] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, mockEmail))
-        .limit(1);
+      try {
+        // Check if user with this email already exists
+        const [existingByEmail] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, mockEmail))
+          .limit(1);
 
-      if (existingByEmail) {
-        user = existingByEmail;
-      } else {
-        [user] = await db
-          .insert(users)
-          .values({
-            cognito_sub: cognitoSub,
-            email: mockEmail,
-            role: mockRole,
-          })
-          .onConflictDoNothing()
-          .returning();
-
-        if (!user) {
+        if (existingByEmail) {
+          user = existingByEmail;
+        } else {
           [user] = await db
-            .select()
-            .from(users)
-            .where(eq(users.cognito_sub, cognitoSub))
-            .limit(1);
+            .insert(users)
+            .values({
+              cognito_sub: cognitoSub,
+              email: mockEmail,
+              role: mockRole,
+            })
+            .onConflictDoNothing()
+            .returning();
+
+          if (!user) {
+            [user] = await db
+              .select()
+              .from(users)
+              .where(eq(users.cognito_sub, cognitoSub))
+              .limit(1);
+          }
         }
+      } catch {
+        // Fallback for offline dev
       }
     }
 

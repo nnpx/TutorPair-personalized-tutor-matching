@@ -29,13 +29,6 @@ export const StudentLayout: React.FC = () => {
   const handleLogout = () => {
     queryClient.clear();
     queryClient.removeQueries();
-    try {
-      localStorage.removeItem('tutorpair_dev_student_profile');
-      localStorage.removeItem('tutorpair_dev_student_availability');
-      localStorage.removeItem('tutorpair_dev_student_subjects');
-    } catch {
-      // ignore
-    }
     clearUser();
   };
 

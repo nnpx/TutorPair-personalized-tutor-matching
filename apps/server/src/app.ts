@@ -24,12 +24,11 @@ export function createApp(): Express {
     });
   }
 
-  // CORS Configuration
+  // CORS Configuration - allows both port 5173, 5174, dev tools, or configured origin
   app.use(
     cors({
       origin: (origin, callback) => {
-        // Allow same-origin, dev tools, or allowed origins
-        if (!origin || env.NODE_ENV === 'development' || origin === env.ALLOWED_ORIGIN) {
+        if (!origin || env.NODE_ENV === 'development' || origin.startsWith('http://localhost:') || origin === env.ALLOWED_ORIGIN) {
           callback(null, true);
         } else {
           callback(new Error('Not allowed by CORS'));
