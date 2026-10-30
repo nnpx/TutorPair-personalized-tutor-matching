@@ -11,7 +11,8 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "test": "tsx --test src/**/*.test.ts"
+    "test": "node scripts/test.mjs",
+    "test:notifications": "node --import tsx --test src/common/notifications/*.test.ts src/workers/email-dispatch.worker.test.ts src/modules/admin/admin.notifications.test.ts src/modules/matching/matching.confirm.service.test.ts"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.1.1",

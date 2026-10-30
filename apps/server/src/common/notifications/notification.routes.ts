@@ -1,0 +1,10 @@
+import { Router } from 'express';
+import { UserRole } from '@tutorpair/shared';
+import { authenticate } from '../middlewares/authenticate-jwt.js';
+import { requireRole } from '../middlewares/require-role.js';
+import { notificationController } from './notification.controller.js';
+export const notificationRouter = Router();
+notificationRouter.use(authenticate, requireRole([UserRole.TUTOR]));
+notificationRouter.get('/', notificationController.list);
+notificationRouter.patch('/read-all', notificationController.readAll);
+notificationRouter.patch('/:id/read', notificationController.read);

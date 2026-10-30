@@ -8,3 +8,4 @@ export * from './documents.schema.js';
 export * from './matching.schema.js';
 export * from './reviews.schema.js';
 export * from './notifications.schema.js';
+export * from './email-deliveries.schema.js';

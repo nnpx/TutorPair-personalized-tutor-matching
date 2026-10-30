@@ -34,6 +34,13 @@ export const notificationRepository = {
     return updated;
   },
 
+  markAllAsRead: async (userId: string) => {
+    const rows = await db.update(notifications).set({ is_read: true })
+      .where(and(eq(notifications.user_id, userId), eq(notifications.is_read, false)))
+      .returning({ id: notifications.id });
+    return rows.length;
+  },
+
   getPendingEmails: async (limit = 10) => {
     return db
       .select()

@@ -1,3 +1,5 @@
+import { AccessDeniedPage } from './features/auth/AccessDeniedPage';
+import { MatchResultsPage } from './features/matching/MatchResultsPage';
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthLayout } from './layouts/AuthLayout';
@@ -28,6 +30,7 @@ export const App: React.FC = () => {
       {/* Public / Auth routes */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/unauthorized" element={<AccessDeniedPage />} />
       </Route>
 
       {/* Student routes */}
@@ -37,6 +40,7 @@ export const App: React.FC = () => {
           <Route path="onboarding" element={<StudentOnboardingPage />} />
           <Route path="matching" element={<MatchingPage />} />
           <Route path="matching/request" element={<MatchRequestPage />} />
+          <Route path="matching/results" element={<MatchResultsPage />} />
           <Route path="matches" element={<MatchHistoryPage />} />
           <Route path="history" element={<MatchHistoryPage />} />
           <Route path="profile" element={<StudentProfilePage />} />

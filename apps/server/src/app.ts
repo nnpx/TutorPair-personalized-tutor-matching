@@ -1,3 +1,4 @@
+import { notificationRouter } from './common/notifications/notification.routes.js';
 import express, { Express } from 'express';
 import cors from 'cors';
 import { env } from './config/env.js';
@@ -48,6 +49,8 @@ export function createApp(): Express {
   app.get('/api/health', (_req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
   });
+
+  app.use('/api/notifications', notificationRouter);
 
   // Feature Module Routers
   app.use('/api/auth', authRouter);
