@@ -1205,17 +1205,18 @@ export const AdminVerificationsPage: React.FC = () => {
         icon={
           <div
             style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(16, 185, 129, 0.12)',
-              color: 'var(--color-secondary)',
+              width: '44px',
+              height: '44px',
+              borderRadius: '8px',
+              backgroundColor: '#ecfdf5',
+              color: '#059669',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            <CheckCircle size={28} strokeWidth={2.5} />
+            <CheckCircle size={24} strokeWidth={2.4} />
           </div>
         }
         footerActions={
@@ -1223,9 +1224,24 @@ export const AdminVerificationsPage: React.FC = () => {
             <button
               type="button"
               disabled={verifyMutation.isPending}
-              className="flat-btn flat-btn-secondary"
               onClick={() => setApprovingTutor(null)}
-              style={{ minWidth: '100px' }}
+              style={{
+                height: '2.625rem',
+                padding: '0 1.25rem',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                backgroundColor: '#f3f4f6',
+                color: '#374151',
+                border: '1px solid #e5e7eb',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#e5e7eb')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f3f4f6')}
             >
               Cancel
             </button>
@@ -1240,19 +1256,28 @@ export const AdminVerificationsPage: React.FC = () => {
                   });
                 }
               }}
-              className="flat-btn"
               style={{
-                backgroundColor: 'var(--color-secondary)',
-                color: 'var(--color-white)',
-                fontWeight: 800,
+                height: '2.625rem',
+                padding: '0 1.5rem',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: 700,
+                backgroundColor: '#059669',
+                color: '#ffffff',
+                border: 'none',
+                cursor: verifyMutation.isPending ? 'not-allowed' : 'pointer',
+                opacity: verifyMutation.isPending ? 0.7 : 1,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                minWidth: '160px',
                 justifyContent: 'center',
+                boxShadow: 'none',
+                transition: 'all 0.15s ease',
               }}
+              onMouseEnter={(e) => !verifyMutation.isPending && (e.currentTarget.style.backgroundColor = '#047857')}
+              onMouseLeave={(e) => !verifyMutation.isPending && (e.currentTarget.style.backgroundColor = '#059669')}
             >
-              <CheckCircle size={18} strokeWidth={2.5} />
+              <CheckCircle size={18} strokeWidth={2.4} color="#ffffff" />
               {verifyMutation.isPending ? 'Approving...' : 'Confirm Approval'}
             </button>
           </>
@@ -1305,17 +1330,18 @@ export const AdminVerificationsPage: React.FC = () => {
         icon={
           <div
             style={{
-              width: '48px',
-              height: '48px',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'rgba(239, 68, 68, 0.12)',
-              color: 'var(--color-danger)',
+              width: '44px',
+              height: '44px',
+              borderRadius: '8px',
+              backgroundColor: '#fef2f2',
+              color: '#dc2626',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              flexShrink: 0,
             }}
           >
-            <XCircle size={28} strokeWidth={2.5} />
+            <XCircle size={24} strokeWidth={2.4} />
           </div>
         }
         footerActions={
@@ -1323,9 +1349,24 @@ export const AdminVerificationsPage: React.FC = () => {
             <button
               type="button"
               disabled={verifyMutation.isPending}
-              className="flat-btn flat-btn-secondary"
               onClick={() => setConfirmingRejectTutor(null)}
-              style={{ minWidth: '100px' }}
+              style={{
+                height: '2.625rem',
+                padding: '0 1.25rem',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                backgroundColor: '#f3f4f6',
+                color: '#374151',
+                border: '1px solid #e5e7eb',
+                cursor: 'pointer',
+                transition: 'all 0.15s ease',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#e5e7eb')}
+              onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f3f4f6')}
             >
               Back to Edit
             </button>
@@ -1341,20 +1382,29 @@ export const AdminVerificationsPage: React.FC = () => {
                   });
                 }
               }}
-              className="flat-btn"
               style={{
-                backgroundColor: 'var(--color-danger)',
-                color: 'var(--color-white)',
-                fontWeight: 800,
+                height: '2.625rem',
+                padding: '0 1.5rem',
+                borderRadius: '8px',
+                fontSize: '0.875rem',
+                fontWeight: 700,
+                backgroundColor: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                cursor: verifyMutation.isPending ? 'not-allowed' : 'pointer',
+                opacity: verifyMutation.isPending ? 0.7 : 1,
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: '0.5rem',
-                minWidth: '160px',
                 justifyContent: 'center',
+                boxShadow: 'none',
+                transition: 'all 0.15s ease',
               }}
+              onMouseEnter={(e) => !verifyMutation.isPending && (e.currentTarget.style.backgroundColor = '#b91c1c')}
+              onMouseLeave={(e) => !verifyMutation.isPending && (e.currentTarget.style.backgroundColor = '#dc2626')}
             >
-              <XCircle size={18} strokeWidth={2.5} />
-              {verifyMutation.isPending ? 'Rejecting...' : 'Confirm & Send Rejection'}
+              <XCircle size={18} strokeWidth={2.4} color="#ffffff" />
+              {verifyMutation.isPending ? 'Rejecting...' : 'Confirm Rejection'}
             </button>
           </>
         }

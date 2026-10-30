@@ -53,17 +53,11 @@ export const Modal: React.FC<ModalProps> = ({
 
   const isDanger = variant === 'danger';
 
-  const getBorderColor = () => {
-    switch (variant) {
-      case 'danger':
-        return '#ef4444';
-      case 'primary':
-        return 'var(--color-primary, #2563eb)';
-      case 'secondary':
-        return 'var(--color-secondary, #4b5563)';
-      default:
-        return 'var(--color-border, #e5e7eb)';
+  const getBorder = () => {
+    if (variant === 'danger') {
+      return '2px solid #ef4444';
     }
+    return '1px solid var(--color-border, #e5e7eb)';
   };
 
   return (
@@ -94,7 +88,7 @@ export const Modal: React.FC<ModalProps> = ({
           maxWidth,
           backgroundColor: '#ffffff',
           borderRadius: 'var(--radius-lg, 0.75rem)',
-          border: `2px solid ${getBorderColor()}`,
+          border: getBorder(),
           overflow: 'hidden',
           boxShadow: 'none',
           display: 'flex',
