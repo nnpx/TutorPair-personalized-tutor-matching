@@ -21,16 +21,9 @@ export const LoginPage: React.FC = () => {
   };
 
   const handleMockLogin = async () => {
-    // Purge cached query results from previous session and clean legacy keys
+    // Purge cached query results from previous session
     queryClient.clear();
     queryClient.removeQueries();
-    try {
-      localStorage.removeItem('tutorpair_dev_student_profile');
-      localStorage.removeItem('tutorpair_dev_student_availability');
-      localStorage.removeItem('tutorpair_dev_student_subjects');
-    } catch {
-      // ignore
-    }
 
     // Local development quick mock login bypass
     const sanitizedEmail = email.trim().toLowerCase();
