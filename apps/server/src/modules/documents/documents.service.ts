@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../../config/env.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../common/errors/http-errors.js';
@@ -23,6 +23,10 @@ export const documentsService = {
     const currentTotalKb = await documentsRepository.getTotalStorageKb(tutorId);
     if (currentTotalKb + input.file_size_kb > MAX_TOTAL_STORAGE_KB) {
       throw new BadRequestError('Total uploaded document storage exceeds 100MB limit for this account.');
+    }
+
+    if (input.document_type === DocumentType.SUBJECT_QUALIFICATION && !input.variant_id) {
+      throw new BadRequestError('variant_id is required for SUBJECT_QUALIFICATION document type');
     }
 
     const rawExt = path.extname(input.file_name).toLowerCase() || '.pdf';
@@ -60,6 +64,10 @@ export const documentsService = {
   },
 
   async confirmUpload(tutorId: string, input: ConfirmUploadInput) {
+    if (input.document_type === DocumentType.SUBJECT_QUALIFICATION && !input.variant_id) {
+      throw new BadRequestError('variant_id is required for SUBJECT_QUALIFICATION document type');
+    }
+
     const doc = await documentsRepository.createDocument({
       tutor_id: tutorId,
       document_type: input.document_type,
@@ -97,5 +105,20 @@ export const documentsService = {
 
     await documentsRepository.deleteDocument(documentId, tutorId);
     return { success: true };
+  },
+
+  async generatePresignedViewUrl(fileKey: string, expiresInSeconds = 900) {
+    const hasAwsCreds = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
+
+    if (hasAwsCreds) {
+      const s3Client = new S3Client({ region: env.AWS_REGION });
+      const command = new GetObjectCommand({
+        Bucket: env.S3_BUCKET_NAME,
+        Key: fileKey,
+      });
+      return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
+    }
+
+    return `https://${env.S3_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${encodeURIComponent(fileKey)}?X-Amz-Expires=${expiresInSeconds}&mockSigned=true`;
   },
 };

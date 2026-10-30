@@ -28,16 +28,22 @@ apiClient.interceptors.request.use(async (config) => {
     const token = session.tokens?.idToken?.toString();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+      return config;
     }
   } catch {
     // Session not found / Cognito not configured
   }
 
-  // 3. Fallback for any other user
-  if (!config.headers.Authorization && user?.id) {
-    config.headers.Authorization = `Bearer mock-token-${user.id}`;
-    if (user?.email) {
-      config.headers['X-Mock-Email'] = user.email;
+  // 3. Fallback to local development mock token
+  if (!config.headers.Authorization) {
+    if (user?.id) {
+      config.headers.Authorization = `Bearer mock-token-${user.id}`;
+      if (user.email) {
+        config.headers['X-Mock-Email'] = user.email;
+      }
+    } else {
+      // Default to mock-admin-id in local dev if no user is set yet
+      config.headers.Authorization = 'Bearer mock-token-mock-admin-id';
     }
   }
 

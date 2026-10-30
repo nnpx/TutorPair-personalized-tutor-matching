@@ -1,7 +1,3 @@
-/**
- * NOTE: This is an initial draft / baseline schema.
- * It can be revised, expanded, or modified when developing this specific module in detail.
- */
 import { z } from 'zod';
 import { VerificationStatus } from '../enums/index.js';
 
@@ -21,4 +17,15 @@ export const VerifyTutorSchema = z.object({
   }
 );
 
+export const AdminTutorsQuerySchema = z.object({
+  status: z.enum(['PENDING', 'APPROVED', 'REJECTED', 'ALL']).optional(),
+});
+
+export const TutorDocumentParamsSchema = z.object({
+  id: z.string().uuid('Invalid tutor ID: must be a valid UUID'),
+  docId: z.string().uuid('Invalid document ID: must be a valid UUID'),
+});
+
 export type VerifyTutorInput = z.infer<typeof VerifyTutorSchema>;
+export type AdminTutorsQueryInput = z.infer<typeof AdminTutorsQuerySchema>;
+export type TutorDocumentParamsInput = z.infer<typeof TutorDocumentParamsSchema>;

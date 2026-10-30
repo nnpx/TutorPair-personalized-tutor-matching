@@ -22,11 +22,11 @@ interface AuthStore {
  * allows immediate testing of tutor features without manual login.
  * In production, the initial state is populated via AWS Amplify / Cognito session sync.
  */
-const DEV_MOCK_TUTOR: UserState | null = import.meta.env.DEV
+const DEV_MOCK_USER: UserState | null = import.meta.env.DEV
   ? {
-      id: 'mock-tutor-id',
-      email: 'tutor@tutorpair.local',
-      role: UserRole.TUTOR,
+      id: 'mock-admin-id',
+      email: 'admin@tutorpair.local',
+      role: UserRole.ADMIN,
     }
   : null;
 
@@ -40,8 +40,8 @@ const DEV_MOCK_TUTOR: UserState | null = import.meta.env.DEV
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
-      // Defaults to mock tutor in local dev mode; null in production
-      user: DEV_MOCK_TUTOR,
+      // Defaults to mock admin in local dev mode; null in production
+      user: DEV_MOCK_USER,
       isLoading: false,
       setUser: (user) => set({ user }),
       clearUser: () => set({ user: null }),
@@ -51,5 +51,3 @@ export const useAuthStore = create<AuthStore>()(
     }
   )
 );
-
-

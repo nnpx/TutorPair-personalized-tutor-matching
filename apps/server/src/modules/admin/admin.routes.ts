@@ -1,7 +1,61 @@
 import { Router } from 'express';
+import { adminController } from './admin.controller.js';
+import { authenticate } from '../../common/middlewares/authenticate-jwt.js';
+import { requireRole } from '../../common/middlewares/require-role.js';
+import { validateRequest } from '../../common/middlewares/validate-request.js';
+import {
+  UserRole,
+  VerifyTutorSchema,
+  AdminTutorsQuerySchema,
+  UuidParamSchema,
+  TutorDocumentParamsSchema,
+} from '@tutorpair/shared';
 
 const router = Router();
 
-// TODO: Define admin routes (e.g. GET /api/admin/tutors, PATCH /api/admin/tutors/:id/verify)
+// Enforce authentication & ADMIN role for all admin routes
+router.use(authenticate);
+router.use(requireRole([UserRole.ADMIN]));
+
+/**
+ * GET /api/admin/tutors
+ * Retrieve tutors verification queue (optional filter ?status=PENDING|APPROVED|REJECTED|ALL)
+ */
+router.get(
+  '/tutors',
+  validateRequest(AdminTutorsQuerySchema, 'query'),
+  adminController.getTutorsQueue
+);
+
+/**
+ * GET /api/admin/tutors/:id
+ * Retrieve detailed tutor profile, subjects, and attached documents
+ */
+router.get(
+  '/tutors/:id',
+  validateRequest(UuidParamSchema, 'params'),
+  adminController.getTutorDetails
+);
+
+/**
+ * GET /api/admin/tutors/:id/documents/:docId/view-url
+ * Generate short-lived (15 min) S3 Presigned GET URL for reviewing tutor documents
+ */
+router.get(
+  '/tutors/:id/documents/:docId/view-url',
+  validateRequest(TutorDocumentParamsSchema, 'params'),
+  adminController.getDocumentViewUrl
+);
+
+/**
+ * PATCH /api/admin/tutors/:id/verify
+ * Approve or reject tutor application with validation and automated notifications
+ */
+router.patch(
+  '/tutors/:id/verify',
+  validateRequest(UuidParamSchema, 'params'),
+  validateRequest(VerifyTutorSchema, 'body'),
+  adminController.verifyTutor
+);
 
 export const adminRouter = router;

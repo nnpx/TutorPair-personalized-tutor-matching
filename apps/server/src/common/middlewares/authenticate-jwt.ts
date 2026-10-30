@@ -42,11 +42,17 @@ export const authenticate = asyncHandler(
       }
     }
 
-    let [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.cognito_sub, cognitoSub))
-      .limit(1);
+    let user: User | undefined;
+    try {
+      const [dbUser] = await db
+        .select()
+        .from(users)
+        .where(eq(users.cognito_sub, cognitoSub))
+        .limit(1);
+      user = dbUser;
+    } catch {
+      // Local database might not be running in frontend-only development mode
+    }
 
     // In development or test mode, auto-provision mock user if not yet in database
     if (!user && (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && token.startsWith('mock-token-')) {
@@ -61,37 +67,54 @@ export const authenticate = asyncHandler(
           ? (req.headers['x-mock-email'] as string).trim()
           : `${cognitoSub}@tutorpair.local`;
 
-      // Check if user with this email already exists
-      const [existingByEmail] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, mockEmail))
-        .limit(1);
+      try {
+        // Check if user with this email already exists
+        const [existingByEmail] = await db
+          .select()
+          .from(users)
+          .where(eq(users.email, mockEmail))
+          .limit(1);
 
-      if (existingByEmail) {
-        user = existingByEmail;
-      } else {
-        [user] = await db
-          .insert(users)
-          .values({
-            cognito_sub: cognitoSub,
-            email: mockEmail,
-            role: mockRole,
-          })
-          .onConflictDoNothing()
-          .returning();
-
-        if (!user) {
+        if (existingByEmail) {
+          user = existingByEmail;
+        } else {
           [user] = await db
-            .select()
-            .from(users)
-            .where(eq(users.cognito_sub, cognitoSub))
-            .limit(1);
+            .insert(users)
+            .values({
+              cognito_sub: cognitoSub,
+              email: mockEmail,
+              role: mockRole,
+            })
+            .onConflictDoNothing()
+            .returning();
+
+          if (!user) {
+            const [found] = await db
+              .select()
+              .from(users)
+              .where(eq(users.cognito_sub, cognitoSub))
+              .limit(1);
+            user = found;
+          }
         }
+      } catch {
+        // Fallback for offline dev
       }
     }
 
     if (!user) {
+      if (env.NODE_ENV === 'development' && (cognitoSub === 'mock-admin-id' || cognitoSub.includes('admin'))) {
+        req.user = {
+          id: 'mock-admin-id',
+          cognito_sub: 'mock-admin-id',
+          email: 'admin@tutorpair.local',
+          role: UserRole.ADMIN,
+          created_at: new Date(),
+          updated_at: new Date(),
+        } as unknown as User;
+        next();
+        return;
+      }
       throw new UnauthorizedError('User profile not found. Please sync your account.');
     }
 

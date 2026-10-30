@@ -1,7 +1,3 @@
-/**
- * NOTE: This is an initial draft / baseline schema.
- * It can be revised, expanded, or modified when developing this specific module in detail.
- */
 import { z } from 'zod';
 import { SubjectCategory, LearningGoal } from '../enums/index.js';
 
@@ -20,5 +16,10 @@ export const SubjectWithVariantsSchema = z.object({
   variants: z.array(SubjectVariantSchema),
 });
 
+export const SubjectQuerySchema = z.object({
+  category: z.nativeEnum(SubjectCategory).optional(),
+});
+
 export type SubjectVariantDto = z.infer<typeof SubjectVariantSchema>;
 export type SubjectWithVariantsDto = z.infer<typeof SubjectWithVariantsSchema>;
+export type SubjectQueryInput = z.infer<typeof SubjectQuerySchema>;

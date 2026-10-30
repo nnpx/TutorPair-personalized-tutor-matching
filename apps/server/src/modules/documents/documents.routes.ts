@@ -2,10 +2,11 @@ import { Router } from 'express';
 import { authenticate } from '../../common/middlewares/authenticate-jwt.js';
 import { requireRole } from '../../common/middlewares/require-role.js';
 import { validateRequest } from '../../common/middlewares/validate-request.js';
-import { UserRole } from '@tutorpair/shared';
 import {
+  UserRole,
   PresignedUploadRequestSchema,
   ConfirmUploadSchema,
+  UuidParamSchema,
 } from '@tutorpair/shared';
 import { documentsController } from './documents.controller.js';
 
@@ -34,6 +35,7 @@ router.delete(
   '/:id',
   authenticate,
   requireRole([UserRole.TUTOR]),
+  validateRequest(UuidParamSchema, 'params'),
   documentsController.deleteDocument
 );
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { tutorsService } from './tutors.service.js';
 import { tutorsRepository } from './tutors.repository.js';
 import { DayOfWeek, TutorType } from '@tutorpair/shared';
-import { BadRequestError, NotFoundError } from '../../common/errors/http-errors.js';
+import { BadRequestError, NotFoundError, ConflictError } from '../../common/errors/http-errors.js';
 
 describe('TutorsService Unit Tests', () => {
   it('should throw BadRequestError if start_time is greater than or equal to end_time', async () => {
@@ -39,6 +39,49 @@ describe('TutorsService Unit Tests', () => {
           });
         },
         BadRequestError
+      );
+    } finally {
+      tutorsRepository.findProfileByUserId = originalFind;
+    }
+  });
+
+  it('should throw ConflictError if overlapping time slots are submitted for the same day', async () => {
+    const originalFind = tutorsRepository.findProfileByUserId;
+    tutorsRepository.findProfileByUserId = async () => ({
+      user_id: 'mock-user-id',
+      first_name: 'Somchai',
+      last_name: 'Jaidee',
+      phone_number: '0812345678',
+      line_id: null,
+      description: null,
+      tutor_type: TutorType.UNDERGRADUATE,
+      style_profile: [3, 3, 3, 3, 3],
+      personality_profile: [3, 3, 3, 3],
+      verification_status: 'APPROVED',
+      rejection_reason: null,
+      average_rating: '0.00',
+      review_count: 0,
+    });
+
+    try {
+      await assert.rejects(
+        async () => {
+          await tutorsService.setAvailability('mock-user-id', {
+            availability: [
+              {
+                day_of_week: DayOfWeek.MONDAY,
+                start_time: '09:00',
+                end_time: '12:00',
+              },
+              {
+                day_of_week: DayOfWeek.MONDAY,
+                start_time: '11:00', // Overlaps with 09:00-12:00
+                end_time: '14:00',
+              },
+            ],
+          });
+        },
+        ConflictError
       );
     } finally {
       tutorsRepository.findProfileByUserId = originalFind;

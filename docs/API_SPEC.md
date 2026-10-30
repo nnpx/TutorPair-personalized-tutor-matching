@@ -43,7 +43,7 @@ Error responses are handled centrally by [`errorHandler`](../apps/server/src/com
 ```json
 {
   "success": false,
-  "message": "Validation failed",
+  "message": "Request validation failed",
   "details": [
     {
       "field": "phone_number",
@@ -63,11 +63,11 @@ Error responses are handled centrally by [`errorHandler`](../apps/server/src/com
 |---|---|---|
 | `200 OK` | — | Successful query, update, or deletion operation |
 | `201 Created` | — | Successful creation (`POST /students/profile`, `POST /tutors/profile`, `POST /documents/confirm`) |
-| `400 Bad Request` | `BadRequestError` | Request body fails Zod schema validation or time slot bounds |
-| `401 Unauthorized` | `UnauthorizedError` | Missing or invalid Cognito JWT bearer token |
-| `403 Forbidden` | `ForbiddenError` | Authenticated user lacks required role (`STUDENT` or `TUTOR`) |
-| `404 Not Found` | `NotFoundError` | Profile, subject variant, or document does not exist |
-| `409 Conflict` | `ConflictError` | Profile already exists for this user |
+| `400 Bad Request` | `BadRequestError` | Request body or params fail Zod schema validation, invalid UUID, malformed JSON, or invalid time slot bounds |
+| `401 Unauthorized` | `UnauthorizedError` | Missing, expired, or invalid Cognito JWT bearer token |
+| `403 Forbidden` | `ForbiddenError` | Authenticated user lacks required role or tries to access another user's private resource |
+| `404 Not Found` | `NotFoundError` | Tutor profile, subject variant, document, or route does not exist |
+| `409 Conflict` | `ConflictError` | Tutor profile already exists for this user, or schedule contains overlapping slots on the same day |
 | `422 Unprocessable Entity` | `UnprocessableEntityError` | Semantically invalid input violating business rules |
 | `500 Internal Server Error` | `InternalServerError` | Unhandled server or database exception |
 
@@ -1033,6 +1033,9 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
   - **Onboarding Check:** Determines if Step 1 (Profile & Style) is completed and unlocks progression to Step 2.
   - **Dashboard Checklist:** Displays overall completion progress percentage and welcome header in `TutorProfilePage`.
   - **Form Initialization:** Pre-fills `TutorProfileForm` with personal info, LINE ID, bio, and 5+4 sliders.
+- **Route Guards & Middleware:**
+  - `authenticate` (JWT Bearer Token required)
+  - `requireRole([UserRole.TUTOR])`
 
 **Response `200 OK`**
 
@@ -1064,6 +1067,33 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 > - `personality_profile`: Exactly 4 integers (1 to 5) corresponding to patience, encouragement, energy, and communication openness.
 > - `verification_status`: `PENDING` | `APPROVED` | `REJECTED`.
 
+**Error Responses:**
+
+- `401 Unauthorized` (Token missing or invalid):
+  ```json
+  {
+    "success": false,
+    "message": "Missing or malformed Authorization header",
+    "details": null
+  }
+  ```
+- `403 Forbidden` (User does not possess the TUTOR role):
+  ```json
+  {
+    "success": false,
+    "message": "Access denied. Required role: [TUTOR], Current role: STUDENT",
+    "details": null
+  }
+  ```
+- `404 Not Found` (Profile has not yet been initialized):
+  ```json
+  {
+    "success": false,
+    "message": "Tutor profile not found",
+    "details": null
+  }
+  ```
+
 ---
 
 ### `POST /tutors/profile`
@@ -1071,7 +1101,10 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 - **Use Case:**
   - **Step 1 Onboarding Submission:** Invoked when an onboarding tutor completes Personal Information and Sliders and clicks **"Save Profile & Continue →"**.
   - Atomically creates the `tutors` row with identity, contact details, and the 5+4 style/personality profiles.
-  - Validated strictly against `TutorProfileSchema`.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
+  - `validateRequest(TutorProfileSchema, 'body')`
 
 **Request Body** (`TutorProfileInput`)
 
@@ -1112,13 +1145,40 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request` (Zod validation failure or malformed JSON):
+  ```json
+  {
+    "success": false,
+    "message": "Request validation failed",
+    "details": [
+      { "field": "phone_number", "message": "Phone number is required" },
+      { "field": "style_profile", "message": "Style profile requires exactly 5 ratings" }
+    ]
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not a TUTOR
+- `409 Conflict` (Tutor profile already exists for this user):
+  ```json
+  {
+    "success": false,
+    "message": "Tutor profile already exists for this user",
+    "details": null
+  }
+  ```
+
 ---
 
 ### `PATCH /tutors/profile`
 
 - **Use Case:**
   - **Edit Profile:** Invoked when an existing tutor updates specific profile fields (e.g., updating phone number, LINE ID, bio description, or readjusting slider ratings) from the "Profile & Style" tab.
-  - Validated against `UpdateTutorProfileSchema` (all fields optional).
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
+  - `validateRequest(UpdateTutorProfileSchema, 'body')`
 
 **Request Body** (`UpdateTutorProfileInput` — any subset of fields)
 
@@ -1154,6 +1214,29 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request` (Zod validation failure, e.g. invalid slider ratings):
+  ```json
+  {
+    "success": false,
+    "message": "Request validation failed",
+    "details": [
+      { "field": "style_profile", "message": "Style profile requires exactly 5 ratings" }
+    ]
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not a TUTOR
+- `404 Not Found`:
+  ```json
+  {
+    "success": false,
+    "message": "Tutor profile not found",
+    "details": null
+  }
+  ```
+
 ---
 
 ## 2. Subjects & Rates
@@ -1165,6 +1248,9 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 - **Use Case:**
   - **Subject Offerings Display:** Fetches all subjects and variants taught by the tutor, with their custom hourly rate, targeted grade levels, and teaching focus tags.
   - Used in Step 2 of onboarding, in the "Subjects & Rates" dashboard tab, and by Step 4 to determine which variants have `requires_proof = true`.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
 
 **Response `200 OK`**
 
@@ -1202,6 +1288,19 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 }
 ```
 
+**Error Responses:**
+
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not a TUTOR
+- `404 Not Found`:
+  ```json
+  {
+    "success": false,
+    "message": "Tutor profile not found",
+    "details": null
+  }
+  ```
+
 ---
 
 ### `PUT /tutors/subjects`
@@ -1209,7 +1308,10 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 - **Use Case:**
   - **Save Subjects Offering:** Invoked in Step 2 of onboarding (**"Save Subjects & Continue →"**) and in the "Subjects & Rates" management tab (**"Save Subject Offerings"**).
   - Performs an atomic replacement of the tutor's offerings in `tutor_subjects`.
-  - Validated against `SetTutorSubjectsSchema`. Every subject item must include a valid `variant_id` and positive `hourly_rate`.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
+  - `validateRequest(SetTutorSubjectsSchema, 'body')`
 
 **Request Body** (`SetTutorSubjectsInput`)
 
@@ -1269,6 +1371,27 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request` (Zod schema validation failure or duplicate variant entries):
+  ```json
+  {
+    "success": false,
+    "message": "Duplicate subject variants are not allowed",
+    "details": null
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not a TUTOR
+- `404 Not Found` (Profile not found or non-existent catalog variant):
+  ```json
+  {
+    "success": false,
+    "message": "Subject variant(s) not found: 11111111-2222-3333-4444-555555555555",
+    "details": null
+  }
+  ```
+
 ---
 
 ## 3. Availability & Schedule
@@ -1278,6 +1401,9 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 - **Use Case:**
   - **Schedule Loading:** Loads the tutor's recurring weekly availability time windows.
   - Used in Step 3 of onboarding, in the "Weekly Schedule" tab, and on the dashboard checklist.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
 
 **Response `200 OK`**
 
@@ -1307,6 +1433,19 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 > - `day_of_week`: `MONDAY` | `TUESDAY` | `WEDNESDAY` | `THURSDAY` | `FRIDAY` | `SATURDAY` | `SUNDAY`
 > - `start_time` / `end_time`: 24-hour time format string `HH:mm` or `HH:mm:ss`.
 
+**Error Responses:**
+
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not a TUTOR
+- `404 Not Found`:
+  ```json
+  {
+    "success": false,
+    "message": "Tutor profile not found",
+    "details": null
+  }
+  ```
+
 ---
 
 ### `PUT /tutors/availability`
@@ -1314,7 +1453,11 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 - **Use Case:**
   - **Save Availability Schedule:** Invoked in Step 3 of onboarding (**"Save Schedule & Continue →"**) and in the "Weekly Schedule" tab (**"Save Availability Changes"**).
   - Replaces all recurring availability records for `req.user.id` in `availabilities`.
-  - Backend verifies that `start_time < end_time` for each slot and prevents duplicate/overlapping slots on the same day.
+  - Backend verifies that `start_time < end_time` for each slot and prevents overlapping slots on the same day.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
+  - `validateRequest(SetTutorAvailabilitySchema, 'body')`
 
 **Request Body** (`SetTutorAvailabilityInput`)
 
@@ -1371,6 +1514,35 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request` (Invalid time format or start time is after end time):
+  ```json
+  {
+    "success": false,
+    "message": "Invalid time slot for MONDAY: start_time (18:00) must be earlier than end_time (17:00)",
+    "details": null
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not a TUTOR
+- `404 Not Found`:
+  ```json
+  {
+    "success": false,
+    "message": "Tutor profile not found",
+    "details": null
+  }
+  ```
+- `409 Conflict` (Overlapping time slots on the same day):
+  ```json
+  {
+    "success": false,
+    "message": "Overlapping availability slots detected for MONDAY: (09:00-12:00) and (11:00-14:00)",
+    "details": null
+  }
+  ```
+
 ---
 
 ## 4. Verification Status & Documents
@@ -1380,6 +1552,9 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 - **Use Case:**
   - **Verification Status Tracking:** Allows the tutor to inspect their verification status (`PENDING`, `APPROVED`, `REJECTED`), check administrator rejection reason feedback, and view the list of files currently attached.
   - Used in Step 4 of onboarding, in the "Verification Docs" tab, and on the dashboard header.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
 
 **Response `200 OK`**
 
@@ -1421,7 +1596,20 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 
 > **Field Notes:**
 > - `document_type`: `DEGREE_TRANSCRIPT` | `CV` | `SUBJECT_QUALIFICATION`
-> - `variant_id`: Null for general credentials (Degree, CV, Supporting Certificates); UUID when attached to a specific standardized subject variant requiring proof.
+> - `variant_id`: Null for general credentials (Degree, CV); UUID when attached to a specific standardized subject variant requiring proof.
+
+**Error Responses:**
+
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not a TUTOR
+- `404 Not Found`:
+  ```json
+  {
+    "success": false,
+    "message": "Tutor profile not found",
+    "details": null
+  }
+  ```
 
 ---
 
@@ -1433,6 +1621,11 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
   - **Cascading Subject Selector:** Powers the 3-step cascading subject selector in `SubjectSelector.tsx` (Step 2 Onboarding & Subjects Settings tab).
   - Tutors select a **Category** (`GENERAL_LEARNING`, `LANGUAGE_TESTING`, `UNIVERSITY_ENTRANCE`), which filters the **Subjects** (e.g. Mathematics, Digital SAT), which reveals available **Variants** (e.g. A-Level Math, School Curriculum Math) along with `learning_goal` and `requires_proof` flag.
   - Optional query parameter: `?category=LANGUAGE_TESTING`.
+- **Route Guards & Middleware:**
+  - `validateRequest(SubjectQuerySchema, 'query')`
+
+**Query Parameters:**
+- `category` *(optional)*: `GENERAL_LEARNING` | `LANGUAGE_TESTING` | `UNIVERSITY_ENTRANCE`
 
 **Response `200 OK`**
 
@@ -1476,6 +1669,22 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request` (Invalid query parameter):
+  ```json
+  {
+    "success": false,
+    "message": "Request validation failed",
+    "details": [
+      {
+        "field": "category",
+        "message": "Invalid enum value. Expected 'GENERAL_LEARNING' | 'LANGUAGE_TESTING' | 'UNIVERSITY_ENTRANCE'"
+      }
+    ]
+  }
+  ```
+
 ---
 
 ## 6. S3 Direct Document Upload Workflow
@@ -1504,7 +1713,12 @@ sequenceDiagram
 - **Use Case:**
   - **Step 1 of Document Upload:** Generates a short-lived presigned PUT URL allowing the browser to upload the file directly to the S3 bucket.
   - Maximum allowed file size is 10 MB (`10240 KB`).
+  - Account total document quota is 100 MB (`102400 KB`).
   - Supported formats: `.pdf`, `.png`, `.jpg`, `.jpeg`.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
+  - `validateRequest(PresignedUploadRequestSchema, 'body')`
 
 **Request Body** (`PresignedUploadRequestInput`)
 
@@ -1530,6 +1744,19 @@ sequenceDiagram
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request` (Size exceeds 10MB limit, 100MB account quota exceeded, or missing `variant_id` for `SUBJECT_QUALIFICATION`):
+  ```json
+  {
+    "success": false,
+    "message": "variant_id is required for SUBJECT_QUALIFICATION document type",
+    "details": null
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not a TUTOR
+
 ---
 
 ### `PUT <uploadUrl>` (Direct S3 Binary Upload)
@@ -1548,6 +1775,10 @@ sequenceDiagram
 - **Use Case:**
   - **Step 3 of Document Upload:** Invoked once S3 returns HTTP 200 to confirm that the file landed in S3.
   - Records the document in the PostgreSQL `documents` table and links it to the tutor's user ID.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
+  - `validateRequest(ConfirmUploadSchema, 'body')`
 
 **Request Body** (`ConfirmUploadInput`)
 
@@ -1572,6 +1803,19 @@ sequenceDiagram
 }
 ```
 
+**Error Responses:**
+
+- `400 Bad Request` (Validation error or missing `variant_id` on `SUBJECT_QUALIFICATION`):
+  ```json
+  {
+    "success": false,
+    "message": "variant_id is required for SUBJECT_QUALIFICATION document type",
+    "details": null
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not a TUTOR
+
 ---
 
 ### `DELETE /documents/:id`
@@ -1579,6 +1823,40 @@ sequenceDiagram
 - **Use Case:**
   - **Delete Uploaded Document:** Allows tutors to remove a previously uploaded document (e.g. if the administrator requested a clearer image during rejection review, or to replace an expired certificate).
   - Validates that the document belongs to `req.user.id` and removes the record from PostgreSQL.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.TUTOR])`
+  - `validateRequest(UuidParamSchema, 'params')`
+
+**Error Responses:**
+
+- `400 Bad Request` (Param `:id` is not a valid UUID):
+  ```json
+  {
+    "success": false,
+    "message": "Request validation failed",
+    "details": [
+      { "field": "id", "message": "Invalid ID: must be a valid UUID" }
+    ]
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden` (Attempting to delete a document that belongs to another tutor):
+  ```json
+  {
+    "success": false,
+    "message": "You do not have permission to delete this document.",
+    "details": null
+  }
+  ```
+- `404 Not Found` (Document does not exist):
+  ```json
+  {
+    "success": false,
+    "message": "Document not found.",
+    "details": null
+  }
+  ```
 
 **Response `200 OK`**
 
@@ -1589,3 +1867,354 @@ sequenceDiagram
   "message": "Document deleted successfully"
 }
 ```
+
+---
+
+# Module 5: Admin Tutor Verification
+
+> **Base URL:** `http://localhost:4000/api` (local) | `https://api.tutorpair.com/api` (production)
+>
+> **Authentication:** `Authorization: Bearer <cognito-jwt>`  
+> Local mock bypass: `Authorization: Bearer mock-token-admin-1` (or any `mock-token-admin-*`)
+>
+> **Access Role:** Admin endpoints strictly require the `ADMIN` role enforced via backend `requireRole([UserRole.ADMIN])` middleware.
+
+---
+
+## 1. Architectural Overview & Security
+
+- **Base Route Prefix:** `/api/admin`
+- **Authentication:** Enforced on all routes via `authenticate` JWT middleware.
+- **Authorization:** Restricted to users with `ADMIN` role (`requireRole([UserRole.ADMIN])`).
+- **S3 Document Security:** Server **never** proxies or streams binary files. Document previews are served exclusively through short-lived (15-minute / 900-second) S3 Presigned GET URLs generated on-demand via `documentsService.generatePresignedViewUrl`.
+- **First-In, First-Out (FIFO) Review Queue:** When reviewing pending applications, tutors are sorted chronologically by `users.created_at ASC` ensuring tutors who applied earlier receive verification review first.
+
+---
+
+## 2. Admin Verification Endpoints Summary
+
+| Domain | Method | Endpoint | Description | Frontend Client Use Case |
+|---|---|---|---|---|
+| **Queue** | `GET` | `/admin/tutors` | List tutor applications with status filter & FIFO sorting | Populates applications workbench list and live count badges |
+| **Profile** | `GET` | `/admin/tutors/:id` | Retrieve detailed tutor profile, subjects & documents | Detailed inspection view for credentials and offerings |
+| **Documents** | `GET` | `/admin/tutors/:id/documents/:docId/view-url` | Generate secure 15-minute S3 Presigned View URL | "View" button for CV, degrees, and subject proofs |
+| **Verification** | `PATCH` | `/admin/tutors/:id/verify` | Approve or reject application with mandatory feedback | "Approve Application" & "Reject Application" modal actions |
+
+---
+
+## 3. Endpoints Specification
+
+### `GET /admin/tutors`
+
+- **Use Case:**
+  - Retrieves the verification queue with optional status filtering (`?status=PENDING|APPROVED|REJECTED|ALL`).
+  - **Queue Ordering:** When `status=PENDING`, applications are sorted **ascending** (`users.created_at ASC`) for strict FIFO prioritization. When `status=APPROVED`, `REJECTED`, or `ALL`, applications are sorted **descending** (`users.created_at DESC`) to show recent activities.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.ADMIN])`
+  - `validateRequest(AdminTutorsQuerySchema, 'query')`
+
+**Query Parameters:**
+- `status` *(optional)*: `PENDING` | `APPROVED` | `REJECTED` | `ALL` (default: `ALL`).
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Tutors queue retrieved successfully",
+  "data": [
+    {
+      "user_id": "tutor-uuid-pending-1",
+      "email": "somchai.math@tutorpair.local",
+      "first_name": "Somchai",
+      "last_name": "Prasert",
+      "phone_number": "081-234-5678",
+      "tutor_type": "FREELANCE",
+      "hourly_rate": 650,
+      "verification_status": "PENDING",
+      "rejection_reason": null,
+      "created_at": "2026-10-18T22:31:12.359Z",
+      "document_count": 2,
+      "documents_summary": {
+        "has_cv": true,
+        "has_transcript": true,
+        "has_subject_proof": false
+      }
+    }
+  ]
+}
+```
+
+**Error Responses:**
+
+- `400 Bad Request` (Invalid `status` query string value):
+  ```json
+  {
+    "success": false,
+    "message": "Request validation failed",
+    "details": [
+      {
+        "field": "status",
+        "message": "Invalid enum value. Expected 'PENDING' | 'APPROVED' | 'REJECTED' | 'ALL'"
+      }
+    ]
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden` (User does not possess the ADMIN role):
+  ```json
+  {
+    "success": false,
+    "message": "Access denied. Required role: [ADMIN], Current role: TUTOR",
+    "details": null
+  }
+  ```
+
+---
+
+### `GET /admin/tutors/:id`
+
+- **Use Case:**
+  - Retrieves full applicant credentials, teaching offerings, subject variants, and uploaded document metadata.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.ADMIN])`
+  - `validateRequest(UuidParamSchema, 'params')`
+
+**Path Parameters:**
+- `id` *(required)*: UUID of the tutor applicant.
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Tutor details retrieved successfully",
+  "data": {
+    "user_id": "tutor-uuid-pending-1",
+    "email": "somchai.math@tutorpair.local",
+    "first_name": "Somchai",
+    "last_name": "Prasert",
+    "phone_number": "081-234-5678",
+    "description": "Chulalongkorn University graduate in Pure Mathematics. 5 years teaching Olympiad and secondary math.",
+    "tutor_type": "FREELANCE",
+    "style_profile": [2, 3, 4, 2, 3],
+    "personality_profile": [2, 1, 3, 2],
+    "hourly_rate": 650,
+    "verification_status": "PENDING",
+    "rejection_reason": null,
+    "created_at": "2026-10-18T22:31:12.359Z",
+    "subjects": [
+      {
+        "variant_id": "var-math-sec",
+        "variant_name": "Secondary School Mathematics",
+        "subject_name": "Mathematics",
+        "category": "GENERAL_LEARNING",
+        "grade_levels": ["G7", "G8", "G9", "G10", "G11", "G12"],
+        "teaching_focus": "Calculus, Trigonometry, and Exam Prep",
+        "requires_proof": false
+      }
+    ],
+    "documents": [
+      {
+        "id": "doc-somchai-cv",
+        "tutor_id": "tutor-uuid-pending-1",
+        "document_type": "CV",
+        "variant_id": null,
+        "variant_name": null,
+        "file_key": "tutors/tutor-uuid-pending-1/cv-somchai.pdf",
+        "file_size_kb": 1450,
+        "uploaded_at": "2026-10-18T22:31:12.359Z"
+      }
+    ]
+  }
+}
+```
+
+**Error Responses:**
+
+- `400 Bad Request` (Param `:id` is not a valid UUID):
+  ```json
+  {
+    "success": false,
+    "message": "Request validation failed",
+    "details": [
+      { "field": "id", "message": "Invalid ID: must be a valid UUID" }
+    ]
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not an ADMIN
+- `404 Not Found` (Tutor does not exist):
+  ```json
+  {
+    "success": false,
+    "message": "Tutor with id 00000000-0000-0000-0000-000000000000 not found",
+    "details": null
+  }
+  ```
+
+---
+
+### `GET /admin/tutors/:id/documents/:docId/view-url`
+
+- **Use Case:**
+  - Generates a short-lived (15 minutes / 900 seconds) S3 Presigned GET URL for viewing uploaded PDFs, transcripts, and certificates directly from S3.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.ADMIN])`
+  - `validateRequest(TutorDocumentParamsSchema, 'params')`
+
+**Path Parameters:**
+- `id` *(required)*: UUID of the tutor applicant.
+- `docId` *(required)*: UUID of the document record.
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Document view URL generated successfully",
+  "data": {
+    "document_id": "doc-somchai-cv",
+    "document_type": "CV",
+    "file_key": "tutors/tutor-uuid-pending-1/cv-somchai.pdf",
+    "file_size_kb": 1450,
+    "view_url": "https://tutorpair-documents.s3.ap-southeast-1.amazonaws.com/tutors/tutor-uuid-pending-1/cv-somchai.pdf",
+    "expires_in_seconds": 900
+  }
+}
+```
+
+**Error Responses:**
+
+- `400 Bad Request` (Param `:id` or `:docId` is not a valid UUID):
+  ```json
+  {
+    "success": false,
+    "message": "Request validation failed",
+    "details": [
+      { "field": "docId", "message": "Invalid document ID: must be a valid UUID" }
+    ]
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not an ADMIN
+- `404 Not Found` (Document does not exist or does not belong to the tutor):
+  ```json
+  {
+    "success": false,
+    "message": "Document doc-1 for tutor tutor-1 not found",
+    "details": null
+  }
+  ```
+
+---
+
+### `PATCH /admin/tutors/:id/verify`
+
+- **Use Case:**
+  - Approves a tutor application (unlocking matchmaking visibility) or rejects it with mandatory written feedback.
+  - Automatically dispatches in-app notifications and queues automated SES email notifications.
+- **Route Guards & Middleware:**
+  - `authenticate`
+  - `requireRole([UserRole.ADMIN])`
+  - `validateRequest(UuidParamSchema, 'params')`
+  - `validateRequest(VerifyTutorSchema, 'body')`
+
+**Path Parameters:**
+- `id` *(required)*: UUID of the tutor applicant.
+
+**Request Body (Approval)**
+
+```json
+{
+  "status": "APPROVED"
+}
+```
+
+**Request Body (Rejection with Feedback)**
+
+```json
+{
+  "status": "REJECTED",
+  "rejection_reason": "The uploaded degree certificate is blurred and lacks official university watermark. Please upload a clear scanned PDF."
+}
+```
+
+**Response `200 OK`**
+
+```json
+{
+  "success": true,
+  "message": "Tutor application approved successfully",
+  "data": {
+    "user_id": "tutor-uuid-pending-1",
+    "verification_status": "APPROVED",
+    "rejection_reason": null
+  }
+}
+```
+
+**Error Responses:**
+
+- `400 Bad Request` (Invalid UUID param, or rejecting without mandatory `rejection_reason`):
+  ```json
+  {
+    "success": false,
+    "message": "Request validation failed",
+    "details": [
+      {
+        "field": "rejection_reason",
+        "message": "Rejection reason is required when rejecting a tutor application"
+      }
+    ]
+  }
+  ```
+- `401 Unauthorized`: Missing or invalid token
+- `403 Forbidden`: Authenticated user is not an ADMIN
+- `404 Not Found` (Tutor does not exist):
+  ```json
+  {
+    "success": false,
+    "message": "Tutor with id 00000000-0000-0000-0000-000000000000 not found",
+    "details": null
+  }
+  ```
+
+---
+
+## 4. Global API Fallbacks & Resilience
+
+The server incorporates application-level fallbacks ensuring that unhandled routes, client parsing errors, and database constraints always resolve to standard `ApiResponse` JSON objects:
+
+1. **Undefined Endpoints (`404 Not Found`)**:
+   - Any request to an unmounted path (e.g. `GET /api/unknown-service`) returns:
+     ```json
+     {
+       "success": false,
+       "message": "API endpoint not found",
+       "details": null
+     }
+     ```
+2. **Malformed JSON Body (`400 Bad Request`)**:
+   - Requests with corrupted or unparseable JSON syntax return:
+     ```json
+     {
+       "success": false,
+       "message": "Malformed JSON in request body",
+       "details": null
+     }
+     ```
+3. **Database Constraint Fallback Handling**:
+   - Postgres error codes `22P02` (invalid syntax/UUID), `23505` (unique constraint violation), and `23503` (foreign key violation) map cleanly to `400 Bad Request` or `409 Conflict`.
+4. **Unhandled Server Exceptions (`500 Internal Server Error`)**:
+   - Unexpected operational exceptions return:
+     ```json
+     {
+       "success": false,
+       "message": "An unexpected error occurred. Please try again later.",
+       "details": null
+     }
+     ```

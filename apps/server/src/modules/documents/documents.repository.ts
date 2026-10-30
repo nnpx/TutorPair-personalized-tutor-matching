@@ -1,6 +1,6 @@
 import { eq, and, sum } from 'drizzle-orm';
 import { db } from '../../db/client.js';
-import { documents } from '../../db/schema/index.js';
+import { documents, Document } from '../../db/schema/index.js';
 import { DocumentType } from '@tutorpair/shared';
 
 export const documentsRepository = {
@@ -10,7 +10,7 @@ export const documentsRepository = {
     variant_id?: string | null;
     file_key: string;
     file_size_kb: number;
-  }) {
+  }): Promise<Document> {
     const [doc] = await db
       .insert(documents)
       .values({
@@ -24,7 +24,7 @@ export const documentsRepository = {
     return doc;
   },
 
-  async findById(id: string) {
+  async findById(id: string): Promise<Document | null> {
     const [doc] = await db
       .select()
       .from(documents)

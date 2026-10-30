@@ -1,3 +1,4 @@
+export * from './common.schema.js';
 export * from './auth.schema.js';
 export * from './student.schema.js';
 export * from './tutor.schema.js';
