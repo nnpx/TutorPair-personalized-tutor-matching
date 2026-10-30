@@ -268,7 +268,7 @@ export const MatchingPage: React.FC = () => {
                   width: '3rem',
                   height: '3rem',
                   borderRadius: 'var(--radius-full)',
-                  backgroundColor: '#2563eb',
+                  backgroundColor: 'var(--color-accent)',
                   color: 'white',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -310,7 +310,7 @@ export const MatchingPage: React.FC = () => {
                     style={{
                       padding: '0.25rem 0.625rem',
                       backgroundColor: '#eff6ff',
-                      color: '#2563eb',
+                      color: 'var(--color-accent)',
                       borderRadius: 'var(--radius-full)',
                       fontSize: '0.75rem',
                       fontWeight: 800,
@@ -336,7 +336,7 @@ export const MatchingPage: React.FC = () => {
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
-                    <span style={{ color: '#2563eb', display: 'inline-flex', marginTop: '0.125rem' }}>
+                    <span style={{ color: 'var(--color-accent)', display: 'inline-flex', marginTop: '0.125rem' }}>
                       <BookOpen size={16} strokeWidth={2.4} />
                     </span>
                     <div>
@@ -350,7 +350,7 @@ export const MatchingPage: React.FC = () => {
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
-                    <span style={{ color: '#2563eb', display: 'inline-flex', marginTop: '0.125rem' }}>
+                    <span style={{ color: 'var(--color-accent)', display: 'inline-flex', marginTop: '0.125rem' }}>
                       <DollarSign size={16} strokeWidth={2.4} />
                     </span>
                     <div>
