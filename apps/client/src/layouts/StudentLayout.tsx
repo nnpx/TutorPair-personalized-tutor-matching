@@ -1,14 +1,18 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { queryClient } from '../services/query-client';
+import apiClient from '../services/api-client';
 import { useStudentProfile } from '../features/students/hooks/useStudents';
 import { Sparkles, History, User, LogOut, Lock } from 'lucide-react';
+import { Modal } from '../components/ui';
 
 export const StudentLayout: React.FC = () => {
   const { user, clearUser } = useAuthStore();
   const location = useLocation();
   const { data: profile } = useStudentProfile();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const isProfileComplete = Boolean(
     profile &&
@@ -26,10 +30,19 @@ export const StudentLayout: React.FC = () => {
     return <Navigate to="/student/onboarding" replace />;
   }
 
-  const handleLogout = () => {
-    queryClient.clear();
-    queryClient.removeQueries();
-    clearUser();
+  const handleLogoutConfirm = async () => {
+    setIsLoggingOut(true);
+    try {
+      await apiClient.post('/api/auth/logout');
+    } catch {
+      // Ignore network errors
+    } finally {
+      setIsLoggingOut(false);
+      setIsLogoutModalOpen(false);
+      queryClient.clear();
+      queryClient.removeQueries();
+      clearUser();
+    }
   };
 
   const navItems = [
@@ -53,7 +66,7 @@ export const StudentLayout: React.FC = () => {
           style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
         >
           <div style={{ display: 'flex', gap: '2.5rem', alignItems: 'center' }}>
-            <Link to="/student/matching" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
               <span
                 style={{
                   display: 'inline-flex',
@@ -70,25 +83,16 @@ export const StudentLayout: React.FC = () => {
               >
                 TP
               </span>
-              <div>
-                <span style={{ fontSize: '1.25rem', fontWeight: 800, letterSpacing: '-0.02em', color: 'var(--fg-main)' }}>
-                  Tutor<span style={{ color: 'var(--color-primary)' }}>Pair</span>
-                </span>
-                <span
-                  style={{
-                    marginLeft: '0.5rem',
-                    fontSize: '0.75rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    backgroundColor: 'var(--color-primary-tint)',
-                    color: 'var(--color-primary)',
-                    padding: '0.2rem 0.5rem',
-                    borderRadius: 'var(--radius-md)',
-                  }}
-                >
-                  Student
-                </span>
-              </div>
+              <span
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  letterSpacing: '-0.02em',
+                  color: 'var(--fg-main)',
+                }}
+              >
+                Tutor<span style={{ color: 'var(--color-primary)' }}>Pair</span>
+              </span>
             </Link>
 
             <nav style={{ display: 'flex', gap: '0.5rem' }}>
@@ -100,24 +104,24 @@ export const StudentLayout: React.FC = () => {
                   return (
                     <div
                       key={item.path}
-                      title="Complete onboarding setup to unlock profile settings"
+                      title="Complete your profile to access"
                       style={{
                         display: 'flex',
                         alignItems: 'center',
                         gap: '0.5rem',
-                        padding: '0.625rem 1rem',
+                        padding: '0.5rem 0.875rem',
                         borderRadius: 'var(--radius-md)',
+                        fontSize: '0.9375rem',
                         fontWeight: 600,
-                        color: 'var(--color-muted-text, #9ca3af)',
+                        color: 'var(--fg-muted)',
                         backgroundColor: 'transparent',
                         cursor: 'not-allowed',
-                        opacity: 0.65,
-                        userSelect: 'none',
+                        opacity: 0.6,
                       }}
                     >
                       <Icon size={18} strokeWidth={2.2} />
                       {item.label}
-                      <Lock size={13} strokeWidth={2.4} style={{ marginLeft: '0.125rem', opacity: 0.8 }} />
+                      <Lock size={14} style={{ marginLeft: '0.25rem' }} />
                     </div>
                   );
                 }
@@ -130,7 +134,8 @@ export const StudentLayout: React.FC = () => {
                       display: 'flex',
                       alignItems: 'center',
                       gap: '0.5rem',
-                      padding: '0.625rem 1rem',
+                      padding: '0.5rem 0.875rem',
+                      fontSize: '0.9375rem',
                       borderRadius: 'var(--radius-md)',
                       fontWeight: isActive ? 700 : 600,
                       color: isActive ? 'var(--color-white)' : 'var(--fg-main)',
@@ -151,7 +156,7 @@ export const StudentLayout: React.FC = () => {
               {user?.email}
             </span>
             <button
-              onClick={handleLogout}
+              onClick={() => setIsLogoutModalOpen(true)}
               className="flat-btn flat-btn-secondary flat-btn-sm"
               style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}
             >
@@ -165,6 +170,22 @@ export const StudentLayout: React.FC = () => {
       <main className="container-flat" style={{ padding: '2.5rem 1.5rem' }}>
         <Outlet />
       </main>
+
+      <Modal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        title="Log Out"
+        variant="danger"
+        maxWidth="420px"
+        primaryActionText={isLoggingOut ? 'Logging out...' : 'Log Out'}
+        onPrimaryAction={handleLogoutConfirm}
+        secondaryActionText="Cancel"
+        onSecondaryAction={() => setIsLogoutModalOpen(false)}
+      >
+        <p style={{ margin: 0, color: 'var(--fg-main, #374151)', fontSize: '0.9375rem' }}>
+          Are you sure you want to log out?
+        </p>
+      </Modal>
     </div>
   );
 };

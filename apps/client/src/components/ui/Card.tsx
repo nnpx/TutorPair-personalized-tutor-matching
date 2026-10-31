@@ -32,11 +32,8 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <div
-      className={`flat-card ${getTintClass()} ${className}`}
-      style={{
-        ...(!hoverEffect ? { transform: 'none' } : {}),
-        ...style,
-      }}
+      className={`flat-card ${getTintClass()} ${!hoverEffect ? 'flat-card-no-hover' : ''} ${className}`}
+      style={style}
       {...props}
     >
       {children}

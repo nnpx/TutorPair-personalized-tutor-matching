@@ -45,8 +45,8 @@ export class NotFoundError extends AppError {
  * Use when request conflicts with current state (e.g. duplicate email, overlapping schedule).
  */
 export class ConflictError extends AppError {
-  constructor(message = 'Resource conflict') {
-    super(message, 409);
+  constructor(message = 'Resource conflict', details?: unknown) {
+    super(message, 409, details);
   }
 }
 
