@@ -22,7 +22,10 @@ export const authenticate = asyncHandler(
       throw new UnauthorizedError('Missing or malformed Authorization header');
     }
 
-    const token = authHeader.split(' ')[1];
+    const token = authHeader.split(' ')[1]?.trim();
+    if (!token) {
+      throw new UnauthorizedError('Missing or malformed Authorization header');
+    }
 
     let cognitoSub: string;
     let cognitoEmail: string | undefined;

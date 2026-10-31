@@ -38,8 +38,8 @@ export const authService = {
       );
     }
 
-    // 3. Prevent privilege escalation: self-registration cannot create ADMIN
-    if (requestedRole === UserRole.ADMIN) {
+    // 3. Prevent privilege escalation & invalid role: self-registration cannot create ADMIN
+    if (requestedRole !== UserRole.STUDENT && requestedRole !== UserRole.TUTOR) {
       throw new BadRequestError(
         "Invalid role. Self-registration is restricted to 'STUDENT' or 'TUTOR'."
       );
@@ -59,6 +59,10 @@ export const authService = {
   },
 
   async getCurrentUser(userId: string): Promise<UserWithProfileStatus> {
+    if (!userId || typeof userId !== 'string') {
+      throw new BadRequestError('Invalid user ID parameter');
+    }
+
     const user = await authRepository.findUserWithProfileStatus(userId);
     if (!user) {
       throw new NotFoundError('User profile not found. Please sync your account.');
@@ -76,7 +80,9 @@ export const authService = {
 
     const sanitizedEmail =
       customEmail?.trim().toLowerCase() || `${role.toLowerCase()}@tutorpair.local`;
-    const cognitoSub = `mock-${role.toLowerCase()}-id`;
+    const cognitoSub = customEmail
+      ? `mock-${role.toLowerCase()}-${sanitizedEmail.replace(/[^a-zA-Z0-9]/g, '-')}`
+      : `mock-${role.toLowerCase()}-id`;
 
     let user = await authRepository.findByCognitoSub(cognitoSub);
 

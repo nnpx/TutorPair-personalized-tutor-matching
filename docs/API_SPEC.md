@@ -468,14 +468,45 @@ The backend enforces authorization using the `requireRole(allowedRoles: UserRole
 import { z } from 'zod';
 import { UserRole } from '../enums/index.js';
 
-// Public self-service sync is strictly restricted to STUDENT and TUTOR
-export const SyncUserSchema = z.object({
-  role: z.enum([UserRole.STUDENT, UserRole.TUTOR], {
-    errorMap: () => ({ message: "Role must be either 'STUDENT' or 'TUTOR'" }),
-  }),
-});
+// Public self-service sync is strictly restricted to STUDENT and TUTOR.
+// Uses .strict() to reject any unexpected or injected parameters.
+export const SyncUserSchema = z
+  .object({
+    role: z.enum([UserRole.STUDENT, UserRole.TUTOR], {
+      errorMap: () => ({ message: "Role must be either 'STUDENT' or 'TUTOR'" }),
+    }),
+  })
+  .strict({
+    message: 'Unexpected property in request body',
+  });
 
 export type SyncUserInput = z.infer<typeof SyncUserSchema>;
+```
+
+### `MockLoginSchema`
+```typescript
+import { z } from 'zod';
+import { UserRole } from '../enums/index.js';
+
+// Schema for development and automated testing mock authentication.
+// Uses .strict() to prevent unwanted payload injection and validates email formatting.
+export const MockLoginSchema = z
+  .object({
+    role: z.nativeEnum(UserRole, {
+      errorMap: () => ({ message: "Role must be 'STUDENT', 'TUTOR', or 'ADMIN'" }),
+    }),
+    email: z
+      .string({ invalid_type_error: 'Email must be a string' })
+      .trim()
+      .email('Invalid email address format')
+      .optional()
+      .or(z.literal('')),
+  })
+  .strict({
+    message: 'Unexpected property in request body',
+  });
+
+export type MockLoginInput = z.infer<typeof MockLoginSchema>;
 ```
 
 ---
@@ -498,6 +529,112 @@ CREATE TABLE "users" (
 * **Constraints**:
   * `cognito_sub` unique index guarantees 1:1 mapping between AWS Cognito identity (including Google federated accounts) and PostgreSQL user records.
   * `email` unique index guarantees duplicate accounts cannot be created using the same email address across different identity providers.
+
+---
+
+## 8. Error Handling & Input Guards (Module 2: Auth)
+
+Module 2 strictly implements the standard global error response template managed centrally by `errorHandler` (`apps/server/src/common/errors/error-handler.ts`).
+
+### 8.1. Global Error Response Envelope
+
+All error responses strictly adhere to the standardized envelope:
+
+```json
+{
+  "success": false,
+  "message": "Human-readable error description",
+  "details": null
+}
+```
+
+When input validation fails (`BadRequestError`), `details` returns an array of field-level validation issues:
+
+```json
+{
+  "success": false,
+  "message": "Request validation failed",
+  "details": [
+    {
+      "field": "role",
+      "message": "Role must be either 'STUDENT' or 'TUTOR'"
+    }
+  ]
+}
+```
+
+### 8.2. Multi-Layer Input & Type Guards
+
+Every Auth endpoint is protected by a defense-in-depth guard pipeline:
+
+```
+[Incoming Request]
+       │
+       ▼
+1. Transport Guards ───► Malformed JSON check (400) / Body size limit check (413)
+       │
+       ▼
+2. Auth Guards ────────► Authorization header presence & Bearer token extraction (401)
+                         Production mock-token rejection (401)
+                         CognitoJwtVerifier cryptographic verification (401)
+       │
+       ▼
+3. Input Guards ───────► validateRequest(ZodSchema) with .strict() type checking (400)
+       │
+       ▼
+4. Identity Guards ────► Catch-22 bypass for /api/auth/sync vs. required DB profile (401)
+       │
+       ▼
+5. Domain Guards ──────► Role immutability / duplicate email check (409)
+                         Privilege escalation prevention (400)
+       │
+       ▼
+[Controller / Service Execution]
+```
+
+#### Guard Rules & Verification Checkpoints:
+
+1. **Schema Strictness Guard (`.strict()`)**:
+   - `SyncUserSchema` and `MockLoginSchema` enforce `.strict()`.
+   - Submitting extraneous fields (e.g. `{ "role": "STUDENT", "admin": true }`) is intercepted immediately at the gateway with `400 Bad Request` and detailed error logs.
+
+2. **Bearer Token Non-Empty Guard (`authenticate`)**:
+   - Header must start with `Bearer ` and contain a non-whitespace token.
+   - Headers like `Authorization: Bearer ` or `Authorization: Bearer   ` throw `401 Unauthorized: Missing or malformed Authorization header`.
+
+3. **Production Mock Token Shield (`authenticate`)**:
+   - In production (`NODE_ENV === 'production'`), any token starting with `mock-token-` is rejected with `401 Unauthorized: Mock authentication is disabled in production`.
+   - The `/api/auth/mock-login` route is strictly blocked in production with `403 Forbidden: Mock authentication endpoint is disabled in production environments`.
+
+4. **First-Time Sync Catch-22 Guard (`authenticate`)**:
+   - For `/api/auth/sync`, unseeded Cognito/Google users are permitted to reach the controller so their initial PostgreSQL record can be provisioned.
+   - For **all other endpoints** (`/api/auth/me`, `/api/auth/logout`, `/api/students/*`, `/api/tutors/*`), if `users` record is absent in PostgreSQL, the request is blocked with `401 Unauthorized: User profile not found. Please sync your account.`
+
+5. **Role Immutability Guard (`authService.syncUser`)**:
+   - If an account already exists in PostgreSQL, `POST /api/auth/sync` returns the existing record and **never** modifies the established `role`.
+
+6. **Duplicate Email Conflict Guard (`authService.syncUser`)**:
+   - If a new `cognito_sub` presents an email that is already registered in PostgreSQL, the request throws `409 Conflict: An account with this email address already exists. Please sign in with your original provider.`
+
+7. **Service Parameter Type Guard (`authService.getCurrentUser`)**:
+   - `userId` must be a valid non-empty string. Passing invalid or undefined values throws `400 Bad Request: Invalid user ID parameter`.
+
+### 8.3. Module 2 Error Mapping Reference
+
+| Status Code | Error Class | Guard / Trigger Condition | Example Error Response |
+|---|---|---|---|
+| `400 Bad Request` | `BadRequestError` | Body missing `role`, invalid enum value, or contains unexpected properties | `{"success": false, "message": "Request validation failed", "details": [{"field": "role", "message": "Role must be either 'STUDENT' or 'TUTOR'"}]}` |
+| `400 Bad Request` | `BadRequestError` | Attempting self-registration with `ADMIN` role | `{"success": false, "message": "Invalid role. Self-registration is restricted to 'STUDENT' or 'TUTOR'."}` |
+| `400 Bad Request` | `SyntaxError` | Malformed JSON in request payload | `{"success": false, "message": "Malformed JSON in request body", "details": null}` |
+| `401 Unauthorized` | `UnauthorizedError` | Missing, empty, or non-Bearer `Authorization` header | `{"success": false, "message": "Missing or malformed Authorization header", "details": null}` |
+| `401 Unauthorized` | `UnauthorizedError` | Invalid signature, expired Cognito JWT, or mock token in production | `{"success": false, "message": "Invalid or expired authentication token", "details": null}` |
+| `401 Unauthorized` | `UnauthorizedError` | Calling protected endpoints (`/api/auth/me`, `/api/auth/logout`) before account sync | `{"success": false, "message": "User profile not found. Please sync your account.", "details": null}` |
+| `403 Forbidden` | `ForbiddenError` | Invoking `POST /api/auth/mock-login` in production (`NODE_ENV === 'production'`) | `{"success": false, "message": "Mock authentication endpoint is disabled in production environments", "details": null}` |
+| `403 Forbidden` | `ForbiddenError` | Authenticated user lacks required role (e.g. Student accessing `/api/admin/*`) | `{"success": false, "message": "Access denied. Required role: [ADMIN], Current role: STUDENT", "details": null}` |
+| `404 Not Found` | `NotFoundError` | User record not found during `getCurrentUser(userId)` query | `{"success": false, "message": "User profile not found. Please sync your account.", "details": null}` |
+| `409 Conflict` | `ConflictError` | Registration attempt with an email that already exists under another provider | `{"success": false, "message": "An account with this email address already exists. Please sign in with your original provider.", "details": {"email": "user@example.com"}}` |
+| `413 Payload Too Large` | `entity.too.large` | Request body exceeds Express 1 MB JSON parser limit | `{"success": false, "message": "Request body too large", "details": null}` |
+| `500 Internal Server Error` | `AppError` | Unhandled database or system exception | `{"success": false, "message": "An unexpected error occurred. Please try again later.", "details": null}` |
 
 ---
 

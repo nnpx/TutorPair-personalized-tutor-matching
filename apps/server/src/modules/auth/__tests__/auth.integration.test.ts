@@ -310,6 +310,83 @@ describe('Auth Module — Integration Tests (Module 2)', () => {
       const json = await getJson(res);
       assert.equal(json.success, true);
     });
+
+    it('14b. should reject unauthenticated logout request (401 Unauthorized)', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/logout`, {
+        method: 'POST',
+      });
+
+      assert.equal(res.status, 401);
+      const json = await getJson(res);
+      assert.equal(json.success, false);
+    });
+
+    it('14c. should reject empty Bearer token (401 Unauthorized)', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/logout`, {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer   ',
+        },
+      });
+
+      assert.equal(res.status, 401);
+      const json = await getJson(res);
+      assert.equal(json.success, false);
+      assert.match(json.message ?? '', /Missing or malformed Authorization header/i);
+    });
+
+    it('14d. should reject unexpected properties in mock-login payload (400 Bad Request)', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/mock-login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          role: UserRole.STUDENT,
+          unexpected_field: 'malicious_input',
+        }),
+      });
+
+      assert.equal(res.status, 400);
+      const json = await getJson(res);
+      assert.equal(json.success, false);
+      assert.match(json.message ?? '', /validation failed/i);
+    });
+
+    it('14e. should reject unexpected properties in sync payload (400 Bad Request)', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer mock-token-${studentSub}`,
+        },
+        body: JSON.stringify({
+          role: UserRole.STUDENT,
+          is_admin: true,
+        }),
+      });
+
+      assert.equal(res.status, 400);
+      const json = await getJson(res);
+      assert.equal(json.success, false);
+      assert.match(json.message ?? '', /validation failed/i);
+    });
+
+    it('14f. should reject malformed JSON body on auth endpoints (400 Bad Request)', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer mock-token-${studentSub}`,
+        },
+        body: '{"role": "STUDENT", malformed}',
+      });
+
+      assert.equal(res.status, 400);
+      const json = await getJson(res);
+      assert.equal(json.success, false);
+      assert.match(json.message ?? '', /Malformed JSON/i);
+    });
   });
 
   describe('Role-Based Access Control (RBAC) Enforcement', () => {
