@@ -6,6 +6,7 @@ export interface UserState {
   id: string;
   email: string;
   role: UserRole;
+  cognito_sub?: string;
 }
 
 interface AuthStore {
@@ -14,21 +15,6 @@ interface AuthStore {
   setUser: (user: UserState | null) => void;
   clearUser: () => void;
 }
-
-/**
- * DEVELOPMENT ONLY MOCK USER
- * -------------------------------------------------------------
- * When running locally without AWS Cognito configured, this default user
- * allows immediate testing of tutor features without manual login.
- * In production, the initial state is populated via AWS Amplify / Cognito session sync.
- */
-const DEV_MOCK_USER: UserState | null = import.meta.env.DEV
-  ? {
-      id: 'mock-admin-id',
-      email: 'admin@tutorpair.local',
-      role: UserRole.ADMIN,
-    }
-  : null;
 
 /**
  * Zustand Global Auth Store
@@ -40,8 +26,7 @@ const DEV_MOCK_USER: UserState | null = import.meta.env.DEV
 export const useAuthStore = create<AuthStore>()(
   persist(
     (set) => ({
-      // Defaults to mock admin in local dev mode; null in production
-      user: DEV_MOCK_USER,
+      user: null,
       isLoading: false,
       setUser: (user) => set({ user }),
       clearUser: () => set({ user: null }),

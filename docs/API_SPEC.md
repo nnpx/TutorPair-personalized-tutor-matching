@@ -74,6 +74,433 @@ Error responses are handled centrally by [`errorHandler`](../apps/server/src/com
 
 ---
 
+# Part 0: Module 2 — Authentication & User Management
+
+> **Jira Epic:** EPIC 2: Development — Authentication & User Management  
+> **Sub-Tasks:**  
+> • **Task 1**: Develop Google authentication with AWS Cognito  
+> • **Task 2**: Develop user role identification  
+> • **Task 3**: Develop role-based access control (RBAC)  
+>
+> **Access Roles:** Public / Authenticated (`STUDENT`, `TUTOR`, `ADMIN`).
+
+## 1. Executive Summary & Cross-Module Context
+
+Module 2 provides identity verification, account synchronization, role identification, and role-based access control for TutorPair. Credential storage and federated OAuth 2.0 (Google Sign-In) are managed via **AWS Cognito User Pools** (mocked locally during development and test phases). Application authorizations and user roles (`STUDENT`, `TUTOR`, `ADMIN`) are persisted in the PostgreSQL `users` table as the immutable single source of truth.
+
+```mermaid
+flowchart TD
+    subgraph ClientLayer [Client & Third-Party Auth]
+        User[User / Browser]
+        GAuth[Google OAuth 2.0]
+        Cognito["AWS Cognito User Pool / Mock IdP"]
+        User -->|"1. Sign in / Federated Login"| GAuth
+        GAuth -->|"2. IdP Token Exchange"| Cognito
+        Cognito -->|"3. Issue Cognito JWT ID Token"| User
+    end
+
+    subgraph ServerLayer [Express API Gateway & Middlewares]
+        SyncReq["POST /api/auth/sync"]
+        AuthMW["authenticate Middleware<br/>(aws-jwt-verify / Mock Token)"]
+        RBAC["requireRole(['STUDENT'|'TUTOR'|'ADMIN'])"]
+        User -->|"4. Bearer JWT + Body: { role }"| SyncReq
+        SyncReq --> AuthMW
+        AuthMW --> RBAC
+    end
+
+    subgraph DataLayer [PostgreSQL Persistence]
+        UsersTable[("users Table<br/>(id, cognito_sub, email, role)")]
+        AuthMW -->|"5. Lookup cognito_sub"| UsersTable
+        SyncReq -->|"6. Provision on First Login"| UsersTable
+    end
+
+    subgraph DownstreamModules [Protected Business Modules]
+        M3["Module 3: Student Profile (/api/students/*)"]
+        M4["Module 4: Tutor Profile (/api/tutors/*)"]
+        M5["Module 5: Admin Verification (/api/admin/*)"]
+        RBAC -->|"req.user.role == STUDENT"| M3
+        RBAC -->|"req.user.role == TUTOR"| M4
+        RBAC -->|"req.user.role == ADMIN"| M5
+    end
+```
+
+### How Other Modules Connect to Module 2:
+1. **Request Identity (`req.user`)**: Every protected route across Module 3 (Students), Module 4 (Tutors), Module 5 (Admin), and Module 6 (Matching) invokes `authenticate`, which verifies the bearer token and injects the resolved `req.user` (`UserSession`: `{ id, cognito_sub, email, role }`).
+2. **Access Control (`requireRole`)**: Route definitions pass allowed role arrays (e.g., `requireRole(['STUDENT'])`). Requests from unauthorized roles are intercepted immediately with `403 Forbidden`.
+3. **Foreign Key Integrity**: All domain models (`students.user_id`, `tutors.user_id`, `availabilities.user_id`, `notifications.user_id`) reference `users.id` with `ON DELETE CASCADE`.
+
+---
+
+## 2. Authentication, Identity Resolution & Third-Party Mocking
+
+### 2.1. Dual-Mode Authentication Architecture
+
+```
+Production Mode (AWS Cognito + Google OAuth 2.0):
+  Client (Amplify) ──[Cognito ID Token]──> Express ──[JWKS Verification]──> PostgreSQL (users)
+
+Local Dev / Test Mode (3rd-Party Mock Bypass):
+  Client / Postman ──[mock-token-<user-id>]──> Express ──[Local Resolver]──> PostgreSQL (users)
+```
+
+1. **Production Mode (`NODE_ENV === 'production'`)**:
+   - Clients send `Authorization: Bearer <cognito-id-token>`.
+   - The backend uses `CognitoJwtVerifier` (`aws-jwt-verify`) to cryptographically validate token signature, expiration (`exp`), and audience (`aud`) against cached Cognito JWKS keys without runtime AWS network overhead.
+   - Mock tokens are strictly rejected with `401 Unauthorized`.
+2. **Development / Mock Mode (`NODE_ENV === 'development' | 'test'`)**:
+   - Allows offline and isolated testing before cloud IdP provisioning is finalized.
+   - Clients send `Authorization: Bearer mock-token-<role-or-sub>` (e.g. `mock-token-mock-student-id`, `mock-token-mock-tutor-id`, `mock-token-mock-admin-id`).
+   - Clients optionally supply `X-Mock-Email: <email>` to test custom identities and duplicate email conflict scenarios.
+   - In development, unseeded mock identities are auto-provisioned to unblock rapid UI prototyping.
+
+### 2.2. Critical Role Security & Privilege Boundary
+- **Role Source of Truth**: User roles are stored in the PostgreSQL `users` table, **not** inside Cognito JWT custom attributes. This prevents token-tampering privilege escalation.
+- **Self-Registration Restrictions**: Public registration (`POST /api/auth/sync`) only permits selecting `STUDENT` or `TUTOR`. Submitting `{ "role": "ADMIN" }` returns `400 Bad Request`.
+- **Role Immutability**: Once a user record is created in PostgreSQL with an assigned role, calling `POST /api/auth/sync` on subsequent logins returns the existing record and **never** overwrites the established role.
+
+---
+
+## 3. Endpoints Summary
+
+| Sub-Task | Method | Endpoint | Description | Auth & Allowed Roles | Client Use Case |
+|---|---|---|---|---|---|
+| **Task 1 & 2** | `POST` | `/api/auth/sync` | Sync Cognito/Google session to PostgreSQL & set initial role | Bearer JWT (New or existing user) | Called immediately upon first successful login / signup |
+| **Task 2** | `GET` | `/api/auth/me` *(alias: `/api/users/me`)* | Retrieve current authenticated user session & profile status | Bearer JWT (`STUDENT`, `TUTOR`, `ADMIN`) | Hydrates client Zustand `auth.store` and route guards |
+| **Task 1** | `POST` | `/api/auth/mock-login` | Issue mock session credentials for local development/testing | Public (Disabled in production) | Fast local testing switcher on `LoginPage.tsx` |
+| **Task 1** | `POST` | `/api/auth/logout` | Client logout session acknowledgment | Bearer JWT (Any authenticated user) | Clears server-side session references if applicable |
+
+---
+
+## 4. Detailed Endpoint Specifications
+
+### 4.1. `POST /api/auth/sync` (Task 1 & Task 2)
+
+Synchronizes an authenticated AWS Cognito / Google OAuth user with the PostgreSQL `users` table. If the user does not exist, a new record is created with the requested role (`STUDENT` or `TUTOR`). If the user already exists, returns the existing record (role is immutable).
+
+* **Endpoint:** `POST /api/auth/sync`
+* **Headers:**
+  * `Authorization: Bearer <cognito-id-token>` *(or `Bearer mock-token-<sub-id>` in dev)*
+  * `Content-Type: application/json`
+  * `X-Mock-Email: <email>` *(Optional, dev/test mock mode only)*
+* **Role Requirement:** Authenticated (New user or existing `STUDENT` / `TUTOR` / `ADMIN`)
+
+#### Request Body Schema (`SyncUserSchema`)
+
+```json
+{
+  "role": "STUDENT"
+}
+```
+
+| Field | Type | Required | Allowed Values | Description |
+|---|---|---|---|---|
+| `role` | `string` | **Yes** | `"STUDENT"`, `"TUTOR"` | Role selected by user during registration. `"ADMIN"` is prohibited. |
+
+#### Response `201 Created` (First Login — User Created)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "cognito_sub": "us-east-1:a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "email": "student@example.com",
+    "role": "STUDENT",
+    "is_new_user": true,
+    "created_at": "2026-10-31T20:00:00.000Z"
+  },
+  "message": "User account synchronized and registered successfully"
+}
+```
+
+#### Response `200 OK` (Returning User — Session Retrieved)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "cognito_sub": "us-east-1:a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "email": "student@example.com",
+    "role": "STUDENT",
+    "is_new_user": false,
+    "created_at": "2026-10-31T20:00:00.000Z"
+  },
+  "message": "User session synchronized successfully"
+}
+```
+
+#### Error Responses
+
+##### `400 Bad Request` (Invalid Role or Privilege Escalation)
+*(Returned when request body fails validation or attempts to set role to `ADMIN`)*
+```json
+{
+  "success": false,
+  "message": "Request validation failed",
+  "details": [
+    {
+      "field": "role",
+      "message": "Invalid role. Self-registration is restricted to 'STUDENT' or 'TUTOR'."
+    }
+  ]
+}
+```
+
+##### `401 Unauthorized`
+*(Returned when `Authorization` header is missing, token is malformed, signature verification fails, or token has expired)*
+```json
+{
+  "success": false,
+  "message": "Invalid or expired authentication token",
+  "details": null
+}
+```
+
+##### `409 Conflict` (Duplicate Email Conflict)
+*(Returned when the email from the token is already registered to a different `cognito_sub`)*
+```json
+{
+  "success": false,
+  "message": "An account with this email address already exists. Please sign in with your original provider.",
+  "details": {
+    "email": "student@example.com"
+  }
+}
+```
+
+##### `500 Internal Server Error`
+```json
+{
+  "success": false,
+  "message": "Internal Server Error",
+  "details": null
+}
+```
+
+---
+
+### 4.2. `GET /api/auth/me` (Task 2 & Task 3)
+
+Retrieves the currently authenticated user's account details, database role, and onboarding completion status across sub-modules.
+
+* **Endpoint:** `GET /api/auth/me` *(Alias: `GET /api/users/me`)*
+* **Headers:** `Authorization: Bearer <token>`
+* **Role Requirement:** `STUDENT`, `TUTOR`, or `ADMIN`
+
+#### Response `200 OK` (Student Example)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+    "cognito_sub": "us-east-1:a1b2c3d4-e5f6-7a8b-9c0d-1e2f3a4b5c6d",
+    "email": "student@example.com",
+    "role": "STUDENT",
+    "profile_completed": true,
+    "created_at": "2026-10-31T20:00:00.000Z",
+    "updated_at": "2026-10-31T20:00:00.000Z"
+  },
+  "message": "User session fetched successfully"
+}
+```
+
+#### Response `200 OK` (Tutor Example with Verification Status)
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "4d12c8a2-8b65-4d7a-8f6a-93108d8e3b1c",
+    "cognito_sub": "us-east-1:f9e8d7c6-b5a4-3210-9876-543210fedcba",
+    "email": "tutor@example.com",
+    "role": "TUTOR",
+    "profile_completed": true,
+    "verification_status": "PENDING",
+    "created_at": "2026-10-31T19:30:00.000Z",
+    "updated_at": "2026-10-31T19:35:00.000Z"
+  },
+  "message": "User session fetched successfully"
+}
+```
+
+#### Error Responses
+
+##### `401 Unauthorized`
+*(Returned when token is missing or invalid)*
+```json
+{
+  "success": false,
+  "message": "Missing or malformed Authorization header",
+  "details": null
+}
+```
+
+##### `404 Not Found`
+*(Returned when valid token is presented but user record does not exist in PostgreSQL — indicates `/api/auth/sync` is required)*
+```json
+{
+  "success": false,
+  "message": "User profile not found. Please sync your account.",
+  "details": null
+}
+```
+
+---
+
+### 4.3. `POST /api/auth/mock-login` (Development & Testing Mock Utility)
+
+Provides mock authentication credentials for local automated testing and UI development without requiring AWS Cognito infrastructure or active internet connectivity.
+
+> **Environment Constraint:** Only accessible when `NODE_ENV === 'development'` or `NODE_ENV === 'test'`. Returns `403 Forbidden` if invoked in production.
+
+* **Endpoint:** `POST /api/auth/mock-login`
+* **Headers:** `Content-Type: application/json`
+* **Role Requirement:** Public (Development only)
+
+#### Request Body Schema
+
+```json
+{
+  "role": "STUDENT",
+  "email": "student@tutorpair.local"
+}
+```
+
+| Field | Type | Required | Description |
+|---|---|---|---|
+| `role` | `string` | **Yes** | `"STUDENT"`, `"TUTOR"`, or `"ADMIN"` |
+| `email` | `string` | No | Custom email for testing. Defaults to `<role>@tutorpair.local`. |
+
+#### Response `200 OK`
+
+```json
+{
+  "success": true,
+  "data": {
+    "token": "mock-token-mock-student-id",
+    "user": {
+      "id": "7c9e6679-7425-40de-944b-e07fc1f90ae7",
+      "cognito_sub": "mock-student-id",
+      "email": "student@tutorpair.local",
+      "role": "STUDENT"
+    }
+  },
+  "message": "Mock login successful"
+}
+```
+
+#### Error Responses
+
+##### `403 Forbidden` (Production Safeguard)
+```json
+{
+  "success": false,
+  "message": "Mock authentication endpoint is disabled in production environments",
+  "details": null
+}
+```
+
+---
+
+### 4.4. `POST /api/auth/logout` (Task 1)
+
+Acknowledges user session termination. Invalidates client-side session state. (AWS Cognito ID tokens are stateless JWTs, but this endpoint provides an audit hook and coordinates client cache clearance).
+
+* **Endpoint:** `POST /api/auth/logout`
+* **Headers:** `Authorization: Bearer <token>`
+* **Role Requirement:** Authenticated
+
+#### Response `200 OK`
+
+```json
+{
+  "success": true,
+  "data": null,
+  "message": "User logged out successfully"
+}
+```
+
+---
+
+## 5. Role-Based Access Control (RBAC) Matrix (Task 3)
+
+The backend enforces authorization using the `requireRole(allowedRoles: UserRole[])` middleware applied to route handlers. The table below defines route permissions across the platform:
+
+| API Route Group | Target Resources | Allowed Roles | Middleware Chain | Unauthenticated | Unauthorized Role |
+|---|---|---|---|---|---|
+| `/api/auth/sync` | Account sync & onboarding | Any valid JWT | `authenticate` *(permissive)* | `401 Unauthorized` | N/A |
+| `/api/auth/me` | Current session details | `STUDENT`, `TUTOR`, `ADMIN` | `authenticate` | `401 Unauthorized` | `403 Forbidden` |
+| `/api/students/*` | Profile, budget, preferences, matching requests | `STUDENT` | `authenticate`, `requireRole(['STUDENT'])` | `401 Unauthorized` | `403 Forbidden` |
+| `/api/tutors/*` | Profile, subjects, availability, rates | `TUTOR` | `authenticate`, `requireRole(['TUTOR'])` | `401 Unauthorized` | `403 Forbidden` |
+| `/api/documents/*` | Document upload & status | `TUTOR`, `ADMIN` | `authenticate`, `requireRole(['TUTOR', 'ADMIN'])` | `401 Unauthorized` | `403 Forbidden` |
+| `/api/admin/*` | Verification review, approvals, system audits | `ADMIN` | `authenticate`, `requireRole(['ADMIN'])` | `401 Unauthorized` | `403 Forbidden` |
+| `/api/matching/*` | Recommendation query & confirmation | `STUDENT` | `authenticate`, `requireRole(['STUDENT'])` | `401 Unauthorized` | `403 Forbidden` |
+| `/api/reviews/*` | Lesson review submission | `STUDENT` *(confirmed only)* | `authenticate`, `requireRole(['STUDENT'])` | `401 Unauthorized` | `403 Forbidden` |
+
+### Standard RBAC Error Response Formats
+
+#### `401 Unauthorized` (Missing or Invalid Authentication)
+```json
+{
+  "success": false,
+  "message": "Missing or malformed Authorization header",
+  "details": null
+}
+```
+
+#### `403 Forbidden` (Insufficient Role Privileges)
+```json
+{
+  "success": false,
+  "message": "Access denied. Required role: [ADMIN], Current role: STUDENT",
+  "details": null
+}
+```
+
+---
+
+## 6. Zod Validation Schemas (`packages/shared`)
+
+### `SyncUserSchema`
+```typescript
+import { z } from 'zod';
+import { UserRole } from '../enums/index.js';
+
+// Public self-service sync is strictly restricted to STUDENT and TUTOR
+export const SyncUserSchema = z.object({
+  role: z.enum([UserRole.STUDENT, UserRole.TUTOR], {
+    errorMap: () => ({ message: "Role must be either 'STUDENT' or 'TUTOR'" }),
+  }),
+});
+
+export type SyncUserInput = z.infer<typeof SyncUserSchema>;
+```
+
+---
+
+## 7. Database Reference (`users` table)
+
+```sql
+CREATE TABLE "users" (
+    "id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+    "cognito_sub" varchar(255) NOT NULL,
+    "email" varchar(255) NOT NULL,
+    "role" "user_role" NOT NULL,
+    "created_at" timestamp DEFAULT now() NOT NULL,
+    "updated_at" timestamp DEFAULT now() NOT NULL,
+    CONSTRAINT "users_cognito_sub_unique" UNIQUE("cognito_sub"),
+    CONSTRAINT "users_email_unique" UNIQUE("email")
+);
+```
+
+* **Constraints**:
+  * `cognito_sub` unique index guarantees 1:1 mapping between AWS Cognito identity (including Google federated accounts) and PostgreSQL user records.
+  * `email` unique index guarantees duplicate accounts cannot be created using the same email address across different identity providers.
+
+---
+
 # Part 1: Module 3 — Student Profile & Preferences
 
 > **Jira Epic:** TP-50: Development — Student Profile & Preferences  

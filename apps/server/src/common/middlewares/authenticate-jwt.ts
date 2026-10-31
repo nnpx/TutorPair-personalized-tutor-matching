@@ -1,19 +1,17 @@
-/**
- * NOTE: This is an initial draft / baseline implementation.
- * It should be reviewed, tested, and revised when integrating with AWS Cognito or test suites.
- */
 import { Request, Response, NextFunction } from 'express';
 import { cognitoVerifier } from '../../config/aws-clients.js';
 import { UnauthorizedError } from '../errors/http-errors.js';
-import { db } from '../../db/client.js';
-import { users, User } from '../../db/schema/index.js';
-import { eq } from 'drizzle-orm';
+import { User } from '../../db/schema/index.js';
+import { authRepository } from '../../modules/auth/auth.repository.js';
 import { env } from '../../config/env.js';
 import { asyncHandler } from '../utils/async-handler.js';
-import { UserRole } from '@tutorpair/shared';
 
 export interface AuthRequest extends Request {
   user?: User;
+  cognitoUser?: {
+    sub: string;
+    email: string;
+  };
 }
 
 export const authenticate = asyncHandler(
@@ -27,14 +25,25 @@ export const authenticate = asyncHandler(
     const token = authHeader.split(' ')[1];
 
     let cognitoSub: string;
+    let cognitoEmail: string | undefined;
+
+    // Strict security check: reject mock tokens in production
+    if (env.NODE_ENV === 'production' && token.startsWith('mock-token-')) {
+      throw new UnauthorizedError('Mock authentication is disabled in production');
+    }
 
     // Support mock token for local testing without AWS Cognito
     if ((env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && token.startsWith('mock-token-')) {
       cognitoSub = token.replace('mock-token-', '');
+      cognitoEmail =
+        typeof req.headers['x-mock-email'] === 'string' && req.headers['x-mock-email'].trim()
+          ? (req.headers['x-mock-email'] as string).trim()
+          : `${cognitoSub}@tutorpair.local`;
     } else {
       try {
         const payload = await cognitoVerifier.verify(token);
         cognitoSub = payload.sub;
+        cognitoEmail = typeof payload.email === 'string' ? payload.email : undefined;
       } catch (err: unknown) {
         const message =
           err instanceof Error ? err.message : 'Invalid or expired authentication token';
@@ -42,64 +51,28 @@ export const authenticate = asyncHandler(
       }
     }
 
-    let [user] = await db
-      .select()
-      .from(users)
-      .where(eq(users.cognito_sub, cognitoSub))
-      .limit(1);
+    // Store verified identity claims from Cognito/Mock
+    req.cognitoUser = {
+      sub: cognitoSub,
+      email: cognitoEmail || `${cognitoSub}@tutorpair.local`,
+    };
 
-    // In development or test mode, auto-provision mock user if not yet in database
-    if (!user && (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && token.startsWith('mock-token-')) {
-      const mockRole = cognitoSub.toLowerCase().includes('student')
-        ? UserRole.STUDENT
-        : cognitoSub.toLowerCase().includes('admin')
-          ? UserRole.ADMIN
-          : UserRole.TUTOR;
+    // Lookup user via Repository layer (encapsulates Drizzle ORM / SQL query)
+    const user = await authRepository.findByCognitoSub(cognitoSub);
 
-      const mockEmail =
-        typeof req.headers['x-mock-email'] === 'string' && req.headers['x-mock-email'].trim()
-          ? (req.headers['x-mock-email'] as string).trim()
-          : `${cognitoSub}@tutorpair.local`;
-
-      try {
-        // Check if user with this email already exists
-        const [existingByEmail] = await db
-          .select()
-          .from(users)
-          .where(eq(users.email, mockEmail))
-          .limit(1);
-
-        if (existingByEmail) {
-          user = existingByEmail;
-        } else {
-          [user] = await db
-            .insert(users)
-            .values({
-              cognito_sub: cognitoSub,
-              email: mockEmail,
-              role: mockRole,
-            })
-            .onConflictDoNothing()
-            .returning();
-
-          if (!user) {
-            [user] = await db
-              .select()
-              .from(users)
-              .where(eq(users.cognito_sub, cognitoSub))
-              .limit(1);
-          }
-        }
-      } catch {
-        // Fallback for offline dev
-      }
+    if (user) {
+      req.user = user;
+      return next();
     }
 
-    if (!user) {
-      throw new UnauthorizedError('User profile not found. Please sync your account.');
+    // If user does not exist in DB yet:
+    // Allow /api/auth/sync to proceed so first-time users can register/sync
+    const isSyncRoute = req.originalUrl?.includes('/api/auth/sync') || req.path === '/sync';
+    if (isSyncRoute) {
+      return next();
     }
 
-    req.user = user;
-    next();
+    // All other protected routes require an existing database record
+    throw new UnauthorizedError('User profile not found. Please sync your account.');
   }
 );

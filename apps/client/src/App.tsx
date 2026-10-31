@@ -6,6 +6,7 @@ import { TutorLayout } from './layouts/TutorLayout';
 import { AdminLayout } from './layouts/AdminLayout';
 import { ProtectedRoute } from './routes/ProtectedRoute';
 import { LoginPage } from './features/auth/LoginPage';
+import { UnauthorizedPage } from './features/auth/UnauthorizedPage';
 import { LandingPage } from './features/landing/LandingPage';
 import { StudentProfilePage } from './features/students/StudentProfilePage';
 import { StudentOnboardingPage } from './features/students/StudentOnboardingPage';
@@ -28,6 +29,7 @@ export const App: React.FC = () => {
       {/* Public / Auth routes */}
       <Route element={<AuthLayout />}>
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/unauthorized" element={<UnauthorizedPage />} />
       </Route>
 
       {/* Student routes */}
