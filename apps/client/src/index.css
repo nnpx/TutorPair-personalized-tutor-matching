@@ -214,6 +214,12 @@ input, select, textarea {
   transform: scale(1.02);
 }
 
+.flat-card-no-hover,
+.flat-card-no-hover:hover {
+  transform: none !important;
+  transition: none !important;
+}
+
 .flat-card-tint-blue {
   background-color: var(--color-primary-tint);
 }

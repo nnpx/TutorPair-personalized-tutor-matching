@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useAuthStore } from '../../store/auth.store';
+import { UserRole } from '@tutorpair/shared';
 import {
   Sparkles,
   ShieldCheck,
@@ -18,6 +20,16 @@ import {
 } from 'lucide-react';
 
 export const LandingPage: React.FC = () => {
+  const { user } = useAuthStore();
+
+  const getDashboardPath = () => {
+    if (!user) return '/login';
+    if (user.role === UserRole.STUDENT) return '/student/matching';
+    if (user.role === UserRole.TUTOR) return '/tutor/profile';
+    if (user.role === UserRole.ADMIN) return '/admin/verifications';
+    return '/';
+  };
+
   // Interactive state for 3-Step Selection Demonstration
   const [activeCategory, setActiveCategory] = useState<'GENERAL' | 'LANGUAGE' | 'ENTRANCE'>('LANGUAGE');
   const [activeFaq, setActiveFaq] = useState<number | null>(0);
@@ -109,12 +121,32 @@ export const LandingPage: React.FC = () => {
 
           {/* Action CTAs */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <Link to="/login" className="flat-btn flat-btn-secondary flat-btn-sm" style={{ fontWeight: 700 }}>
-              Sign In
-            </Link>
-            <Link to="/login" className="flat-btn flat-btn-primary flat-btn-sm" style={{ fontWeight: 700 }}>
-              Get Started
-            </Link>
+            {user ? (
+              <Link
+                to={getDashboardPath()}
+                className="flat-btn flat-btn-primary flat-btn-sm"
+                style={{ fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <span>Go to {user.role.toLowerCase()} Dashboard</span>
+              </Link>
+            ) : (
+              <>
+                <Link
+                  to="/login?mode=signin"
+                  className="flat-btn flat-btn-secondary flat-btn-sm"
+                  style={{ fontWeight: 700 }}
+                >
+                  Sign In
+                </Link>
+                <Link
+                  to="/login?mode=register"
+                  className="flat-btn flat-btn-primary flat-btn-sm"
+                  style={{ fontWeight: 700 }}
+                >
+                  Get Started
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -160,7 +192,7 @@ export const LandingPage: React.FC = () => {
               {/* Action Buttons */}
               <div style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}>
                 <Link
-                  to="/login"
+                  to={user ? getDashboardPath() : "/login?mode=register&role=student"}
                   className="flat-btn flat-btn-accent flat-btn-lg"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}
                 >
@@ -168,7 +200,7 @@ export const LandingPage: React.FC = () => {
                   Find Your Top 3 Tutors
                 </Link>
                 <Link
-                  to="/login"
+                  to={user ? getDashboardPath() : "/login?mode=register&role=tutor"}
                   className="flat-btn flat-btn-outline-white flat-btn-lg"
                   style={{ display: 'inline-flex', alignItems: 'center', gap: '0.75rem' }}
                 >
@@ -1056,7 +1088,7 @@ export const LandingPage: React.FC = () => {
 
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
             <Link
-              to="/login"
+              to={user ? getDashboardPath() : "/login?mode=register&role=student"}
               className="flat-btn flat-btn-lg"
               style={{
                 backgroundColor: 'var(--color-white)',
@@ -1067,7 +1099,7 @@ export const LandingPage: React.FC = () => {
               Start Free Matching Now
             </Link>
             <Link
-              to="/login"
+              to={user ? getDashboardPath() : "/login?mode=signin&role=tutor"}
               className="flat-btn flat-btn-outline-white flat-btn-lg"
             >
               Sign In as Tutor
@@ -1123,7 +1155,7 @@ export const LandingPage: React.FC = () => {
                 <li><a href="#matching-system" style={{ color: 'inherit' }}>1–5 Slider System</a></li>
                 <li><a href="#subjects" style={{ color: 'inherit' }}>Academic Scope</a></li>
                 <li><a href="#verification" style={{ color: 'inherit' }}>Tutor Verification</a></li>
-                <li><Link to="/login" style={{ color: 'inherit' }}>Student Matching Portal</Link></li>
+                <li><Link to={user ? getDashboardPath() : "/login?mode=register&role=student"} style={{ color: 'inherit' }}>Student Matching Portal</Link></li>
               </ul>
             </div>
 
@@ -1147,9 +1179,9 @@ export const LandingPage: React.FC = () => {
                 Quick Access
               </h4>
               <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '0.75rem', fontSize: '0.9375rem', color: '#9ca3af' }}>
-                <li><Link to="/login" style={{ color: 'inherit' }}>Student Sign In</Link></li>
-                <li><Link to="/login" style={{ color: 'inherit' }}>Tutor Application</Link></li>
-                <li><Link to="/login" style={{ color: 'inherit' }}>Admin Verification Login</Link></li>
+                <li><Link to={user ? getDashboardPath() : "/login?mode=signin&role=student"} style={{ color: 'inherit' }}>Student Sign In</Link></li>
+                <li><Link to={user ? getDashboardPath() : "/login?mode=register&role=tutor"} style={{ color: 'inherit' }}>Tutor Application</Link></li>
+                <li><Link to={user ? getDashboardPath() : "/login?mode=signin&role=admin"} style={{ color: 'inherit' }}>Admin Verification Login</Link></li>
                 <li><a href="#faq" style={{ color: 'inherit' }}>Help & Support</a></li>
               </ul>
             </div>

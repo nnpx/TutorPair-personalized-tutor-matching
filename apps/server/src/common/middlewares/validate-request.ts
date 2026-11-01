@@ -17,7 +17,7 @@ export function validateRequest(
     } catch (err) {
       if (err instanceof ZodError) {
         const issues = err.issues.map((i) => ({
-          field: i.path.join('.'),
+          field: i.path.join('.') || source,
           message: i.message,
         }));
         next(new BadRequestError('Request validation failed', issues));
