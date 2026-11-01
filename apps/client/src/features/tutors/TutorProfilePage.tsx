@@ -1,9 +1,16 @@
-import React from 'react';
-import { useTutorProfile, useTutorVerification, useTutorSubjects, useTutorAvailability } from './hooks/useTutors';
+import React, { useState } from 'react';
+import {
+  useTutorProfile,
+  useTutorVerification,
+  useTutorSubjects,
+  useTutorAvailability,
+  useTutorMatchedStudents,
+} from './hooks/useTutors';
 import { TutorProfileForm } from './components/TutorProfileForm';
 import { SubjectSelector } from './components/SubjectSelector';
 import { AvailabilityGrid } from './components/AvailabilityGrid';
 import { VerificationSection } from './components/VerificationSection';
+import { MatchedStudentModal } from './components/MatchedStudentModal';
 import { Card, Button, PageHeader } from '../../components/ui';
 import { Link, useSearchParams } from 'react-router-dom';
 import {
@@ -22,14 +29,20 @@ import {
   Target,
   Phone,
   MessageSquare,
+  Eye,
+  Sparkles,
 } from 'lucide-react';
 import { VerificationStatus } from '@tutorpair/shared';
+import type { MatchedStudentDto } from '@tutorpair/shared';
 
 export const TutorProfilePage: React.FC = () => {
   const { data: profile, isLoading: loadingProfile } = useTutorProfile();
   const { data: verification } = useTutorVerification();
   const { data: subjects = [] } = useTutorSubjects();
   const { data: availability = [] } = useTutorAvailability();
+  const { data: matchedStudents = [], isLoading: loadingMatched } = useTutorMatchedStudents();
+  const [selectedStudentForModal, setSelectedStudentForModal] = useState<MatchedStudentDto | null>(null);
+  const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   const queryTab = searchParams.get('tab');
   const isProfileView = Boolean(
@@ -1162,15 +1175,15 @@ export const TutorProfilePage: React.FC = () => {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
             <div>
               <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
-                Matched Students &amp; Trial Inquiries
+                Matched Students &amp; Confirmed Bookings
               </h3>
               <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
-                Students matched to your profile via learning style compatibility and subject requirements.
+                Students who selected you as their confirmed tutor through algorithmic matching.
               </p>
             </div>
             <span
               style={{
-                padding: '0.25rem 0.625rem',
+                padding: '0.25rem 0.75rem',
                 backgroundColor: 'var(--color-secondary-tint)',
                 color: 'var(--color-secondary)',
                 borderRadius: 'var(--radius-full)',
@@ -1178,92 +1191,172 @@ export const TutorProfilePage: React.FC = () => {
                 fontWeight: 800,
               }}
             >
-              Algorithmic Matchmaking Active
+              {matchedStudents.length} Confirmed {matchedStudents.length === 1 ? 'Student' : 'Students'}
             </span>
           </div>
 
-          {/* Matched Student Card Preview */}
-          <div
-            style={{
-              border: '2px solid var(--color-border)',
-              borderRadius: 'var(--radius-md)',
-              padding: '1.25rem',
-              backgroundColor: 'var(--bg-canvas)',
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              flexWrap: 'wrap',
-              gap: '1rem',
-            }}
-          >
-            <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+          {loadingMatched ? (
+            <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
+              <p style={{ fontWeight: 700 }}>Loading your confirmed student bookings...</p>
+            </div>
+          ) : matchedStudents.length === 0 ? (
+            <div
+              style={{
+                padding: '2.5rem 1.5rem',
+                textAlign: 'center',
+                backgroundColor: 'var(--bg-canvas)',
+                borderRadius: 'var(--radius-md)',
+                border: '2px dashed var(--color-border)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.5rem',
+              }}
+            >
               <div
                 style={{
                   width: '3rem',
                   height: '3rem',
                   borderRadius: 'var(--radius-full)',
-                  backgroundColor: 'var(--color-primary-tint)',
-                  color: 'var(--color-primary)',
+                  backgroundColor: 'var(--color-secondary-tint)',
+                  color: 'var(--color-secondary)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  fontWeight: 800,
-                  fontSize: '1.125rem',
                 }}
               >
-                NW
+                <Sparkles size={22} strokeWidth={2.4} />
               </div>
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
-                  <h4 style={{ fontSize: '1.0625rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
-                    Napasorn W.
-                  </h4>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      padding: '0.15rem 0.5rem',
-                      backgroundColor: 'var(--color-muted)',
-                      borderRadius: 'var(--radius-sm)',
-                      fontWeight: 700,
-                      color: '#4b5563',
-                    }}
-                  >
-                    Grade 10 • High School
-                  </span>
-                  <span
-                    style={{
-                      fontSize: '0.75rem',
-                      padding: '0.15rem 0.5rem',
-                      backgroundColor: 'var(--color-secondary-tint)',
-                      color: 'var(--color-secondary)',
-                      borderRadius: 'var(--radius-sm)',
-                      fontWeight: 800,
-                    }}
-                  >
-                    94% Compatibility
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginTop: '0.5rem', flexWrap: 'wrap', fontSize: '0.875rem' }}>
-                  <span style={{ color: 'var(--fg-main)', fontWeight: 600 }}>
-                    Subject: <strong>Mathematics (IGCSE)</strong>
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#4b5563' }}>
-                    <Phone size={14} color="var(--color-primary)" />
-                    +66 81 234 5678
-                  </span>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#4b5563' }}>
-                    <MessageSquare size={14} color="var(--color-secondary)" />
-                    LINE ID: <strong>@napasorn_w</strong>
-                  </span>
-                </div>
-              </div>
+              <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1rem', color: 'var(--fg-main)' }}>
+                No Confirmed Student Bookings Yet
+              </h4>
+              <p style={{ margin: 0, color: '#6b7280', fontSize: '0.875rem', maxWidth: '480px' }}>
+                When students are matched and confirm you as their tutor, their student card, direct contact information, and learning preferences will appear here and in your bell notifications.
+              </p>
             </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+              {matchedStudents.map((st) => {
+                const initials = `${st.first_name?.[0] || ''}${st.last_name?.[0] || ''}`.toUpperCase();
+                return (
+                  <div
+                    key={st.match_request_id}
+                    style={{
+                      border: '2px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1.25rem',
+                      backgroundColor: 'var(--bg-canvas)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      flexWrap: 'wrap',
+                      gap: '1rem',
+                    }}
+                  >
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                      <div
+                        style={{
+                          width: '3rem',
+                          height: '3rem',
+                          borderRadius: 'var(--radius-full)',
+                          backgroundColor: 'var(--color-secondary-tint)',
+                          color: 'var(--color-secondary)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 900,
+                          fontSize: '1.125rem',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {initials || 'ST'}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
+                          <h4 style={{ fontSize: '1.0625rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
+                            {st.student_name}
+                          </h4>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              padding: '0.15rem 0.5rem',
+                              backgroundColor: 'var(--color-muted)',
+                              borderRadius: 'var(--radius-sm)',
+                              fontWeight: 700,
+                              color: '#4b5563',
+                            }}
+                          >
+                            Grade {st.grade_level}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              padding: '0.15rem 0.5rem',
+                              backgroundColor: 'var(--color-secondary-tint)',
+                              color: 'var(--color-secondary)',
+                              borderRadius: 'var(--radius-sm)',
+                              fontWeight: 800,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                            }}
+                          >
+                            <CheckCircle2 size={12} strokeWidth={2.8} /> Confirmed Match
+                          </span>
+                        </div>
 
-          </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginTop: '0.5rem', flexWrap: 'wrap', fontSize: '0.875rem' }}>
+                          <span style={{ color: 'var(--fg-main)', fontWeight: 600 }}>
+                            Subject: <strong>{st.subject_name}</strong> ({st.variant_name}) • <strong>฿{st.hourly_rate}/hr</strong>
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#4b5563' }}>
+                            <Phone size={14} color="var(--color-primary)" />
+                            {st.phone_number}
+                          </span>
+                          {st.line_id && (
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#4b5563' }}>
+                              <MessageSquare size={14} color="var(--color-secondary)" />
+                              LINE: <strong>@{st.line_id.replace(/^@/, '')}</strong>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedStudentForModal(st);
+                        setIsStudentModalOpen(true);
+                      }}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        fontWeight: 800,
+                      }}
+                    >
+                      <Eye size={15} strokeWidth={2.4} />
+                      View Student Profile Card
+                    </Button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </Card>
       )}
 
+      {/* Matched Student Modal */}
+      <MatchedStudentModal
+        student={selectedStudentForModal}
+        isOpen={isStudentModalOpen}
+        onClose={() => {
+          setIsStudentModalOpen(false);
+          setSelectedStudentForModal(null);
+        }}
+      />
     </div>
   );
 };

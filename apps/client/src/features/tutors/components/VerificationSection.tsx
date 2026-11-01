@@ -12,7 +12,6 @@ import {
   Clock,
   XCircle,
   FileText,
-  Award,
   GraduationCap,
   Sparkles,
   Trash2,
@@ -59,15 +58,11 @@ export const VerificationSection = forwardRef<VerificationSectionRef, Verificati
     (d) => d.document_type === DocumentType.DEGREE_TRANSCRIPT
   );
   const cvDocs = docs.filter((d) => d.document_type === DocumentType.CV);
-  const cvCertificateDocs = docs.filter(
-    (d) => d.document_type === DocumentType.SUBJECT_QUALIFICATION && !d.variant_id
-  );
 
-  // Staged local files (Option B: Selected locally first, batch-uploaded on submit)
-  // Degree & CV are limited to 1 file max; Certs and Subject proofs allow multiple files
+  // Staged local files (Selected locally first, batch-uploaded on submit)
+  // Degree & CV are limited to 1 file max; Subject proofs allow multiple files per subject
   const [stagedDegreeFile, setStagedDegreeFile] = useState<File | null>(null);
   const [stagedCvFile, setStagedCvFile] = useState<File | null>(null);
-  const [stagedCertFiles, setStagedCertFiles] = useState<File[]>([]);
   const [stagedSubjectProofs, setStagedSubjectProofs] = useState<Record<string, File[]>>({});
 
   // Batch progress & feedback states
@@ -79,19 +74,17 @@ export const VerificationSection = forwardRef<VerificationSectionRef, Verificati
   const totalStagedCount =
     (stagedDegreeFile ? 1 : 0) +
     (stagedCvFile ? 1 : 0) +
-    stagedCertFiles.length +
     Object.values(stagedSubjectProofs).reduce((acc, files) => acc + files.length, 0);
 
   const hasDegreeInDb = degreeDocs.length > 0;
   const hasCvInDb = cvDocs.length > 0;
-  const hasCertInDb = cvCertificateDocs.length > 0;
   const allRequiredProofsInDb = subjectsRequiringProof.every((sub) =>
     docs.some((d) => d.variant_id === sub.variant_id)
   );
 
   // Profile is fully submitted when all required documents exist in the DB and no staged files are pending
   const isSubmissionComplete =
-    hasDegreeInDb && hasCvInDb && hasCertInDb && allRequiredProofsInDb && totalStagedCount === 0;
+    hasDegreeInDb && hasCvInDb && allRequiredProofsInDb && totalStagedCount === 0;
 
   // Local File Selection Handlers (Degree & CV limited to 1 file each)
   const handleSelectDegree = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -122,19 +115,6 @@ export const VerificationSection = forwardRef<VerificationSectionRef, Verificati
     }
   };
 
-  const handleSelectCert = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFeedbackError(null);
-    setSaveSuccess(false);
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      if (file.size > 10 * 1024 * 1024) {
-        setFeedbackError('Certificate file exceeds maximum size of 10MB.');
-        return;
-      }
-      setStagedCertFiles((prev) => [...prev, file]);
-      e.target.value = '';
-    }
-  };
 
   const handleSelectSubjectProof = (variantId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     setFeedbackError(null);
@@ -172,10 +152,9 @@ export const VerificationSection = forwardRef<VerificationSectionRef, Verificati
     // Verify all mandatory items will be satisfied
     const willHaveDegree = hasDegreeInDb || Boolean(stagedDegreeFile);
     const willHaveCv = hasCvInDb || Boolean(stagedCvFile);
-    const willHaveCert = hasCertInDb || stagedCertFiles.length > 0;
 
-    if (!willHaveDegree || !willHaveCv || !willHaveCert) {
-      const err = 'Please select all mandatory documents (Degree / Academic Transcript, CV / Resume, and Supporting Certificates) before submitting.';
+    if (!willHaveDegree || !willHaveCv) {
+      const err = 'Please select all mandatory documents (Academic Degree / Transcript and CV / Resume) before submitting.';
       setFeedbackError(err);
       return { success: false, error: err };
     }
@@ -219,18 +198,7 @@ export const VerificationSection = forwardRef<VerificationSectionRef, Verificati
         });
       }
 
-      // 3. Upload Supporting Certs if staged
-      for (const certFile of stagedCertFiles) {
-        completed += 1;
-        setUploadProgressMsg(`Uploading Supporting Certificate (${completed}/${totalStagedCount})...`);
-        await uploadMutation.mutateAsync({
-          file: certFile,
-          documentType: DocumentType.SUBJECT_QUALIFICATION,
-          variantId: null,
-        });
-      }
-
-      // 4. Upload Subject Proofs if staged (multiple files per subject)
+      // 3. Upload Subject Proofs if staged (multiple files per subject)
       for (const [variantId, proofFiles] of Object.entries(stagedSubjectProofs)) {
         for (const proofFile of proofFiles) {
           completed += 1;
@@ -246,7 +214,6 @@ export const VerificationSection = forwardRef<VerificationSectionRef, Verificati
       // Reset local staged files
       setStagedDegreeFile(null);
       setStagedCvFile(null);
-      setStagedCertFiles([]);
       setStagedSubjectProofs({});
       return { success: true };
     } catch (err: unknown) {
@@ -671,140 +638,7 @@ export const VerificationSection = forwardRef<VerificationSectionRef, Verificati
           )}
         </Card>
 
-        {/* Card 3: Supporting Certificates (All Blue Icon, Mandatory, Multiple Files Allowed) */}
-        <Card style={{ backgroundColor: 'var(--bg-canvas)', border: '2px solid var(--color-border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
-            <span
-              style={{
-                width: '2.5rem',
-                height: '2.5rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--color-primary)',
-                color: 'white',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <Award size={20} strokeWidth={2.4} />
-            </span>
-            <div>
-              <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--fg-main)' }}>
-                3. Supporting Certificates Mentioned in CV
-                <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--color-danger)', textTransform: 'uppercase', fontWeight: 800 }}>
-                  * Mandatory
-                </span>
-              </h3>
-              <p style={{ fontSize: '0.8125rem', color: '#6b7280' }}>
-                Awards, teaching certifications, honor rolls, or workshops mentioned in your CV. (Multiple files allowed)
-              </p>
-            </div>
-          </div>
-
-          {/* Submitted Certificates in DB */}
-          {cvCertificateDocs.map((doc, idx) => {
-            const fileName = getCleanFileName(doc.file_key, 'Supporting_Certificate', idx);
-            return (
-              <div
-                key={doc.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  padding: '0.75rem 1rem',
-                  backgroundColor: 'var(--color-muted)',
-                  borderRadius: 'var(--radius-md)',
-                  marginBottom: '0.75rem',
-                  fontSize: '0.8125rem',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <Award size={16} color="var(--color-primary)" />
-                  <span style={{ fontWeight: 700 }}>{fileName}</span>
-                  <span style={{ color: '#6b7280' }}>({doc.file_size_kb} KB)</span>
-                  <span style={{ color: '#9ca3af', marginLeft: '0.5rem' }}>
-                    Uploaded {new Date(doc.uploaded_at).toLocaleDateString()}
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => handleDeleteSubmittedDoc(doc.id)}
-                  style={{
-                    color: 'var(--color-danger)',
-                    cursor: 'pointer',
-                    background: 'none',
-                    border: 'none',
-                    padding: '0.25rem 0.5rem',
-                    fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.25rem',
-                  }}
-                  title="Remove document"
-                >
-                  <Trash2 size={14} strokeWidth={2.2} />
-                  Remove
-                </button>
-              </div>
-            );
-          })}
-
-          {/* Staged certificate files */}
-          {stagedCertFiles.map((file, idx) => (
-            <div
-              key={`${file.name}-${idx}`}
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '0.75rem 1rem',
-                backgroundColor: 'var(--color-primary-tint)',
-                borderRadius: 'var(--radius-md)',
-                marginBottom: '0.75rem',
-                fontSize: '0.8125rem',
-                border: '1px solid var(--color-primary)',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <Award size={16} color="var(--color-primary)" />
-                <span style={{ fontWeight: 700, color: 'var(--color-primary-hover)' }}>
-                  {file.name} ({Math.round(file.size / 1024)} KB)
-                </span>
-                <span style={{ color: '#6b7280', fontStyle: 'italic' }}>— Selected</span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setStagedCertFiles((prev) => prev.filter((_, i) => i !== idx))}
-                style={{
-                  color: 'var(--color-danger)',
-                  cursor: 'pointer',
-                  background: 'none',
-                  border: 'none',
-                  fontWeight: 700,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                }}
-              >
-                <X size={14} strokeWidth={2.4} />
-                Cancel
-              </button>
-            </div>
-          ))}
-
-          {/* File Picker: Always available for multiple files */}
-          <div style={{ marginTop: '0.75rem' }}>
-            <input
-              type="file"
-              accept=".pdf,.png,.jpg,.jpeg"
-              onChange={handleSelectCert}
-              className="flat-input"
-              style={{ width: '100%', padding: '0.5rem' }}
-            />
-          </div>
-        </Card>
-
-        {/* Card 4: Subject-Specific Proof Certificates (All Blue Icon, Multiple Files per Subject Allowed) */}
+        {/* Card 3: Subject-Specific Proof Certificates (Multiple Files per Subject Allowed) */}
         {subjectsRequiringProof.length > 0 && (
           <Card style={{ backgroundColor: 'var(--bg-canvas)', border: '2px solid var(--color-border)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
@@ -824,7 +658,7 @@ export const VerificationSection = forwardRef<VerificationSectionRef, Verificati
               </span>
               <div>
                 <h3 style={{ fontSize: '1.125rem', fontWeight: 800, color: 'var(--fg-main)' }}>
-                  4. Subject-Specific Proof Certificates
+                  3. Subject-Specific Proof Certificates
                   <span style={{ marginLeft: '0.5rem', fontSize: '0.75rem', color: 'var(--color-danger)', textTransform: 'uppercase', fontWeight: 800 }}>
                     * Mandatory
                   </span>

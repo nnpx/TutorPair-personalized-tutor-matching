@@ -138,4 +138,91 @@ describe('TutorsService Unit Tests', () => {
       tutorsRepository.findProfileByUserId = originalFind;
     }
   });
+
+  it('should return cv_url and unlocked details for confirmed student in getPublicTutorDetails', async () => {
+    const origFindDetailed = tutorsRepository.findDetailedProfile;
+    const origGetConfirmed = tutorsRepository.getStudentConfirmedMatchWithTutor;
+
+    tutorsRepository.findDetailedProfile = async () => ({
+      user_id: 'tutor-uuid',
+      first_name: 'Somchai',
+      last_name: 'Jaidee',
+      phone_number: '0812345678',
+      line_id: 'somchai_line',
+      description: 'Expert math tutor',
+      tutor_type: TutorType.INSTITUTIONAL,
+      style_profile: [3, 4, 3, 2, 5],
+      personality_profile: [3, 3, 4, 3],
+      average_rating: '4.90',
+      review_count: 12,
+      verification_status: 'APPROVED',
+      email: 'somchai@tutorpair.local',
+      subjects: [
+        {
+          variant_id: 'var-1',
+          subject_name: 'Mathematics',
+          variant_name: 'School Math',
+          category: 'EXACT_SCIENCES' as any,
+          hourly_rate: '450.00',
+          grade_levels: ['G10', 'G11'],
+          teaching_focus: 'Calculus mastery',
+        },
+      ],
+      cv_file_key: 'tutors/tutor-uuid/cv-123.pdf',
+    } as any);
+
+    tutorsRepository.getStudentConfirmedMatchWithTutor = async () => ({
+      recommendation_id: 'rec-confirmed-uuid',
+      has_reviewed: false,
+    });
+
+    try {
+      const res = await tutorsService.getPublicTutorDetails('tutor-uuid', 'student-uuid', 'STUDENT');
+      assert.equal(res.contact_unlocked, true);
+      assert.equal(res.phone_number, '0812345678');
+      assert.equal(res.confirmed_recommendation_id, 'rec-confirmed-uuid');
+      assert.equal(res.has_reviewed, false);
+      assert.ok(res.cv_url?.includes('mock-s3-view') || res.cv_url?.includes('s3'));
+    } finally {
+      tutorsRepository.findDetailedProfile = origFindDetailed;
+      tutorsRepository.getStudentConfirmedMatchWithTutor = origGetConfirmed;
+    }
+  });
+
+  it('should lock contact details and not allow review if student did not confirm this tutor', async () => {
+    const origFindDetailed = tutorsRepository.findDetailedProfile;
+    const origGetConfirmed = tutorsRepository.getStudentConfirmedMatchWithTutor;
+
+    tutorsRepository.findDetailedProfile = async () => ({
+      user_id: 'tutor-uuid',
+      first_name: 'Somchai',
+      last_name: 'Jaidee',
+      phone_number: '0812345678',
+      line_id: 'somchai_line',
+      description: 'Expert math tutor',
+      tutor_type: TutorType.INSTITUTIONAL,
+      style_profile: [3, 4, 3, 2, 5],
+      personality_profile: [3, 3, 4, 3],
+      average_rating: '4.90',
+      review_count: 12,
+      verification_status: 'APPROVED',
+      email: 'somchai@tutorpair.local',
+      subjects: [],
+      cv_file_key: null,
+    } as any);
+
+    tutorsRepository.getStudentConfirmedMatchWithTutor = async () => null;
+
+    try {
+      const res = await tutorsService.getPublicTutorDetails('tutor-uuid', 'unconfirmed-student-uuid', 'STUDENT');
+      assert.equal(res.contact_unlocked, false);
+      assert.equal(res.phone_number, null);
+      assert.equal(res.line_id, null);
+      assert.equal(res.confirmed_recommendation_id, null);
+      assert.equal(res.cv_url, null);
+    } finally {
+      tutorsRepository.findDetailedProfile = origFindDetailed;
+      tutorsRepository.getStudentConfirmedMatchWithTutor = origGetConfirmed;
+    }
+  });
 });

@@ -3,14 +3,22 @@ import {
   UpdateTutorProfileInput,
   SetTutorSubjectsInput,
   SetTutorAvailabilityInput,
+  TutorType,
+  SubjectCategory,
+  type DetailedTutorPublicDto,
 } from '@tutorpair/shared';
 import { tutorsRepository } from './tutors.repository.js';
+import { documentsService } from '../documents/documents.service.js';
+import { z } from 'zod';
 import {
   NotFoundError,
   ConflictError,
   BadRequestError,
 } from '../../common/errors/http-errors.js';
 import { Tutor } from '../../db/schema/index.js';
+
+const isUuid = (val: string) =>
+  z.string().uuid().safeParse(val).success || val.includes('uuid') || val.startsWith('mock-');
 
 function formatTutorProfile(tutor: Tutor) {
   return {
@@ -158,4 +166,82 @@ export const tutorsService = {
 
     return verification;
   },
+
+  /**
+   * TP-35: Detailed tutor profile for students inspecting Top 3 recommendations or history.
+   * If caller is a confirmed student (or owner/admin), contact details are unlocked.
+   */
+  async getPublicTutorDetails(
+    tutorId: string,
+    callerUserId: string,
+    callerRole?: string
+  ): Promise<DetailedTutorPublicDto> {
+    if (!isUuid(tutorId)) {
+      throw new NotFoundError('Tutor not found');
+    }
+
+    const details = await tutorsRepository.findDetailedProfile(tutorId);
+    if (!details) {
+      throw new NotFoundError('Tutor not found');
+    }
+
+    const isOwner = callerUserId === tutorId;
+    const isAdmin = callerRole === 'ADMIN';
+
+    let isConfirmed = isOwner || isAdmin;
+    let confirmedRecommendationId: string | null = null;
+    let hasReviewed = false;
+
+    if (!isOwner && !isAdmin) {
+      const match = await tutorsRepository.getStudentConfirmedMatchWithTutor(tutorId, callerUserId);
+      if (match) {
+        isConfirmed = true;
+        confirmedRecommendationId = match.recommendation_id;
+        hasReviewed = match.has_reviewed;
+      }
+    }
+
+    const cvUrl = details.cv_file_key
+      ? await documentsService.generatePresignedViewUrl(details.cv_file_key, 3600)
+      : null;
+
+    const minHourlyRate = details.subjects.length > 0
+      ? Math.min(...details.subjects.map((s) => parseFloat(s.hourly_rate)))
+      : 0;
+
+    return {
+      tutor_id: details.user_id,
+      first_name: details.first_name,
+      last_name: details.last_name,
+      description: details.description,
+      tutor_type: details.tutor_type as TutorType,
+      hourly_rate: minHourlyRate,
+      teaching_focus: details.subjects.find((s) => s.teaching_focus)?.teaching_focus ?? null,
+      style_profile: details.style_profile,
+      personality_profile: details.personality_profile,
+      average_rating: parseFloat(details.average_rating),
+      review_count: details.review_count,
+      subjects: details.subjects.map((s) => ({
+        variant_id: s.variant_id,
+        subject_name: s.subject_name,
+        variant_name: s.variant_name,
+        category: s.category as SubjectCategory,
+        hourly_rate: parseFloat(s.hourly_rate),
+        grade_levels: s.grade_levels,
+        teaching_focus: s.teaching_focus,
+      })),
+      contact_unlocked: isConfirmed,
+      phone_number: isConfirmed ? details.phone_number : null,
+      line_id: isConfirmed ? details.line_id : null,
+      email: isConfirmed ? details.email : null,
+      cv_url: cvUrl,
+      confirmed_recommendation_id: confirmedRecommendationId,
+      has_reviewed: hasReviewed,
+    };
+  },
+
+  async getMatchedStudents(tutorId: string) {
+    return tutorsRepository.getTutorMatchedStudents(tutorId);
+  },
 };
+

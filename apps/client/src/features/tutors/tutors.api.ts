@@ -13,6 +13,7 @@ import type {
   SubjectCategory,
   PresignedUploadRequestInput,
   ConfirmUploadInput,
+  MatchedStudentDto,
 } from '@tutorpair/shared';
 
 export const tutorsApi = {
@@ -133,4 +134,23 @@ export const tutorsApi = {
       throw new Error(res.data.message || 'Failed to delete document');
     }
   },
+
+  // TP-35: Public / Student detailed tutor inspection
+  async getPublicDetails(tutorId: string): Promise<any> {
+    const res = await apiClient.get<ApiResponse<any>>(`/api/tutors/${tutorId}`);
+    if (!res.data.success || !res.data.data) {
+      throw new Error(res.data.message || 'Failed to fetch tutor details');
+    }
+    return res.data.data;
+  },
+
+  // Matched Students for confirmed tutor lessons
+  async getMatchedStudents(): Promise<MatchedStudentDto[]> {
+    const res = await apiClient.get<ApiResponse<MatchedStudentDto[]>>('/api/tutors/matched-students');
+    if (!res.data.success || !res.data.data) {
+      throw new Error(res.data.message || 'Failed to fetch matched students');
+    }
+    return res.data.data;
+  },
 };
+

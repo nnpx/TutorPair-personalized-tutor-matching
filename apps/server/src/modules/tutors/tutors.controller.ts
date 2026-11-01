@@ -52,4 +52,19 @@ export const tutorsController = {
     const data = await tutorsService.getVerification(userId);
     res.status(200).json(successResponse(data));
   }),
+
+  getPublicTutorDetails: asyncHandler(async (req: AuthRequest, res: Response) => {
+    const tutorId = req.params.tutorId;
+    const callerId = req.user!.id;
+    const callerRole = req.user!.role;
+    const details = await tutorsService.getPublicTutorDetails(tutorId, callerId, callerRole);
+    res.status(200).json(successResponse(details));
+  }),
+
+  getMatchedStudents: asyncHandler(async (req: AuthRequest, res: Response) => {
+    const tutorId = req.user!.id;
+    const students = await tutorsService.getMatchedStudents(tutorId);
+    res.status(200).json(successResponse(students));
+  }),
 };
+

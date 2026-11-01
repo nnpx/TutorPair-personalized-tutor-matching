@@ -6,6 +6,7 @@ import apiClient from '../services/api-client';
 import { useStudentProfile } from '../features/students/hooks/useStudents';
 import { Sparkles, History, User, LogOut, Lock } from 'lucide-react';
 import { Modal } from '../components/ui';
+import { NotificationBell } from '../components/notifications/NotificationBell';
 
 export const StudentLayout: React.FC = () => {
   const { user, clearUser } = useAuthStore();
@@ -151,7 +152,9 @@ export const StudentLayout: React.FC = () => {
             </nav>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+            <NotificationBell />
+
             <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--fg-main)' }}>
               {user?.email}
             </span>

@@ -36,4 +36,8 @@ export const notificationService = {
   markAsRead: async (id: string, userId: string) => {
     return notificationRepository.markAsRead(id, userId);
   },
+
+  markAllAsRead: async (userId: string) => {
+    return notificationRepository.markAllAsRead(userId);
+  },
 };

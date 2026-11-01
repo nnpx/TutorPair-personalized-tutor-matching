@@ -14,8 +14,14 @@ apiClient.interceptors.request.use(async (config) => {
   const user = useAuthStore.getState().user;
 
   // 1. In local dev mode, immediately attach mock token if mock user is active
-  if (user?.id?.startsWith('mock-')) {
-    config.headers.Authorization = `Bearer mock-token-${user.id}`;
+  const isMockUser =
+    user?.cognito_sub?.startsWith('mock-') ||
+    user?.id?.startsWith('mock-') ||
+    user?.email?.endsWith('@tutorpair.local');
+
+  if (isMockUser && user) {
+    const sub = user.cognito_sub || user.id;
+    config.headers.Authorization = `Bearer mock-token-${sub}`;
     if (user.email) {
       config.headers['X-Mock-Email'] = user.email;
     }
@@ -36,8 +42,9 @@ apiClient.interceptors.request.use(async (config) => {
 
   // 3. Fallback to local development mock token
   if (!config.headers.Authorization) {
-    if (user?.id) {
-      config.headers.Authorization = `Bearer mock-token-${user.id}`;
+    if (user) {
+      const sub = user.cognito_sub || user.id;
+      config.headers.Authorization = `Bearer mock-token-${sub}`;
       if (user.email) {
         config.headers['X-Mock-Email'] = user.email;
       }

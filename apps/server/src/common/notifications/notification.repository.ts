@@ -4,7 +4,7 @@
  */
 import { db, type DbExecutor } from '../../db/client.js';
 import { notifications, NewNotification } from '../../db/schema/index.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { EmailStatus } from '@tutorpair/shared';
 
 export const notificationRepository = {
@@ -22,7 +22,7 @@ export const notificationRepository = {
       .select()
       .from(notifications)
       .where(and(...conditions))
-      .orderBy(notifications.created_at);
+      .orderBy(desc(notifications.created_at));
   },
 
   markAsRead: async (id: string, userId: string) => {
@@ -32,6 +32,14 @@ export const notificationRepository = {
       .where(and(eq(notifications.id, id), eq(notifications.user_id, userId)))
       .returning();
     return updated;
+  },
+
+  markAllAsRead: async (userId: string) => {
+    return db
+      .update(notifications)
+      .set({ is_read: true })
+      .where(and(eq(notifications.user_id, userId), eq(notifications.is_read, false)))
+      .returning();
   },
 
   getPendingEmails: async (limit = 10) => {

@@ -3,6 +3,8 @@ import { Card, Button } from '../../components/ui';
 import { Link } from 'react-router-dom';
 import { useStudentProfile } from '../students/hooks/useStudents';
 import { useAuthStore } from '../../store/auth.store';
+import { useMatchHistory } from './hooks/useMatching';
+import { TutorDetailModal } from '../tutors/components/TutorDetailModal';
 import {
   Sparkles,
   CheckCircle2,
@@ -18,6 +20,12 @@ import {
   HelpCircle,
   UserCheck,
   BookOpen,
+  Phone,
+  MessageCircle,
+  Mail,
+  Star,
+  Copy,
+  Check,
 } from 'lucide-react';
 
 const FAQS = [
@@ -42,6 +50,23 @@ const FAQS = [
 export const MatchingPage: React.FC = () => {
   const { user } = useAuthStore();
   const { data: profile, isLoading } = useStudentProfile();
+  const { data: matchHistory, isLoading: isHistoryLoading } = useMatchHistory();
+
+  // State for inspecting tutor profile & copying LINE ID
+  const [inspectTutorId, setInspectTutorId] = useState<string | null>(null);
+  const [copiedLineId, setCopiedLineId] = useState<string | null>(null);
+
+  const handleCopyLineId = (lineId: string) => {
+    navigator.clipboard.writeText(lineId.replace(/^@/, ''));
+    setCopiedLineId(lineId);
+    setTimeout(() => setCopiedLineId(null), 2000);
+  };
+
+  const confirmedMatches = (matchHistory || []).filter(
+    (item) => item.status === 'CONFIRMED' && item.selected
+  );
+  const displayedConfirmedMatches = confirmedMatches.slice(0, 3);
+  const hasMoreConfirmedMatches = confirmedMatches.length > 3;
 
   // Ensure page starts at the top
   useEffect(() => {
@@ -844,62 +869,320 @@ export const MatchingPage: React.FC = () => {
           </Link>
         </div>
 
-        {/* Empty / Prompt State Box for Chosen Tutors */}
-        <div
-          style={{
-            padding: '1.5rem',
-            backgroundColor: 'var(--color-muted)',
-            borderRadius: 'var(--radius-md)',
-            border: '1px dashed var(--color-border)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            flexWrap: 'wrap',
-            gap: '1rem',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            <span
-              style={{
-                width: '3rem',
-                height: '3rem',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: '#ffffff',
-                border: '2px solid var(--color-border)',
-                color: '#6b7280',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                flexShrink: 0,
-              }}
-            >
-              <UserCheck size={22} strokeWidth={2.2} />
-            </span>
-            <div>
-              <div style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--fg-main)' }}>
-                No Chosen Tutors Yet
-              </div>
-              <div style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '0.2rem', lineHeight: 1.45 }}>
-                Submit a match request to receive your top tutor recommendations. Once you pick a tutor, their direct contact channels will appear here.
+        {/* Dynamic State: Loading, Empty, or Confirmed Chosen Tutors */}
+        {isHistoryLoading ? (
+          <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280', fontWeight: 600 }}>
+            Loading your confirmed tutors...
+          </div>
+        ) : confirmedMatches.length === 0 ? (
+          /* Empty / Prompt State Box for Chosen Tutors */
+          <div
+            style={{
+              padding: '1.5rem',
+              backgroundColor: 'var(--color-muted)',
+              borderRadius: 'var(--radius-md)',
+              border: '1px dashed var(--color-border)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <span
+                style={{
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: '#ffffff',
+                  border: '2px solid var(--color-border)',
+                  color: '#6b7280',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                <UserCheck size={22} strokeWidth={2.2} />
+              </span>
+              <div>
+                <div style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--fg-main)' }}>
+                  No Chosen Tutors Yet
+                </div>
+                <div style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '0.2rem', lineHeight: 1.45 }}>
+                  Submit a match request to receive your top tutor recommendations. Once you pick a tutor, their direct contact channels will appear here.
+                </div>
               </div>
             </div>
-          </div>
 
-          <Link to="/student/matching/request" style={{ textDecoration: 'none' }}>
-            <Button
-              variant="primary"
-              style={{
-                fontSize: '0.8125rem',
-                fontWeight: 800,
-                height: '2.5rem',
-                padding: '0 1.25rem',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              <Sparkles size={14} style={{ marginRight: '0.375rem' }} /> Start Match Request
-            </Button>
-          </Link>
-        </div>
+            <Link to="/student/matching/request" style={{ textDecoration: 'none' }}>
+              <Button
+                variant="primary"
+                style={{
+                  fontSize: '0.8125rem',
+                  fontWeight: 800,
+                  height: '2.5rem',
+                  padding: '0 1.25rem',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <Sparkles size={14} style={{ marginRight: '0.375rem' }} /> Start Match Request
+              </Button>
+            </Link>
+          </div>
+        ) : (
+          /* List of Confirmed Chosen Tutor Cards with Unlocked Direct Contacts (At most 3 shown here) */
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {displayedConfirmedMatches.map((item) => {
+              const tutor = item.selected!;
+              return (
+                <div
+                  key={item.match_request_id}
+                  style={{
+                    backgroundColor: '#ffffff',
+                    border: '2px solid var(--color-secondary)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1.5rem',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '1.25rem',
+                  }}
+                >
+                  {/* Top Bar: Subject Badge + Confirmed Tag */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          fontWeight: 800,
+                          backgroundColor: 'var(--color-primary-tint)',
+                          color: 'var(--color-primary)',
+                          padding: '0.2rem 0.5rem',
+                          borderRadius: '4px',
+                        }}
+                      >
+                        {item.category.replace('_', ' ')}
+                      </span>
+                      <span style={{ fontWeight: 800, fontSize: '0.9375rem', color: 'var(--fg-main)' }}>
+                        {item.subject_name} — {item.variant_name}
+                      </span>
+                    </div>
+
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.375rem',
+                        padding: '0.25rem 0.625rem',
+                        backgroundColor: 'var(--color-secondary-tint)',
+                        color: 'var(--color-secondary)',
+                        borderRadius: '999px',
+                        fontWeight: 800,
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      <CheckCircle2 size={14} strokeWidth={2.6} /> Confirmed Lesson
+                    </span>
+                  </div>
+
+                  {/* Tutor Details Row */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div
+                        style={{
+                          width: '3.25rem',
+                          height: '3.25rem',
+                          borderRadius: 'var(--radius-md)',
+                          backgroundColor: 'var(--color-secondary)',
+                          color: '#ffffff',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.25rem',
+                          fontWeight: 900,
+                          flexShrink: 0,
+                        }}
+                      >
+                        {tutor.first_name.charAt(0)}
+                      </div>
+                      <div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                          <h4 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 900, color: 'var(--fg-main)' }}>
+                            {tutor.first_name} {tutor.last_name}
+                          </h4>
+                          <span
+                            style={{
+                              fontSize: '0.6875rem',
+                              fontWeight: 800,
+                              backgroundColor: 'var(--color-muted)',
+                              padding: '0.125rem 0.5rem',
+                              borderRadius: '999px',
+                              color: '#374151',
+                              textTransform: 'uppercase',
+                            }}
+                          >
+                            {tutor.tutor_type.replace('_', ' ')}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.2rem' }}>
+                          <Star size={14} fill="#F59E0B" color="#F59E0B" />
+                          <span style={{ fontWeight: 800, fontSize: '0.875rem', color: 'var(--fg-main)' }}>
+                            {tutor.average_rating.toFixed(1)}
+                          </span>
+                          <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                            ({tutor.review_count} review{tutor.review_count === 1 ? '' : 's'})
+                          </span>
+                          <span style={{ margin: '0 0.375rem', color: '#9ca3af' }}>•</span>
+                          <span style={{ fontWeight: 800, color: 'var(--color-primary)', fontSize: '0.875rem' }}>
+                            ฿{tutor.hourly_rate}/hr
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions: View Profile + Leave Review */}
+                    <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <Button
+                        variant="outline"
+                        style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem', height: '2.25rem', backgroundColor: '#ffffff' }}
+                        onClick={() => setInspectTutorId(tutor.tutor_id)}
+                      >
+                        View Full Profile
+                      </Button>
+
+                      {tutor.has_reviewed ? (
+                        <div
+                          style={{
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.375rem',
+                            padding: '0.375rem 0.75rem',
+                            backgroundColor: '#ffffff',
+                            border: '2px solid var(--color-secondary)',
+                            borderRadius: 'var(--radius-md)',
+                            color: 'var(--color-secondary)',
+                            fontWeight: 800,
+                            fontSize: '0.8125rem',
+                          }}
+                        >
+                          <CheckCircle2 size={14} strokeWidth={2.6} />
+                          Reviewed
+                        </div>
+                      ) : (
+                        <Link
+                          to={`/student/review/${tutor.recommendation_id}`}
+                          style={{ textDecoration: 'none' }}
+                        >
+                          <Button variant="primary" style={{ fontSize: '0.8125rem', padding: '0.375rem 0.875rem', height: '2.25rem' }}>
+                            <Star size={14} fill="#ffffff" style={{ marginRight: '0.25rem' }} />
+                            Leave Review
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Direct Contact Channels Box */}
+                  <div
+                    style={{
+                      backgroundColor: 'var(--color-secondary-tint)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1rem 1.25rem',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                      gap: '1rem',
+                      border: '1px solid #a7f3d0',
+                    }}
+                  >
+                    {tutor.phone_number && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                        <div style={{ width: '2rem', height: '2rem', borderRadius: 'var(--radius-sm)', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Phone size={15} color="var(--color-secondary)" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280' }}>PHONE NUMBER</div>
+                          <a href={`tel:${tutor.phone_number}`} style={{ fontWeight: 800, color: 'var(--fg-main)', textDecoration: 'none', fontSize: '0.9375rem' }}>
+                            {tutor.phone_number}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+
+                    {tutor.line_id && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                        <div style={{ width: '2rem', height: '2rem', borderRadius: 'var(--radius-sm)', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <MessageCircle size={15} color="var(--color-secondary)" />
+                        </div>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280' }}>LINE ID</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <span style={{ fontWeight: 800, color: 'var(--fg-main)', fontSize: '0.9375rem' }}>
+                              @{tutor.line_id.replace(/^@/, '')}
+                            </span>
+                            <button
+                              onClick={() => handleCopyLineId(tutor.line_id!)}
+                              title="Copy LINE ID"
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                cursor: 'pointer',
+                                padding: '2px',
+                                color: copiedLineId === tutor.line_id ? 'var(--color-secondary)' : '#6b7280',
+                              }}
+                            >
+                              {copiedLineId === tutor.line_id ? <Check size={14} /> : <Copy size={14} />}
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {tutor.email && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
+                        <div style={{ width: '2rem', height: '2rem', borderRadius: 'var(--radius-sm)', backgroundColor: '#ffffff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Mail size={15} color="var(--color-secondary)" />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280' }}>EMAIL</div>
+                          <a href={`mailto:${tutor.email}`} style={{ fontWeight: 800, color: 'var(--fg-main)', fontSize: '0.875rem', textDecoration: 'none' }}>
+                            {tutor.email}
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+
+            {hasMoreConfirmedMatches && (
+              <div style={{ display: 'flex', justifyContent: 'center', paddingTop: '0.5rem' }}>
+                <Link to="/student/history?tab=CONFIRMED" style={{ textDecoration: 'none' }}>
+                  <Button
+                    variant="outline"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      fontSize: '0.8125rem',
+                      fontWeight: 800,
+                      padding: '0.45rem 1rem',
+                      backgroundColor: '#ffffff',
+                      border: '2px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)',
+                      color: 'var(--color-primary)',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    See more ({confirmedMatches.length - 3} more) <ArrowRight size={14} strokeWidth={2.4} />
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
       </Card>
 
       {/* 5. Frequently Asked Questions (FAQ) Accordion */}
@@ -1108,19 +1391,16 @@ export const MatchingPage: React.FC = () => {
           </div>
         </Card>
       </div>
+
+      {/* Detailed Tutor Profile Modal (TP-35 + TP-19) */}
+      <TutorDetailModal
+        isOpen={Boolean(inspectTutorId)}
+        tutorId={inspectTutorId}
+        onClose={() => setInspectTutorId(null)}
+      />
     </div>
   );
 };
 
-export const MatchHistoryPage: React.FC = () => {
-  return (
-    <div>
-      <h2 style={{ marginBottom: '1.5rem' }}>Your Matching History</h2>
-      <Card style={{ padding: '3rem', textAlign: 'center', backgroundColor: 'var(--color-muted)' }}>
-        <p style={{ color: 'var(--text-muted)', margin: 0, fontWeight: 600 }}>
-          Matching history list (Module 6)
-        </p>
-      </Card>
-    </div>
-  );
-};
+export { MatchHistoryPage } from './MatchHistoryPage';
+

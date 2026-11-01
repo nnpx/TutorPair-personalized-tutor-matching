@@ -88,6 +88,7 @@ export const Modal: React.FC<ModalProps> = ({
         style={{
           width: '100%',
           maxWidth,
+          maxHeight: '88vh',
           backgroundColor: '#ffffff',
           borderRadius: 'var(--radius-lg, 0.75rem)',
           border: getBorder(),
@@ -108,6 +109,7 @@ export const Modal: React.FC<ModalProps> = ({
             alignItems: 'center',
             justifyContent: 'space-between',
             gap: '0.75rem',
+            flexShrink: 0,
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', minWidth: 0 }}>
@@ -176,6 +178,8 @@ export const Modal: React.FC<ModalProps> = ({
             fontSize: '0.9375rem',
             color: '#374151',
             lineHeight: 1.55,
+            overflowY: 'auto',
+            flex: '1 1 auto',
           }}
         >
           {children}
@@ -193,6 +197,7 @@ export const Modal: React.FC<ModalProps> = ({
               alignItems: 'center',
               gap: '0.875rem',
               flexWrap: 'wrap',
+              flexShrink: 0,
             }}
           >
             {footerActions ? (

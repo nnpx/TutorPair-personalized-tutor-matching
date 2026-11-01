@@ -12,6 +12,7 @@ import { documentsRouter } from './modules/documents/documents.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
 import { matchingRouter } from './modules/matching/matching.routes.js';
 import { reviewsRouter } from './modules/reviews/reviews.routes.js';
+import { notificationsRouter } from './modules/notifications/notifications.routes.js';
 
 export function createApp(): Express {
   const app = express();
@@ -59,6 +60,7 @@ export function createApp(): Express {
   app.use('/api/admin', adminRouter);
   app.use('/api/matching', matchingRouter);
   app.use('/api/reviews', reviewsRouter);
+  app.use('/api/notifications', notificationsRouter);
 
   // 404 Handler for undefined API routes (JSON envelope instead of Express's HTML page)
   app.use((_req, _res, next) => {

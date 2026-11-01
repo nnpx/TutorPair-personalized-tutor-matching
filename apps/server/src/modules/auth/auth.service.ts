@@ -100,7 +100,7 @@ export const authService = {
     }
 
     return {
-      token: `mock-token-${cognitoSub}`,
+      token: `mock-token-${user.cognito_sub}`,
       user: {
         id: user.id,
         cognito_sub: user.cognito_sub,

@@ -15,6 +15,7 @@ export const TUTOR_QUERY_KEYS = {
   availability: ['tutors', 'me', 'availability'] as const,
   verification: ['tutors', 'me', 'verification'] as const,
   catalog: (category?: SubjectCategory) => ['subjects', 'catalog', category ?? 'ALL'] as const,
+  matchedStudents: ['tutors', 'me', 'matched-students'] as const,
 };
 
 // 1. Profile Hooks
@@ -156,3 +157,13 @@ export function useDeleteDocument() {
     },
   });
 }
+
+export function useTutorMatchedStudents(enabled = true) {
+  return useQuery({
+    queryKey: TUTOR_QUERY_KEYS.matchedStudents,
+    queryFn: tutorsApi.getMatchedStudents,
+    enabled,
+    staleTime: 1000 * 30, // 30 seconds
+  });
+}
+

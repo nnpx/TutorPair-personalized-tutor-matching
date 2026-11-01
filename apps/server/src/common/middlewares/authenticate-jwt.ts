@@ -61,7 +61,17 @@ export const authenticate = asyncHandler(
     };
 
     // Lookup user via Repository layer (encapsulates Drizzle ORM / SQL query)
-    const user = await authRepository.findByCognitoSub(cognitoSub);
+    let user = await authRepository.findByCognitoSub(cognitoSub);
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!user && UUID_REGEX.test(cognitoSub)) {
+      // Fallback: check by user.id in case UUID was passed in mock token
+      user = await authRepository.findById(cognitoSub);
+    }
+    const isSyncRoute = req.originalUrl?.includes('/api/auth/sync') || req.path === '/sync';
+    if (!user && cognitoEmail && !isSyncRoute) {
+      // Fallback: check by email in case of mock user session
+      user = await authRepository.findByEmail(cognitoEmail);
+    }
 
     if (user) {
       req.user = user;
@@ -70,7 +80,6 @@ export const authenticate = asyncHandler(
 
     // If user does not exist in DB yet:
     // Allow /api/auth/sync to proceed so first-time users can register/sync
-    const isSyncRoute = req.originalUrl?.includes('/api/auth/sync') || req.path === '/sync';
     if (isSyncRoute) {
       return next();
     }

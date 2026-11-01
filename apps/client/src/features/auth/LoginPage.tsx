@@ -130,6 +130,7 @@ export const LoginPage: React.FC = () => {
         const syncedUser = syncRes.data.data;
         setUser({
           id: syncedUser.id,
+          cognito_sub: (syncedUser as { cognito_sub?: string }).cognito_sub,
           email: syncedUser.email,
           role: syncedUser.role,
         });
@@ -160,7 +161,7 @@ export const LoginPage: React.FC = () => {
       const res = await apiClient.post<
         ApiResponse<{
           token: string;
-          user: { id: string; email: string; role: UserRole };
+          user: { id: string; cognito_sub?: string; email: string; role: UserRole };
         }>
       >('/api/auth/mock-login', {
         role,
@@ -171,6 +172,7 @@ export const LoginPage: React.FC = () => {
         const { user } = res.data.data;
         setUser({
           id: user.id,
+          cognito_sub: user.cognito_sub,
           email: user.email,
           role: user.role,
         });
