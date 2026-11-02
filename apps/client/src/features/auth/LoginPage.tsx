@@ -114,26 +114,35 @@ export const LoginPage: React.FC = () => {
           : (customMockEmail.trim().toLowerCase() || fallbackEmail);
 
       const sub = `google-user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`;
+      const mockToken = `mock-token-${sub}`;
 
       // Temporarily store user state so api client attaches mock token
-      setUser({
-        id: sub,
-        email,
-        role: selectedRole,
-      });
+      setUser(
+        {
+          id: sub,
+          email,
+          role: selectedRole,
+          cognito_sub: sub,
+        },
+        mockToken
+      );
 
       // 2. Synchronize account with backend
       const syncRes = await apiClient.post<
-        ApiResponse<{ id: string; email: string; role: UserRole; is_new_user: boolean }>
+        ApiResponse<{ id: string; email: string; role: UserRole; cognito_sub?: string; is_new_user: boolean }>
       >('/api/auth/sync', { role: selectedRole });
 
       if (syncRes.data.data) {
         const syncedUser = syncRes.data.data;
-        setUser({
-          id: syncedUser.id,
-          email: syncedUser.email,
-          role: syncedUser.role,
-        });
+        setUser(
+          {
+            id: syncedUser.id,
+            email: syncedUser.email,
+            role: syncedUser.role,
+            cognito_sub: syncedUser.cognito_sub || sub,
+          },
+          mockToken
+        );
 
         routeByRole(syncedUser.role);
       }
@@ -161,7 +170,7 @@ export const LoginPage: React.FC = () => {
       const res = await apiClient.post<
         ApiResponse<{
           token: string;
-          user: { id: string; email: string; role: UserRole };
+          user: { id: string; email: string; role: UserRole; cognito_sub?: string };
         }>
       >('/api/auth/mock-login', {
         role,
@@ -169,12 +178,16 @@ export const LoginPage: React.FC = () => {
       });
 
       if (res.data.data) {
-        const { user } = res.data.data;
-        setUser({
-          id: user.id,
-          email: user.email,
-          role: user.role,
-        });
+        const { user, token } = res.data.data;
+        setUser(
+          {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+            cognito_sub: user.cognito_sub,
+          },
+          token
+        );
 
         routeByRole(user.role);
       }

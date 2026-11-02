@@ -6,6 +6,8 @@ import { authRepository } from '../../modules/auth/auth.repository.js';
 import { env } from '../../config/env.js';
 import { asyncHandler } from '../utils/async-handler.js';
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export interface AuthRequest extends Request {
   user?: User;
   cognitoUser?: {
@@ -61,7 +63,18 @@ export const authenticate = asyncHandler(
     };
 
     // Lookup user via Repository layer (encapsulates Drizzle ORM / SQL query)
-    const user = await authRepository.findByCognitoSub(cognitoSub);
+    let user = await authRepository.findByCognitoSub(cognitoSub);
+
+    // Defensive fallback for local dev / tests: if token was passed as mock-token-<uuid>
+    if (!user && (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && UUID_REGEX.test(cognitoSub)) {
+      user = await authRepository.findById(cognitoSub);
+      if (user) {
+        req.cognitoUser = {
+          sub: user.cognito_sub,
+          email: user.email,
+        };
+      }
+    }
 
     if (user) {
       req.user = user;
