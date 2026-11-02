@@ -452,4 +452,34 @@ describe('Auth Module — Integration Tests (Module 2)', () => {
       assert.match(json.message ?? '', /Access denied/i);
     });
   });
+
+  describe('Token Identity Resolution (Cognito Sub vs UUID Fallback)', () => {
+    it('20. should authenticate successfully via mock-token-<cognito_sub>', async () => {
+      const res = await fetch(`${baseUrl}/api/admin/tutors`, {
+        headers: {
+          Authorization: `Bearer mock-token-${adminSub}`,
+        },
+      });
+
+      assert.equal(res.status, 200);
+      const json = await getJson(res);
+      assert.equal(json.success, true);
+    });
+
+    it('21. should authenticate successfully via mock-token-<uuid> fallback in dev/test mode', async () => {
+      // createdUserIds[0] is the admin user's UUID
+      const adminUserId = createdUserIds[0];
+      assert.ok(adminUserId, 'Admin user UUID must exist');
+
+      const res = await fetch(`${baseUrl}/api/admin/tutors`, {
+        headers: {
+          Authorization: `Bearer mock-token-${adminUserId}`,
+        },
+      });
+
+      assert.equal(res.status, 200);
+      const json = await getJson(res);
+      assert.equal(json.success, true);
+    });
+  });
 });
