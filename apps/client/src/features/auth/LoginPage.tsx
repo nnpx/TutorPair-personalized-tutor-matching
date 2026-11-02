@@ -58,7 +58,7 @@ export const LoginPage: React.FC = () => {
 
   // Development Mock Tools State
   const [showDevPanel, setShowDevPanel] = useState(false);
-  const [mockEmail, setMockEmail] = useState('student@tutorpair.local');
+  const [customMockEmail, setCustomMockEmail] = useState('');
 
   const routeByRole = (role: UserRole) => {
     if (role === UserRole.STUDENT) {
@@ -107,10 +107,11 @@ export const LoginPage: React.FC = () => {
 
     try {
       // 1. In development, use mock identity simulation
+      const fallbackEmail = `${selectedRole.toLowerCase()}@tutorpair.local`;
       const email =
         activeTab === 'register'
-          ? `${selectedRole.toLowerCase()}-${Date.now()}@tutorpair.local`
-          : mockEmail;
+          ? (customMockEmail.trim().toLowerCase() || `${selectedRole.toLowerCase()}-${Date.now()}@tutorpair.local`)
+          : (customMockEmail.trim().toLowerCase() || fallbackEmail);
 
       const sub = `google-user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
@@ -156,7 +157,7 @@ export const LoginPage: React.FC = () => {
     queryClient.removeQueries();
 
     try {
-      const sanitizedEmail = mockEmail.trim().toLowerCase() || defaultEmail;
+      const sanitizedEmail = customMockEmail.trim().toLowerCase() || defaultEmail;
       const res = await apiClient.post<
         ApiResponse<{
           token: string;
@@ -528,21 +529,46 @@ export const LoginPage: React.FC = () => {
               }}
             >
               <div style={{ marginBottom: '0.75rem' }}>
-                <label
+                <div
                   style={{
-                    display: 'block',
-                    fontSize: '0.75rem',
-                    fontWeight: 800,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
                     marginBottom: '0.375rem',
                   }}
                 >
-                  Mock Email:
-                </label>
+                  <label
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                    }}
+                  >
+                    Custom Email (Optional):
+                  </label>
+                  {customMockEmail && (
+                    <button
+                      type="button"
+                      onClick={() => setCustomMockEmail('')}
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-primary)',
+                        fontSize: '0.6875rem',
+                        fontWeight: 700,
+                        cursor: 'pointer',
+                        padding: 0,
+                      }}
+                    >
+                      Reset Defaults
+                    </button>
+                  )}
+                </div>
                 <input
                   type="email"
                   className="flat-input"
-                  value={mockEmail}
-                  onChange={(e) => setMockEmail(e.target.value)}
+                  placeholder="Leave empty for role defaults"
+                  value={customMockEmail}
+                  onChange={(e) => setCustomMockEmail(e.target.value)}
                   style={{ fontSize: '0.8125rem', padding: '0.5rem 0.625rem' }}
                 />
               </div>
@@ -564,9 +590,17 @@ export const LoginPage: React.FC = () => {
                     padding: '0.5rem',
                     fontSize: '0.75rem',
                     justifyContent: 'center',
+                    flexDirection: 'column',
+                    gap: '0.125rem',
+                    height: 'auto',
                   }}
                 >
-                  <Sparkles size={14} /> Student
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <Sparkles size={14} /> Student
+                  </span>
+                  <span style={{ fontSize: '0.625rem', opacity: 0.85, fontWeight: 500 }}>
+                    {customMockEmail.trim() ? 'Custom' : 'student@...'}
+                  </span>
                 </Button>
                 <Button
                   type="button"
@@ -578,9 +612,17 @@ export const LoginPage: React.FC = () => {
                     padding: '0.5rem',
                     fontSize: '0.75rem',
                     justifyContent: 'center',
+                    flexDirection: 'column',
+                    gap: '0.125rem',
+                    height: 'auto',
                   }}
                 >
-                  <GraduationCap size={14} /> Tutor
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <GraduationCap size={14} /> Tutor
+                  </span>
+                  <span style={{ fontSize: '0.625rem', opacity: 0.85, fontWeight: 500 }}>
+                    {customMockEmail.trim() ? 'Custom' : 'tutor@...'}
+                  </span>
                 </Button>
                 <Button
                   type="button"
@@ -593,9 +635,17 @@ export const LoginPage: React.FC = () => {
                     justifyContent: 'center',
                     backgroundColor: 'var(--color-dark)',
                     color: 'white',
+                    flexDirection: 'column',
+                    gap: '0.125rem',
+                    height: 'auto',
                   }}
                 >
-                  <ShieldCheck size={14} /> Admin
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <ShieldCheck size={14} /> Admin
+                  </span>
+                  <span style={{ fontSize: '0.625rem', opacity: 0.85, fontWeight: 500 }}>
+                    {customMockEmail.trim() ? 'Custom' : 'admin@...'}
+                  </span>
                 </Button>
               </div>
             </div>
