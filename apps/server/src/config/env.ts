@@ -12,7 +12,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string().url().default('postgresql://postgres:postgres@localhost:5432/tutorpair'),
   EMAIL_MODE: z.enum(['disabled', 'preview', 'ses']).default('disabled'),
   EMAIL_PREVIEW_DIR: z.string().default('work/email-preview'),
-  TUTOR_PORTAL_URL: z.string().url().default('http://localhost:5180/tutor/profile'),
+  TUTOR_PORTAL_URL: z.string().url().default('http://localhost:5173/tutor/profile'),
   AWS_REGION: z.string().default('ap-southeast-1'),
   COGNITO_USER_POOL_ID: z.string().default('ap-southeast-1_mockpool'),
   COGNITO_CLIENT_ID: z.string().default('mockclientid123456789'),
