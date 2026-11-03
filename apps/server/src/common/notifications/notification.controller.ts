@@ -1,8 +1,7 @@
-import { z } from 'zod';
 import { AuthRequest } from '../middlewares/authenticate-jwt.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import { successResponse } from '../utils/response.util.js';
-import { BadRequestError, NotFoundError } from '../errors/http-errors.js';
+import { NotFoundError } from '../errors/http-errors.js';
 import { notificationService } from './notification.service.js';
 import type { TutorNotificationList } from '@tutorpair/shared';
 
@@ -23,7 +22,6 @@ export const notificationController = {
     res.json(successResponse({ updatedCount }));
   }),
   read: asyncHandler(async (req: AuthRequest, res) => {
-    if (!z.string().uuid().safeParse(req.params.id).success) throw new BadRequestError('Invalid notification ID');
     const row = await notificationService.markAsRead(req.params.id, req.user!.id);
     if (!row) throw new NotFoundError('Notification not found');
     res.json(successResponse({ id: row.id, is_read: row.is_read }));

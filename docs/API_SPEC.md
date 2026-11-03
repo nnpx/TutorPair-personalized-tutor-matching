@@ -3035,3 +3035,112 @@ No eligible tutor is **not** an error: the response is `200` with `recommendatio
 | `500` | `An unexpected error occurred. Please try again later.` | unhandled failure |
 
 Confirm is all-or-nothing: if any step fails, the request stays `PENDING`, no recommendation is selected and no notification is created.
+
+---
+
+# Module 8: Tutor Notifications & Email Delivery (TP-13, TP-14)
+
+## 1. Endpoints and Access
+
+All paths include `/api`. All three endpoints require `Authorization: Bearer <token>` and the database role `TUTOR`. Identity is resolved from `req.user.id`; clients cannot choose a notification recipient. For local development, use the token returned by `/api/auth/mock-login`, not a token constructed from the database UUID. Mock tokens are rejected in production.
+
+| Method | Path | Purpose | Success |
+|---|---|---|---|
+| GET | `/api/notifications` | List the current tutor's notifications and unread count | 200 |
+| PATCH | `/api/notifications/:id/read` | Mark one owned notification read | 200 |
+| PATCH | `/api/notifications/read-all` | Mark all currently unread owned notifications read | 200 |
+
+No query parameters are supported, including `unread`, pagination, or recipient filters. Query fields are rejected with 400. No request body is required; an empty JSON object is accepted. Unknown body fields, arrays, null and primitive bodies are rejected. The `:id` parameter must be a UUID. Authentication and role checks precede endpoint validation; global JSON parsing/size checks happen before routing.
+
+## 2. Response Contracts
+
+### GET `/api/notifications`
+
+```json
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "00000000-0000-4000-8000-000000000001",
+        "event_type": "TUTOR_SELECTED",
+        "message": "A student has selected you as their tutor. Please check your contact details.",
+        "is_read": false,
+        "created_at": "2026-11-03T06:18:47.000Z"
+      }
+    ],
+    "unreadCount": 1
+  }
+}
+```
+
+Returns all owned rows, newest first; equal timestamps are ordered by ID descending. No notifications returns `{"success":true,"data":{"items":[],"unreadCount":0}}`. The public item DTO contains only `id`, `event_type`, `message`, `is_read`, and ISO timestamp `created_at`. Recipient IDs, email addresses and worker delivery metadata are not exposed. Pagination is not implemented.
+
+### PATCH `/api/notifications/:id/read`
+
+```json
+{"success":true,"data":{"id":"00000000-0000-4000-8000-000000000001","is_read":true}}
+```
+
+Owner-scoped and repeat-safe: an already-read owned item still returns 200. Unknown IDs and another tutor's IDs return the same 404, without revealing ownership.
+
+### PATCH `/api/notifications/read-all`
+
+```json
+{"success":true,"data":{"updatedCount":2}}
+```
+
+`updatedCount` counts newly changed rows. A repeated request returns zero when none remain unread. This action does not delete notifications or change email delivery status.
+
+The current bell displays database notifications with unread indicators and refreshes on open, window focus and every 60 seconds while the window is visible. Sample-preview and manual read buttons are removed from the current local UI; the read APIs remain available. Opening the bell does not automatically mark notifications read.
+
+## 3. Error Handling and Input Guards
+
+Uses the existing global `errorResponse` envelope and `errorHandler`; controllers use `asyncHandler`. Database/service failures propagate to that handler rather than becoming false successes or sample responses. The examples below reflect actual serialization: `details` is omitted when undefined.
+
+```json
+{
+  "success": false,
+  "message": "Request validation failed",
+  "details": [{"field":"id","message":"Invalid ID: must be a valid UUID"}]
+}
+```
+
+| Status | Applies to | Condition / response |
+|---|---|---|
+| 400 | All | Unsupported query/body fields or invalid body type; `Request validation failed` with field details; malformed JSON is `Malformed JSON in request body` |
+| 400 | Single-read | Malformed UUID, before repository access; shared UUID validation details |
+| 401 | All | Missing/malformed/invalid/expired credentials or no corresponding user; existing authentication error message |
+| 403 | All | Authenticated STUDENT/ADMIN or other non-TUTOR role; existing role-guard message |
+| 404 | Single-read | Missing notification or another tutor's notification; `Notification not found` |
+| 413 | All, where a body is sent | Global 1 MB JSON limit; `Request body too large` |
+| 500 | All | Unexpected database/service failure; production message `An unexpected error occurred. Please try again later.`; development/test may expose the underlying error message |
+
+The existing global PostgreSQL mappings also apply: invalid parameter format (22P02) -> 400; unique conflict (23505) -> 409; foreign-key violation (23503) -> 400. These are shared fallbacks, not expected normal read-endpoint outcomes. No new global error format is introduced.
+
+## 4. Integration Events and Guards
+
+| Event | Trigger and validation | Atomicity and repeat handling |
+|---|---|---|
+| `TUTOR_SELECTED` (TP-13) | Existing STUDENT-only `POST /api/matching/:matchRequestId/confirm`; required UUID `recommendation_id` and `tutor_id`; service validates request ownership/identity, recommendation membership, tutor identity and approval status | Confirmation and notification are one transaction. Already-confirmed requests return 409; concurrent confirmations cannot create two selections. Full 400/401/403/404/409/413/422/500 catalogue remains in Module 6 above. |
+| `VERIFICATION_APPROVED` (TP-14) | Existing ADMIN-only `PATCH /api/admin/tutors/:id/verify`; UUID tutor ID and status `APPROVED` | Status and notification saved together under a tutor-row lock. Repeated same-status decisions do not create another event. |
+| `VERIFICATION_REJECTED` (TP-14) | Same admin route with status `REJECTED` and a nonblank `rejection_reason` string, maximum 1000 characters | Rejection reason is trimmed and included in the notification/email. Notification persistence failure rolls back the decision. |
+
+Admin verification errors retain the global envelope: malformed ID/missing or invalid body/status/reason -> 400; authentication -> 401; non-admin -> 403; missing database tutor -> 404; body limit -> 413; unexpected persistence failure -> 500. Rejection requires a reason in both the shared schema and service. In-memory sample tutors cannot be approved as if they were persisted database records. Matching scoring, authentication and document-upload contracts are not modified by this specification.
+
+## 5. Asynchronous Email Contract
+
+There is no public frontend endpoint to send arbitrary email. The matching/admin transaction queues the relevant email by persisting the notification with `requires_email=true` and `email_status=PENDING`. Business API success means the transaction committed, not that an email reached an inbox.
+
+- `EMAIL_MODE=disabled` (default): no email delivery.
+- `EMAIL_MODE=preview`: local HTML/JSON previews, restricted to development/test with a loopback database; no AWS calls and no notification `SENT` status.
+- `EMAIL_MODE=ses`: SES adapter requires a configured verified sender, AWS credentials/task role, region and an HTTPS public `TUTOR_PORTAL_URL`.
+- Worker claims are persisted in `email_deliveries`, separately for preview and SES. Expiring ownership leases and fenced completion protect concurrent workers. Transient errors retry with bounded backoff; permanent errors or exhausted attempts fail delivery. A notification stays visible even when email fails.
+- SES acceptance records `SENT`; it does not prove inbox arrival. A crash after SES accepts but before success is persisted can cause a duplicate; exactly-once email delivery is not promised.
+- Approval/rejection/selection templates escape dynamic content and include a Tutor Portal link. The link opens the website and requires the correct account; it does not itself approve or reject an application.
+
+Deployment must apply the reviewed additive email-delivery migration and configure the target database. Merging Git code does not copy local test records or configure a deployment. See [local verification](./LOCAL_NOTIFICATIONS.md) and [SES deployment handoff](./SES_EMAIL_HANDOFF.md).
+
+## 6. Verification
+
+Run `npm run build` and `npm test` against the isolated loopback test database as specified in `LOCAL_NOTIFICATIONS.md`. Coverage includes request guards, owner isolation, role checks, error propagation, repeat/concurrent confirmation, transaction rollback, escaped templates, preview files and mocked SES retries/leases. Opt-in database tests use separate synthetic fixtures and send no real email. Live Cognito/SES and deployed database verification remain cloud integration checks.

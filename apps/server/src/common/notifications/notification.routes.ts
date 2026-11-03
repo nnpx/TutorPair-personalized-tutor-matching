@@ -1,10 +1,12 @@
 import { Router } from 'express';
-import { UserRole } from '@tutorpair/shared';
+import { NotificationBodySchema, NotificationQuerySchema, UuidParamSchema, UserRole } from '@tutorpair/shared';
 import { authenticate } from '../middlewares/authenticate-jwt.js';
 import { requireRole } from '../middlewares/require-role.js';
 import { notificationController } from './notification.controller.js';
+import { validateRequest } from '../middlewares/validate-request.js';
 export const notificationRouter = Router();
 notificationRouter.use(authenticate, requireRole([UserRole.TUTOR]));
+notificationRouter.use(validateRequest(NotificationQuerySchema, 'query'), validateRequest(NotificationBodySchema));
 notificationRouter.get('/', notificationController.list);
 notificationRouter.patch('/read-all', notificationController.readAll);
-notificationRouter.patch('/:id/read', notificationController.read);
+notificationRouter.patch('/:id/read', validateRequest(UuidParamSchema, 'params'), notificationController.read);

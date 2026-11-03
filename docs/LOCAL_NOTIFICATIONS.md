@@ -1,6 +1,6 @@
 # Tutor notifications: local setup and verification
 
-Tutor confirmations and admin application decisions persist in-app notifications and queue emails in the same database transaction. The tutor bell lists owned notifications, shows an unread count, and supports per-item/all-read actions. Worker delivery is separate from the request path.
+Tutor confirmations and admin application decisions persist in-app notifications and queue emails in the same database transaction. The tutor bell lists owned notifications, shows an unread count, with no sample preview or manual read buttons. Read APIs remain available; opening the bell does not mark notifications read. Worker delivery is separate from the request path.
 
 ## Local configuration
 
@@ -8,7 +8,7 @@ EMAIL_MODE is disabled by default. Use preview for local HTML/JSON email files; 
 
     EMAIL_MODE=preview
     EMAIL_PREVIEW_DIR=work/email-preview
-    TUTOR_PORTAL_URL=http://localhost:5180/tutor/profile
+    TUTOR_PORTAL_URL=http://localhost:5173/tutor/profile
 
 Preview mode requires a loopback database host and NODE_ENV=development or test. SES delivery is configured separately in SES_EMAIL_HANDOFF.md.
 
@@ -20,7 +20,7 @@ Use an isolated local PostgreSQL database for write tests. The notification migr
 - PATCH /api/notifications/:id/read: owned notification only; malformed UUID -> 400, missing/other user's notification -> 404.
 - PATCH /api/notifications/read-all: current tutor only.
 
-All routes require authenticated TUTOR role. The response excludes recipient IDs and email-delivery internals. The bell polls every 60 seconds while visible and refreshes on focus/open. Read status is independent of email status. The clearly labeled development-only sample does not touch the database.
+All routes require authenticated TUTOR role. The response excludes recipient IDs and email-delivery internals. The bell polls every 60 seconds while visible and refreshes on focus/open. Read status is independent of email status. The bell has one database-backed notification view. See API_SPEC.md, Module 8, for complete request guards and error contracts.
 
 The student form saves the chosen budget/availability, calls POST /api/matching, then presents server-provided recommendations. Confirmation calls POST /api/matching/:matchRequestId/confirm with recommendation_id and tutor_id. The matching backend algorithm and API contract are unchanged. Budget/availability updates are separate requests; an earlier update can persist if a later request fails. Results currently use browser navigation state; persisted match history is outside this change.
 
