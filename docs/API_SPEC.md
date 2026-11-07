@@ -6,9 +6,76 @@
 > Local mock bypass: `Authorization: Bearer mock-token-<user-id>` (see [`AUTH_FLOW.md`](./AUTH_FLOW.md))
 >
 > **Conventions:**
+>
 > - All tutoring sessions and matchmaking are conducted **Online by default**.
 > - Clients **never** pass `user_id`, `student_id`, or `tutor_id` in URLs for self-service endpoints. Identity is securely resolved from `req.user.id` via JWT.
 > - All responses conform strictly to [`ApiResponse<T>`](../packages/shared/src/types/index.ts).
+
+---
+
+## 📑 Table of Contents
+
+- [Response Envelope & Conventions](#response-envelope--conventions)
+  - [1. Success Response Structure](#1-success-response-structure)
+  - [2. Standard Error Response Structure](#2-standard-error-response-structure)
+  - [3. HTTP Status Codes](#3-http-status-codes)
+- [Module 2: Authentication & User Management](#module-2-authentication--user-management)
+  - [`POST /api/auth/sync`](#41-post-apiauthsync-task-1--task-2)
+  - [`GET /api/auth/me`](#42-get-apiauthme-task-2--task-3)
+  - [`POST /api/auth/mock-login`](#43-post-apiauthmock-login-development--testing-mock-utility)
+  - [`POST /api/auth/logout`](#44-post-apiauthlogout-task-1)
+  - [Role-Based Access Control (RBAC)](#5-role-based-access-control-rbac-matrix-task-3)
+  - [Zod Validation Schemas](#6-zod-validation-schemas-packagesshared)
+  - [Error Handling & Input Guards](#8-error-handling--input-guards-module-2-auth)
+- [Module 3: Student Profile & Preferences](#module-3-student-profile--preferences)
+  - [`GET /api/students/profile`](#51-get-apistudentsprofile-tp-58-tp-57-tp-54)
+  - [`POST /api/students/profile`](#52-post-apistudentsprofile-tp-58-tp-57-tp-54)
+  - [`PATCH /api/students/profile`](#53-patch-apistudentsprofile-tp-58-tp-57-tp-54)
+  - [`GET /api/students/availability`](#54-get-apistudentsavailability-tp-54)
+  - [`PUT /api/students/availability`](#55-put-apistudentsavailability-tp-54)
+  - [`GET /api/students/subjects`](#56-get-apistudentssubjects-tp-58)
+  - [`PUT /api/students/subjects`](#57-put-apistudentssubjects-tp-58)
+  - [Learning Preferences 1–5 Slider Mapping](#6-tp-57-learning-preferences-15-slider-semantic-mapping)
+  - [Database Schema Mapping](#8-database-schema-mapping)
+- [Module 4: Tutor Profile & Verification](#module-4-tutor-profile--verification)
+  - [`GET /tutors/profile`](#get-tutorsprofile)
+  - [`POST /tutors/profile`](#post-tutorsprofile)
+  - [`PATCH /tutors/profile`](#patch-tutorsprofile)
+  - [`GET /tutors/subjects`](#get-tutorssubjects)
+  - [`PUT /tutors/subjects`](#put-tutorssubjects)
+  - [`GET /tutors/availability`](#get-tutorsavailability)
+  - [`PUT /tutors/availability`](#put-tutorsavailability)
+  - [`GET /tutors/verification`](#get-tutorsverification)
+  - [`GET /subjects`](#get-subjects)
+  - [S3 Direct Document Upload Workflow](#6-s3-direct-document-upload-workflow)
+    - [`POST /documents/presigned-upload`](#post-documentspresigned-upload)
+    - [`PUT <uploadUrl>` (Direct S3 Binary Upload)](#put-uploadurl-direct-s3-binary-upload)
+    - [`POST /documents/confirm`](#post-documentsconfirm)
+    - [`DELETE /documents/:id`](#delete-documentsid)
+- [Module 5: Admin Tutor Verification](#module-5-admin-tutor-verification)
+  - [`GET /admin/tutors`](#get-admintutors)
+  - [`GET /admin/tutors/:id`](#get-admintutorsid)
+  - [`GET /admin/tutors/:id/documents/:docId/view-url`](#get-admintutorsiddocumentsdocidview-url)
+  - [`PATCH /admin/tutors/:id/verify`](#patch-admintutorsidverify)
+  - [Global API Fallbacks & Resilience](#4-global-api-fallbacks--resilience)
+- [Module 6: Tutor Matching](#module-6-tutor-matching)
+  - [How the Match Works (Hard filters & 0–100 Scoring)](#2-how-the-match-works)
+  - [`POST /api/matching`](#3-post-apimatching-tp-8)
+  - [`POST /api/matching/:matchRequestId/confirm`](#4-post-apimatchingmatchrequestidconfirm-tp-9)
+  - [Error Handling & Input Guards](#5-error-handling--input-guards-module-6)
+- [Module 7: Matching Results, History & Reviews](#module-7-matching-results-history--reviews)
+  - [`GET /api/matching/history`](#2-get-apimatchinghistory-tp-10--tp-34)
+  - [`GET /api/tutors/:tutorId`](#3-get-apitutorstutorid-tp-35)
+  - [`POST /api/reviews`](#4-post-apireviews-tp-30)
+  - [`GET /api/reviews/recommendation/:recommendationId`](#5-get-apireviewsrecommendationrecommendationid-tp-30)
+  - [`GET /api/reviews/tutor/:tutorId`](#6-get-apireviewstutortutorid-tp-19)
+  - [Error Handling & Input Guards](#7-error-handling--input-guards-module-7)
+- [Module 8: Tutor Notifications & Email Delivery](#module-8-tutor-notifications--email-delivery-tp-13-tp-14)
+  - [`GET /api/notifications`](#get-apinotifications)
+  - [`PATCH /api/notifications/:id/read`](#patch-apinotificationsidread)
+  - [`PATCH /api/notifications/read-all`](#patch-apinotificationsread-all)
+  - [Error Handling and Input Guards](#3-error-handling-and-input-guards)
+  - [Asynchronous Email Contract](#5-asynchronous-email-contract)
 
 ---
 
@@ -59,28 +126,28 @@ Error responses are handled centrally by [`errorHandler`](../apps/server/src/com
 
 ### 3. HTTP Status Codes
 
-| Status Code | Error Class | When Used |
-|---|---|---|
-| `200 OK` | — | Successful query, update, or deletion operation |
-| `201 Created` | — | Successful creation (`POST /students/profile`, `POST /tutors/profile`, `POST /documents/confirm`) |
-| `400 Bad Request` | `BadRequestError` | Request body or params fail Zod schema validation, invalid UUID, malformed JSON, or invalid time slot bounds |
-| `401 Unauthorized` | `UnauthorizedError` | Missing, expired, or invalid Cognito JWT bearer token |
-| `403 Forbidden` | `ForbiddenError` | Authenticated user lacks required role or tries to access another user's private resource |
-| `404 Not Found` | `NotFoundError` | Tutor profile, subject variant, document, or route does not exist |
-| `409 Conflict` | `ConflictError` | Tutor profile already exists for this user, or schedule contains overlapping slots on the same day |
-| `413 Payload Too Large` | — | Request body is larger than the 1 MB JSON limit |
-| `422 Unprocessable Entity` | `UnprocessableEntityError` | Semantically invalid input violating business rules |
-| `500 Internal Server Error` | `InternalServerError` | Unhandled server or database exception |
+| Status Code                 | Error Class                | When Used                                                                                                    |
+| --------------------------- | -------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `200 OK`                    | —                          | Successful query, update, or deletion operation                                                              |
+| `201 Created`               | —                          | Successful creation (`POST /students/profile`, `POST /tutors/profile`, `POST /documents/confirm`)            |
+| `400 Bad Request`           | `BadRequestError`          | Request body or params fail Zod schema validation, invalid UUID, malformed JSON, or invalid time slot bounds |
+| `401 Unauthorized`          | `UnauthorizedError`        | Missing, expired, or invalid Cognito JWT bearer token                                                        |
+| `403 Forbidden`             | `ForbiddenError`           | Authenticated user lacks required role or tries to access another user's private resource                    |
+| `404 Not Found`             | `NotFoundError`            | Tutor profile, subject variant, document, or route does not exist                                            |
+| `409 Conflict`              | `ConflictError`            | Tutor profile already exists for this user, or schedule contains overlapping slots on the same day           |
+| `413 Payload Too Large`     | —                          | Request body is larger than the 1 MB JSON limit                                                              |
+| `422 Unprocessable Entity`  | `UnprocessableEntityError` | Semantically invalid input violating business rules                                                          |
+| `500 Internal Server Error` | `InternalServerError`      | Unhandled server or database exception                                                                       |
 
 ---
 
-# Part 0: Module 2 — Authentication & User Management
+# Module 2: Authentication & User Management
 
 > **Jira Epic:** EPIC 2: Development — Authentication & User Management  
 > **Sub-Tasks:**  
 > • **Task 1**: Develop Google authentication with AWS Cognito  
 > • **Task 2**: Develop user role identification  
-> • **Task 3**: Develop role-based access control (RBAC)  
+> • **Task 3**: Develop role-based access control (RBAC)
 >
 > **Access Roles:** Public / Authenticated (`STUDENT`, `TUTOR`, `ADMIN`).
 
@@ -125,6 +192,7 @@ flowchart TD
 ```
 
 ### How Other Modules Connect to Module 2:
+
 1. **Request Identity (`req.user`)**: Every protected route across Module 3 (Students), Module 4 (Tutors), Module 5 (Admin), and Module 6 (Matching) invokes `authenticate`, which verifies the bearer token and injects the resolved `req.user` (`UserSession`: `{ id, cognito_sub, email, role }`).
 2. **Access Control (`requireRole`)**: Route definitions pass allowed role arrays (e.g., `requireRole(['STUDENT'])`). Requests from unauthorized roles are intercepted immediately with `403 Forbidden`.
 3. **Foreign Key Integrity**: All domain models (`students.user_id`, `tutors.user_id`, `availabilities.user_id`, `notifications.user_id`) reference `users.id` with `ON DELETE CASCADE`.
@@ -154,6 +222,7 @@ Local Dev / Test Mode (3rd-Party Mock Bypass):
    - In development, unseeded mock identities are auto-provisioned to unblock rapid UI prototyping.
 
 ### 2.2. Critical Role Security & Privilege Boundary
+
 - **Role Source of Truth**: User roles are stored in the PostgreSQL `users` table, **not** inside Cognito JWT custom attributes. This prevents token-tampering privilege escalation.
 - **Self-Registration Restrictions**: Public registration (`POST /api/auth/sync`) only permits selecting `STUDENT` or `TUTOR`. Submitting `{ "role": "ADMIN" }` returns `400 Bad Request`.
 - **Role Immutability**: Once a user record is created in PostgreSQL with an assigned role, calling `POST /api/auth/sync` on subsequent logins returns the existing record and **never** overwrites the established role.
@@ -162,12 +231,12 @@ Local Dev / Test Mode (3rd-Party Mock Bypass):
 
 ## 3. Endpoints Summary
 
-| Sub-Task | Method | Endpoint | Description | Auth & Allowed Roles | Client Use Case |
-|---|---|---|---|---|---|
-| **Task 1 & 2** | `POST` | `/api/auth/sync` | Sync Cognito/Google session to PostgreSQL & set initial role | Bearer JWT (New or existing user) | Called immediately upon first successful login / signup |
-| **Task 2** | `GET` | `/api/auth/me` *(alias: `/api/users/me`)* | Retrieve current authenticated user session & profile status | Bearer JWT (`STUDENT`, `TUTOR`, `ADMIN`) | Hydrates client Zustand `auth.store` and route guards |
-| **Task 1** | `POST` | `/api/auth/mock-login` | Issue mock session credentials for local development/testing | Public (Disabled in production) | Fast local testing switcher on `LoginPage.tsx` |
-| **Task 1** | `POST` | `/api/auth/logout` | Client logout session acknowledgment | Bearer JWT (Any authenticated user) | Clears server-side session references if applicable |
+| Sub-Task       | Method | Endpoint                                  | Description                                                  | Auth & Allowed Roles                     | Client Use Case                                         |
+| -------------- | ------ | ----------------------------------------- | ------------------------------------------------------------ | ---------------------------------------- | ------------------------------------------------------- |
+| **Task 1 & 2** | `POST` | `/api/auth/sync`                          | Sync Cognito/Google session to PostgreSQL & set initial role | Bearer JWT (New or existing user)        | Called immediately upon first successful login / signup |
+| **Task 2**     | `GET`  | `/api/auth/me` _(alias: `/api/users/me`)_ | Retrieve current authenticated user session & profile status | Bearer JWT (`STUDENT`, `TUTOR`, `ADMIN`) | Hydrates client Zustand `auth.store` and route guards   |
+| **Task 1**     | `POST` | `/api/auth/mock-login`                    | Issue mock session credentials for local development/testing | Public (Disabled in production)          | Fast local testing switcher on `LoginPage.tsx`          |
+| **Task 1**     | `POST` | `/api/auth/logout`                        | Client logout session acknowledgment                         | Bearer JWT (Any authenticated user)      | Clears server-side session references if applicable     |
 
 ---
 
@@ -177,12 +246,12 @@ Local Dev / Test Mode (3rd-Party Mock Bypass):
 
 Synchronizes an authenticated AWS Cognito / Google OAuth user with the PostgreSQL `users` table. If the user does not exist, a new record is created with the requested role (`STUDENT` or `TUTOR`). If the user already exists, returns the existing record (role is immutable).
 
-* **Endpoint:** `POST /api/auth/sync`
-* **Headers:**
-  * `Authorization: Bearer <cognito-id-token>` *(or `Bearer mock-token-<sub-id>` in dev)*
-  * `Content-Type: application/json`
-  * `X-Mock-Email: <email>` *(Optional, dev/test mock mode only)*
-* **Role Requirement:** Authenticated (New user or existing `STUDENT` / `TUTOR` / `ADMIN`)
+- **Endpoint:** `POST /api/auth/sync`
+- **Headers:**
+  - `Authorization: Bearer <cognito-id-token>` _(or `Bearer mock-token-<sub-id>` in dev)_
+  - `Content-Type: application/json`
+  - `X-Mock-Email: <email>` _(Optional, dev/test mock mode only)_
+- **Role Requirement:** Authenticated (New user or existing `STUDENT` / `TUTOR` / `ADMIN`)
 
 #### Request Body Schema (`SyncUserSchema`)
 
@@ -192,9 +261,9 @@ Synchronizes an authenticated AWS Cognito / Google OAuth user with the PostgreSQ
 }
 ```
 
-| Field | Type | Required | Allowed Values | Description |
-|---|---|---|---|---|
-| `role` | `string` | **Yes** | `"STUDENT"`, `"TUTOR"` | Role selected by user during registration. `"ADMIN"` is prohibited. |
+| Field  | Type     | Required | Allowed Values         | Description                                                         |
+| ------ | -------- | -------- | ---------------------- | ------------------------------------------------------------------- |
+| `role` | `string` | **Yes**  | `"STUDENT"`, `"TUTOR"` | Role selected by user during registration. `"ADMIN"` is prohibited. |
 
 #### Response `201 Created` (First Login — User Created)
 
@@ -233,7 +302,9 @@ Synchronizes an authenticated AWS Cognito / Google OAuth user with the PostgreSQ
 #### Error Responses
 
 ##### `400 Bad Request` (Invalid Role or Privilege Escalation)
-*(Returned when request body fails validation or attempts to set role to `ADMIN`)*
+
+_(Returned when request body fails validation or attempts to set role to `ADMIN`)_
+
 ```json
 {
   "success": false,
@@ -248,7 +319,9 @@ Synchronizes an authenticated AWS Cognito / Google OAuth user with the PostgreSQ
 ```
 
 ##### `401 Unauthorized`
-*(Returned when `Authorization` header is missing, token is malformed, signature verification fails, or token has expired)*
+
+_(Returned when `Authorization` header is missing, token is malformed, signature verification fails, or token has expired)_
+
 ```json
 {
   "success": false,
@@ -258,7 +331,9 @@ Synchronizes an authenticated AWS Cognito / Google OAuth user with the PostgreSQ
 ```
 
 ##### `409 Conflict` (Duplicate Email Conflict)
-*(Returned when the email from the token is already registered to a different `cognito_sub`)*
+
+_(Returned when the email from the token is already registered to a different `cognito_sub`)_
+
 ```json
 {
   "success": false,
@@ -270,6 +345,7 @@ Synchronizes an authenticated AWS Cognito / Google OAuth user with the PostgreSQ
 ```
 
 ##### `500 Internal Server Error`
+
 ```json
 {
   "success": false,
@@ -284,9 +360,9 @@ Synchronizes an authenticated AWS Cognito / Google OAuth user with the PostgreSQ
 
 Retrieves the currently authenticated user's account details, database role, and onboarding completion status across sub-modules.
 
-* **Endpoint:** `GET /api/auth/me` *(Alias: `GET /api/users/me`)*
-* **Headers:** `Authorization: Bearer <token>`
-* **Role Requirement:** `STUDENT`, `TUTOR`, or `ADMIN`
+- **Endpoint:** `GET /api/auth/me` _(Alias: `GET /api/users/me`)_
+- **Headers:** `Authorization: Bearer <token>`
+- **Role Requirement:** `STUDENT`, `TUTOR`, or `ADMIN`
 
 #### Response `200 OK` (Student Example)
 
@@ -328,7 +404,9 @@ Retrieves the currently authenticated user's account details, database role, and
 #### Error Responses
 
 ##### `401 Unauthorized`
-*(Returned when token is missing or invalid)*
+
+_(Returned when token is missing or invalid)_
+
 ```json
 {
   "success": false,
@@ -338,7 +416,9 @@ Retrieves the currently authenticated user's account details, database role, and
 ```
 
 ##### `404 Not Found`
-*(Returned when valid token is presented but user record does not exist in PostgreSQL — indicates `/api/auth/sync` is required)*
+
+_(Returned when valid token is presented but user record does not exist in PostgreSQL — indicates `/api/auth/sync` is required)_
+
 ```json
 {
   "success": false,
@@ -355,9 +435,9 @@ Provides mock authentication credentials for local automated testing and UI deve
 
 > **Environment Constraint:** Only accessible when `NODE_ENV === 'development'` or `NODE_ENV === 'test'`. Returns `403 Forbidden` if invoked in production.
 
-* **Endpoint:** `POST /api/auth/mock-login`
-* **Headers:** `Content-Type: application/json`
-* **Role Requirement:** Public (Development only)
+- **Endpoint:** `POST /api/auth/mock-login`
+- **Headers:** `Content-Type: application/json`
+- **Role Requirement:** Public (Development only)
 
 #### Request Body Schema
 
@@ -368,10 +448,10 @@ Provides mock authentication credentials for local automated testing and UI deve
 }
 ```
 
-| Field | Type | Required | Description |
-|---|---|---|---|
-| `role` | `string` | **Yes** | `"STUDENT"`, `"TUTOR"`, or `"ADMIN"` |
-| `email` | `string` | No | Custom email for testing. Defaults to `<role>@tutorpair.local`. |
+| Field   | Type     | Required | Description                                                     |
+| ------- | -------- | -------- | --------------------------------------------------------------- |
+| `role`  | `string` | **Yes**  | `"STUDENT"`, `"TUTOR"`, or `"ADMIN"`                            |
+| `email` | `string` | No       | Custom email for testing. Defaults to `<role>@tutorpair.local`. |
 
 #### Response `200 OK`
 
@@ -394,6 +474,7 @@ Provides mock authentication credentials for local automated testing and UI deve
 #### Error Responses
 
 ##### `403 Forbidden` (Production Safeguard)
+
 ```json
 {
   "success": false,
@@ -408,9 +489,9 @@ Provides mock authentication credentials for local automated testing and UI deve
 
 Acknowledges user session termination. Invalidates client-side session state. (AWS Cognito ID tokens are stateless JWTs, but this endpoint provides an audit hook and coordinates client cache clearance).
 
-* **Endpoint:** `POST /api/auth/logout`
-* **Headers:** `Authorization: Bearer <token>`
-* **Role Requirement:** Authenticated
+- **Endpoint:** `POST /api/auth/logout`
+- **Headers:** `Authorization: Bearer <token>`
+- **Role Requirement:** Authenticated
 
 #### Response `200 OK`
 
@@ -428,20 +509,21 @@ Acknowledges user session termination. Invalidates client-side session state. (A
 
 The backend enforces authorization using the `requireRole(allowedRoles: UserRole[])` middleware applied to route handlers. The table below defines route permissions across the platform:
 
-| API Route Group | Target Resources | Allowed Roles | Middleware Chain | Unauthenticated | Unauthorized Role |
-|---|---|---|---|---|---|
-| `/api/auth/sync` | Account sync & onboarding | Any valid JWT | `authenticate` *(permissive)* | `401 Unauthorized` | N/A |
-| `/api/auth/me` | Current session details | `STUDENT`, `TUTOR`, `ADMIN` | `authenticate` | `401 Unauthorized` | `403 Forbidden` |
-| `/api/students/*` | Profile, budget, preferences, matching requests | `STUDENT` | `authenticate`, `requireRole(['STUDENT'])` | `401 Unauthorized` | `403 Forbidden` |
-| `/api/tutors/*` | Profile, subjects, availability, rates | `TUTOR` | `authenticate`, `requireRole(['TUTOR'])` | `401 Unauthorized` | `403 Forbidden` |
-| `/api/documents/*` | Document upload & status | `TUTOR`, `ADMIN` | `authenticate`, `requireRole(['TUTOR', 'ADMIN'])` | `401 Unauthorized` | `403 Forbidden` |
-| `/api/admin/*` | Verification review, approvals, system audits | `ADMIN` | `authenticate`, `requireRole(['ADMIN'])` | `401 Unauthorized` | `403 Forbidden` |
-| `/api/matching/*` | Recommendation query & confirmation | `STUDENT` | `authenticate`, `requireRole(['STUDENT'])` | `401 Unauthorized` | `403 Forbidden` |
-| `/api/reviews/*` | Lesson review submission | `STUDENT` *(confirmed only)* | `authenticate`, `requireRole(['STUDENT'])` | `401 Unauthorized` | `403 Forbidden` |
+| API Route Group    | Target Resources                                | Allowed Roles                | Middleware Chain                                  | Unauthenticated    | Unauthorized Role |
+| ------------------ | ----------------------------------------------- | ---------------------------- | ------------------------------------------------- | ------------------ | ----------------- |
+| `/api/auth/sync`   | Account sync & onboarding                       | Any valid JWT                | `authenticate` _(permissive)_                     | `401 Unauthorized` | N/A               |
+| `/api/auth/me`     | Current session details                         | `STUDENT`, `TUTOR`, `ADMIN`  | `authenticate`                                    | `401 Unauthorized` | `403 Forbidden`   |
+| `/api/students/*`  | Profile, budget, preferences, matching requests | `STUDENT`                    | `authenticate`, `requireRole(['STUDENT'])`        | `401 Unauthorized` | `403 Forbidden`   |
+| `/api/tutors/*`    | Profile, subjects, availability, rates          | `TUTOR`                      | `authenticate`, `requireRole(['TUTOR'])`          | `401 Unauthorized` | `403 Forbidden`   |
+| `/api/documents/*` | Document upload & status                        | `TUTOR`, `ADMIN`             | `authenticate`, `requireRole(['TUTOR', 'ADMIN'])` | `401 Unauthorized` | `403 Forbidden`   |
+| `/api/admin/*`     | Verification review, approvals, system audits   | `ADMIN`                      | `authenticate`, `requireRole(['ADMIN'])`          | `401 Unauthorized` | `403 Forbidden`   |
+| `/api/matching/*`  | Recommendation query & confirmation             | `STUDENT`                    | `authenticate`, `requireRole(['STUDENT'])`        | `401 Unauthorized` | `403 Forbidden`   |
+| `/api/reviews/*`   | Lesson review submission                        | `STUDENT` _(confirmed only)_ | `authenticate`, `requireRole(['STUDENT'])`        | `401 Unauthorized` | `403 Forbidden`   |
 
 ### Standard RBAC Error Response Formats
 
 #### `401 Unauthorized` (Missing or Invalid Authentication)
+
 ```json
 {
   "success": false,
@@ -451,6 +533,7 @@ The backend enforces authorization using the `requireRole(allowedRoles: UserRole
 ```
 
 #### `403 Forbidden` (Insufficient Role Privileges)
+
 ```json
 {
   "success": false,
@@ -464,6 +547,7 @@ The backend enforces authorization using the `requireRole(allowedRoles: UserRole
 ## 6. Zod Validation Schemas (`packages/shared`)
 
 ### `SyncUserSchema`
+
 ```typescript
 import { z } from 'zod';
 import { UserRole } from '../enums/index.js';
@@ -484,6 +568,7 @@ export type SyncUserInput = z.infer<typeof SyncUserSchema>;
 ```
 
 ### `MockLoginSchema`
+
 ```typescript
 import { z } from 'zod';
 import { UserRole } from '../enums/index.js';
@@ -493,7 +578,9 @@ import { UserRole } from '../enums/index.js';
 export const MockLoginSchema = z
   .object({
     role: z.nativeEnum(UserRole, {
-      errorMap: () => ({ message: "Role must be 'STUDENT', 'TUTOR', or 'ADMIN'" }),
+      errorMap: () => ({
+        message: "Role must be 'STUDENT', 'TUTOR', or 'ADMIN'",
+      }),
     }),
     email: z
       .string({ invalid_type_error: 'Email must be a string' })
@@ -526,9 +613,9 @@ CREATE TABLE "users" (
 );
 ```
 
-* **Constraints**:
-  * `cognito_sub` unique index guarantees 1:1 mapping between AWS Cognito identity (including Google federated accounts) and PostgreSQL user records.
-  * `email` unique index guarantees duplicate accounts cannot be created using the same email address across different identity providers.
+- **Constraints**:
+  - `cognito_sub` unique index guarantees 1:1 mapping between AWS Cognito identity (including Google federated accounts) and PostgreSQL user records.
+  - `email` unique index guarantees duplicate accounts cannot be created using the same email address across different identity providers.
 
 ---
 
@@ -621,30 +708,30 @@ Every Auth endpoint is protected by a defense-in-depth guard pipeline:
 
 ### 8.3. Module 2 Error Mapping Reference
 
-| Status Code | Error Class | Guard / Trigger Condition | Example Error Response |
-|---|---|---|---|
-| `400 Bad Request` | `BadRequestError` | Body missing `role`, invalid enum value, or contains unexpected properties | `{"success": false, "message": "Request validation failed", "details": [{"field": "role", "message": "Role must be either 'STUDENT' or 'TUTOR'"}]}` |
-| `400 Bad Request` | `BadRequestError` | Attempting self-registration with `ADMIN` role | `{"success": false, "message": "Invalid role. Self-registration is restricted to 'STUDENT' or 'TUTOR'."}` |
-| `400 Bad Request` | `SyntaxError` | Malformed JSON in request payload | `{"success": false, "message": "Malformed JSON in request body", "details": null}` |
-| `401 Unauthorized` | `UnauthorizedError` | Missing, empty, or non-Bearer `Authorization` header | `{"success": false, "message": "Missing or malformed Authorization header", "details": null}` |
-| `401 Unauthorized` | `UnauthorizedError` | Invalid signature, expired Cognito JWT, or mock token in production | `{"success": false, "message": "Invalid or expired authentication token", "details": null}` |
-| `401 Unauthorized` | `UnauthorizedError` | Calling protected endpoints (`/api/auth/me`, `/api/auth/logout`) before account sync | `{"success": false, "message": "User profile not found. Please sync your account.", "details": null}` |
-| `403 Forbidden` | `ForbiddenError` | Invoking `POST /api/auth/mock-login` in production (`NODE_ENV === 'production'`) | `{"success": false, "message": "Mock authentication endpoint is disabled in production environments", "details": null}` |
-| `403 Forbidden` | `ForbiddenError` | Authenticated user lacks required role (e.g. Student accessing `/api/admin/*`) | `{"success": false, "message": "Access denied. Required role: [ADMIN], Current role: STUDENT", "details": null}` |
-| `404 Not Found` | `NotFoundError` | User record not found during `getCurrentUser(userId)` query | `{"success": false, "message": "User profile not found. Please sync your account.", "details": null}` |
-| `409 Conflict` | `ConflictError` | Registration attempt with an email that already exists under another provider | `{"success": false, "message": "An account with this email address already exists. Please sign in with your original provider.", "details": {"email": "user@example.com"}}` |
-| `413 Payload Too Large` | `entity.too.large` | Request body exceeds Express 1 MB JSON parser limit | `{"success": false, "message": "Request body too large", "details": null}` |
-| `500 Internal Server Error` | `AppError` | Unhandled database or system exception | `{"success": false, "message": "An unexpected error occurred. Please try again later.", "details": null}` |
+| Status Code                 | Error Class         | Guard / Trigger Condition                                                            | Example Error Response                                                                                                                                                      |
+| --------------------------- | ------------------- | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `400 Bad Request`           | `BadRequestError`   | Body missing `role`, invalid enum value, or contains unexpected properties           | `{"success": false, "message": "Request validation failed", "details": [{"field": "role", "message": "Role must be either 'STUDENT' or 'TUTOR'"}]}`                         |
+| `400 Bad Request`           | `BadRequestError`   | Attempting self-registration with `ADMIN` role                                       | `{"success": false, "message": "Invalid role. Self-registration is restricted to 'STUDENT' or 'TUTOR'."}`                                                                   |
+| `400 Bad Request`           | `SyntaxError`       | Malformed JSON in request payload                                                    | `{"success": false, "message": "Malformed JSON in request body", "details": null}`                                                                                          |
+| `401 Unauthorized`          | `UnauthorizedError` | Missing, empty, or non-Bearer `Authorization` header                                 | `{"success": false, "message": "Missing or malformed Authorization header", "details": null}`                                                                               |
+| `401 Unauthorized`          | `UnauthorizedError` | Invalid signature, expired Cognito JWT, or mock token in production                  | `{"success": false, "message": "Invalid or expired authentication token", "details": null}`                                                                                 |
+| `401 Unauthorized`          | `UnauthorizedError` | Calling protected endpoints (`/api/auth/me`, `/api/auth/logout`) before account sync | `{"success": false, "message": "User profile not found. Please sync your account.", "details": null}`                                                                       |
+| `403 Forbidden`             | `ForbiddenError`    | Invoking `POST /api/auth/mock-login` in production (`NODE_ENV === 'production'`)     | `{"success": false, "message": "Mock authentication endpoint is disabled in production environments", "details": null}`                                                     |
+| `403 Forbidden`             | `ForbiddenError`    | Authenticated user lacks required role (e.g. Student accessing `/api/admin/*`)       | `{"success": false, "message": "Access denied. Required role: [ADMIN], Current role: STUDENT", "details": null}`                                                            |
+| `404 Not Found`             | `NotFoundError`     | User record not found during `getCurrentUser(userId)` query                          | `{"success": false, "message": "User profile not found. Please sync your account.", "details": null}`                                                                       |
+| `409 Conflict`              | `ConflictError`     | Registration attempt with an email that already exists under another provider        | `{"success": false, "message": "An account with this email address already exists. Please sign in with your original provider.", "details": {"email": "user@example.com"}}` |
+| `413 Payload Too Large`     | `entity.too.large`  | Request body exceeds Express 1 MB JSON parser limit                                  | `{"success": false, "message": "Request body too large", "details": null}`                                                                                                  |
+| `500 Internal Server Error` | `AppError`          | Unhandled database or system exception                                               | `{"success": false, "message": "An unexpected error occurred. Please try again later.", "details": null}`                                                                   |
 
 ---
 
-# Part 1: Module 3 — Student Profile & Preferences
+# Module 3: Student Profile & Preferences
 
 > **Jira Epic:** TP-50: Development — Student Profile & Preferences  
 > **Sub-Tasks:**  
 > • **TP-58**: Develop student profile functionality  
 > • **TP-57**: Develop student learning preference functionality (1–5 Sliders)  
-> • **TP-54**: Develop student availability and requirement (Budget, Tutor Type & Time Slots)  
+> • **TP-54**: Develop student availability and requirement (Budget, Tutor Type & Time Slots)
 >
 > **Access Role:** Student endpoints require the `STUDENT` role enforced via backend `requireRole(['STUDENT'])` middleware.
 
@@ -656,12 +743,12 @@ Module 3 handles everything related to the student's personal identity, contact 
 flowchart LR
     Student[Student App / Module 3] -->|1. Setup Profile & Sliders| DB[(PostgreSQL)]
     Student -->|2. Set Weekly Availability| DB
-    
+
     subgraph CrossModuleIntegration [Other Modules Consuming Module 3]
         M6[Module 6: Tutor Matching - TP-4]
         M7[Module 7: Results & Reviews - TP-10]
     end
-    
+
     DB -.->|Reads Student Profile, Budget, Availability, Sliders| M6
     DB -.->|Reads Student Identity & Contact Channels| M7
 ```
@@ -669,17 +756,17 @@ flowchart LR
 ### How Other Modules Connect to Module 3:
 
 1. **Module 6 — Tutor Matching (`TP-4`)**:
-   * When a student submits a matching request, the matching engine extracts the student's baseline preferences from Module 3:
-     * **Hard Filters**: Student's `grade_level` (G1–G12) and weekly `availabilities` (day of week + time range overlap).
-     * **Scoring Dimensions**: Student's `style_profile` (5 sliders), `personality_profile` (4 sliders), `budget_max`, and `tutor_type_pref`.
-   * *Cross-Module Rule*: Module 6's service must import `studentsRepository` directly (never `studentsService`). Module 3 exposes:
+   - When a student submits a matching request, the matching engine extracts the student's baseline preferences from Module 3:
+     - **Hard Filters**: Student's `grade_level` (G1–G12) and weekly `availabilities` (day of week + time range overlap).
+     - **Scoring Dimensions**: Student's `style_profile` (5 sliders), `personality_profile` (4 sliders), `budget_max`, and `tutor_type_pref`.
+   - _Cross-Module Rule_: Module 6's service must import `studentsRepository` directly (never `studentsService`). Module 3 exposes:
      ```typescript
      studentsRepository.getProfileWithAvailability(studentId: string): Promise<StudentWithAvailabilityDto | null>
      ```
 
 2. **Module 7 — Matching Results, History & Reviews (`TP-10`)**:
-   * When a tutor is confirmed, the confirmed tutor receives the student's contact channels (`phone_number`, `line_id`, `first_name`, `last_name`).
-   * Review gating checks verify that the user submitting the review is a `STUDENT` who confirmed a lesson with that tutor.
+   - When a tutor is confirmed, the confirmed tutor receives the student's contact channels (`phone_number`, `line_id`, `first_name`, `last_name`).
+   - Review gating checks verify that the user submitting the review is a `STUDENT` who confirmed a lesson with that tutor.
 
 ---
 
@@ -728,6 +815,7 @@ Error responses are caught and formatted centrally by [`errorHandler`](../apps/s
 ```
 
 #### Request Validation Error Example (`400 Bad Request` / Zod Validation):
+
 When incoming payload fails type checking or boundary validation via `validateRequest(Schema)`:
 
 ```json
@@ -753,31 +841,31 @@ When incoming payload fails type checking or boundary validation via `validateRe
 
 ### 3.3. HTTP Status Codes Reference
 
-| Status Code | Error Class | When Used in Module 3 |
-|---|---|---|
-| `200 OK` | — | Successful retrieval (`GET /students/profile`, `GET /students/availability`, `GET /students/subjects`), update (`PATCH /students/profile`), or atomic replacement (`PUT /students/availability`, `PUT /students/subjects`) |
-| `201 Created` | — | Successful creation of initial student profile (`POST /students/profile`) |
-| `400 Bad Request` | `BadRequestError` | Zod schema validation failed, missing required fields, `grade_level` not matching G1–G12, slider ratings out of 1–5 range, `budget_max <= 0`, `start_time >= end_time`, overlapping availability slots on the same day, duplicate subject variants, or empty update payload |
-| `401 Unauthorized` | `UnauthorizedError` | Missing, expired, or malformed Cognito JWT (`Authorization: Bearer <token>`) or missing user record |
-| `403 Forbidden` | `ForbiddenError` | Authenticated user lacks `STUDENT` role (e.g., tutor or admin attempting to modify student profile) |
-| `404 Not Found` | `NotFoundError` | Student profile does not exist for the authenticated user, or referenced `variant_id` does not exist in `subject_variants` |
-| `409 Conflict` | `ConflictError` | Student profile already exists for this user on `POST /students/profile` |
-| `422 Unprocessable Entity` | `UnprocessableEntityError` | Semantically invalid payload violating business logic rules |
-| `500 Internal Server Error` | `InternalServerError` | Unhandled server or database exception (sanitized in production) |
+| Status Code                 | Error Class                | When Used in Module 3                                                                                                                                                                                                                                                       |
+| --------------------------- | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `200 OK`                    | —                          | Successful retrieval (`GET /students/profile`, `GET /students/availability`, `GET /students/subjects`), update (`PATCH /students/profile`), or atomic replacement (`PUT /students/availability`, `PUT /students/subjects`)                                                  |
+| `201 Created`               | —                          | Successful creation of initial student profile (`POST /students/profile`)                                                                                                                                                                                                   |
+| `400 Bad Request`           | `BadRequestError`          | Zod schema validation failed, missing required fields, `grade_level` not matching G1–G12, slider ratings out of 1–5 range, `budget_max <= 0`, `start_time >= end_time`, overlapping availability slots on the same day, duplicate subject variants, or empty update payload |
+| `401 Unauthorized`          | `UnauthorizedError`        | Missing, expired, or malformed Cognito JWT (`Authorization: Bearer <token>`) or missing user record                                                                                                                                                                         |
+| `403 Forbidden`             | `ForbiddenError`           | Authenticated user lacks `STUDENT` role (e.g., tutor or admin attempting to modify student profile)                                                                                                                                                                         |
+| `404 Not Found`             | `NotFoundError`            | Student profile does not exist for the authenticated user, or referenced `variant_id` does not exist in `subject_variants`                                                                                                                                                  |
+| `409 Conflict`              | `ConflictError`            | Student profile already exists for this user on `POST /students/profile`                                                                                                                                                                                                    |
+| `422 Unprocessable Entity`  | `UnprocessableEntityError` | Semantically invalid payload violating business logic rules                                                                                                                                                                                                                 |
+| `500 Internal Server Error` | `InternalServerError`      | Unhandled server or database exception (sanitized in production)                                                                                                                                                                                                            |
 
 ---
 
 ## 4. Endpoints Summary
 
-| Sub-Task | Method | Endpoint | Description | Frontend Client Use Case |
-|---|---|---|---|---|
-| **TP-58 / TP-57 / TP-54** | `GET` | `/students/profile` *(alias: `/students/me/profile`)* | Retrieve student profile, preferences & budget | Pre-fills `StudentProfilePage` and matching pre-checks |
-| **TP-58 / TP-57 / TP-54** | `POST` | `/students/profile` | Create initial student profile & sliders | First-time onboarding / profile completion |
-| **TP-58 / TP-57 / TP-54** | `PATCH` | `/students/profile` *(alias: `/students/me/profile`)* | Partially update student profile or preferences | Profile settings update & quick slider adjustments |
-| **TP-54** | `GET` | `/students/availability` | Get recurring weekly availability slots | Populates student availability grid |
-| **TP-54** | `PUT` | `/students/availability` | Overwrite recurring weekly availability slots | Saves weekly student schedule for matching overlap |
-| **TP-58** | `GET` | `/students/subjects` | Get selected target subjects & variants | Populates student subject requirement selector |
-| **TP-58** | `PUT` | `/students/subjects` | Overwrite selected target subject variants | Saves student subject requirements for matching |
+| Sub-Task                  | Method  | Endpoint                                              | Description                                     | Frontend Client Use Case                               |
+| ------------------------- | ------- | ----------------------------------------------------- | ----------------------------------------------- | ------------------------------------------------------ |
+| **TP-58 / TP-57 / TP-54** | `GET`   | `/students/profile` _(alias: `/students/me/profile`)_ | Retrieve student profile, preferences & budget  | Pre-fills `StudentProfilePage` and matching pre-checks |
+| **TP-58 / TP-57 / TP-54** | `POST`  | `/students/profile`                                   | Create initial student profile & sliders        | First-time onboarding / profile completion             |
+| **TP-58 / TP-57 / TP-54** | `PATCH` | `/students/profile` _(alias: `/students/me/profile`)_ | Partially update student profile or preferences | Profile settings update & quick slider adjustments     |
+| **TP-54**                 | `GET`   | `/students/availability`                              | Get recurring weekly availability slots         | Populates student availability grid                    |
+| **TP-54**                 | `PUT`   | `/students/availability`                              | Overwrite recurring weekly availability slots   | Saves weekly student schedule for matching overlap     |
+| **TP-58**                 | `GET`   | `/students/subjects`                                  | Get selected target subjects & variants         | Populates student subject requirement selector         |
+| **TP-58**                 | `PUT`   | `/students/subjects`                                  | Overwrite selected target subject variants      | Saves student subject requirements for matching        |
 
 ---
 
@@ -787,11 +875,12 @@ When incoming payload fails type checking or boundary validation via `validateRe
 
 Retrieves the authenticated student's profile, contact channels, grade level, 1–5 learning/personality preferences, and budget.
 
-* **Endpoints:** `GET /api/students/profile` *(Alias: `GET /api/students/me/profile`)*
-* **Headers:** `Authorization: Bearer <token>`
-* **Role:** `STUDENT`
+- **Endpoints:** `GET /api/students/profile` _(Alias: `GET /api/students/me/profile`)_
+- **Headers:** `Authorization: Bearer <token>`
+- **Role:** `STUDENT`
 
 #### Response `200 OK`
+
 ```json
 {
   "success": true,
@@ -806,7 +895,7 @@ Retrieves the authenticated student's profile, contact channels, grade level, 1�
     "tutor_type_pref": "ANY",
     "style_profile": [3, 4, 2, 4, 3],
     "personality_profile": [4, 5, 3, 4],
-    "budget_max": 650.00
+    "budget_max": 650.0
   }
 }
 ```
@@ -816,7 +905,9 @@ Retrieves the authenticated student's profile, contact channels, grade level, 1�
 #### Error Responses
 
 ##### `401 Unauthorized`
-*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+
+_(Returned when Authorization header is missing, token is expired, or user is unauthenticated)_
+
 ```json
 {
   "success": false,
@@ -826,7 +917,9 @@ Retrieves the authenticated student's profile, contact channels, grade level, 1�
 ```
 
 ##### `403 Forbidden`
-*(Returned when authenticated user has a role other than `STUDENT`)*
+
+_(Returned when authenticated user has a role other than `STUDENT`)_
+
 ```json
 {
   "success": false,
@@ -836,7 +929,9 @@ Retrieves the authenticated student's profile, contact channels, grade level, 1�
 ```
 
 ##### `404 Not Found`
-*(Returned when user is authenticated with `STUDENT` role but has not yet completed the initial profile)*
+
+_(Returned when user is authenticated with `STUDENT` role but has not yet completed the initial profile)_
+
 ```json
 {
   "success": false,
@@ -846,7 +941,9 @@ Retrieves the authenticated student's profile, contact channels, grade level, 1�
 ```
 
 ##### `500 Internal Server Error`
-*(Returned when database connectivity fails or an unexpected operational error occurs)*
+
+_(Returned when database connectivity fails or an unexpected operational error occurs)_
+
 ```json
 {
   "success": false,
@@ -861,11 +958,12 @@ Retrieves the authenticated student's profile, contact channels, grade level, 1�
 
 Creates the student profile record upon initial registration/onboarding.
 
-* **Headers:** `Authorization: Bearer <token>`
-* **Role:** `STUDENT`
-* **Validation Schema:** `StudentProfileSchema`
+- **Headers:** `Authorization: Bearer <token>`
+- **Role:** `STUDENT`
+- **Validation Schema:** `StudentProfileSchema`
 
 #### Request Body
+
 ```json
 {
   "first_name": "Pitchaya",
@@ -876,22 +974,24 @@ Creates the student profile record upon initial registration/onboarding.
   "tutor_type_pref": "ANY",
   "style_profile": [3, 4, 2, 4, 3],
   "personality_profile": [4, 5, 3, 4],
-  "budget_max": 650.00
+  "budget_max": 650.0
 }
 ```
 
 #### Field Validation Rules:
-* `first_name`: Required string, 1–100 chars. Leading/trailing whitespace trimmed.
-* `last_name`: Required string, 1–100 chars. Leading/trailing whitespace trimmed.
-* `phone_number`: Required string, 1–20 chars. Valid Thai mobile format recommended (`08...`, `09...`, `06...`).
-* `line_id`: Optional string, max 100 chars (or `null`).
-* `grade_level`: Required string matching G1–G12 (`'G1'` through `'G12'`).
-* `tutor_type_pref`: Enum value from `TutorTypePref`: `'UNDERGRADUATE'`, `'FREELANCE'`, `'INSTITUTIONAL'`, or `'ANY'`.
-* `style_profile`: Exactly 5 integer ratings, each between 1 and 5.
-* `personality_profile`: Exactly 4 integer ratings, each between 1 and 5.
-* `budget_max`: Positive number $> 0$ (maximum hourly rate in THB).
+
+- `first_name`: Required string, 1–100 chars. Leading/trailing whitespace trimmed.
+- `last_name`: Required string, 1–100 chars. Leading/trailing whitespace trimmed.
+- `phone_number`: Required string, 1–20 chars. Valid Thai mobile format recommended (`08...`, `09...`, `06...`).
+- `line_id`: Optional string, max 100 chars (or `null`).
+- `grade_level`: Required string matching G1–G12 (`'G1'` through `'G12'`).
+- `tutor_type_pref`: Enum value from `TutorTypePref`: `'UNDERGRADUATE'`, `'FREELANCE'`, `'INSTITUTIONAL'`, or `'ANY'`.
+- `style_profile`: Exactly 5 integer ratings, each between 1 and 5.
+- `personality_profile`: Exactly 4 integer ratings, each between 1 and 5.
+- `budget_max`: Positive number $> 0$ (maximum hourly rate in THB).
 
 #### Response `201 Created`
+
 ```json
 {
   "success": true,
@@ -905,7 +1005,7 @@ Creates the student profile record upon initial registration/onboarding.
     "tutor_type_pref": "ANY",
     "style_profile": [3, 4, 2, 4, 3],
     "personality_profile": [4, 5, 3, 4],
-    "budget_max": 650.00
+    "budget_max": 650.0
   },
   "message": "Student profile created successfully"
 }
@@ -914,7 +1014,9 @@ Creates the student profile record upon initial registration/onboarding.
 #### Error Responses
 
 ##### `400 Bad Request`
-*(Returned when request payload violates Zod schema constraints or business rules)*
+
+_(Returned when request payload violates Zod schema constraints or business rules)_
+
 ```json
 {
   "success": false,
@@ -937,7 +1039,9 @@ Creates the student profile record upon initial registration/onboarding.
 ```
 
 ##### `401 Unauthorized`
-*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+
+_(Returned when Authorization header is missing, token is expired, or user is unauthenticated)_
+
 ```json
 {
   "success": false,
@@ -947,7 +1051,9 @@ Creates the student profile record upon initial registration/onboarding.
 ```
 
 ##### `403 Forbidden`
-*(Returned when authenticated user is not in `STUDENT` role)*
+
+_(Returned when authenticated user is not in `STUDENT` role)_
+
 ```json
 {
   "success": false,
@@ -957,7 +1063,9 @@ Creates the student profile record upon initial registration/onboarding.
 ```
 
 ##### `409 Conflict`
-*(Returned if student profile already exists for this authenticated user)*
+
+_(Returned if student profile already exists for this authenticated user)_
+
 ```json
 {
   "success": false,
@@ -967,7 +1075,9 @@ Creates the student profile record upon initial registration/onboarding.
 ```
 
 ##### `500 Internal Server Error`
-*(Returned when database insertion fails or unhandled operational exception occurs)*
+
+_(Returned when database insertion fails or unhandled operational exception occurs)_
+
 ```json
 {
   "success": false,
@@ -982,20 +1092,22 @@ Creates the student profile record upon initial registration/onboarding.
 
 Updates any subset of profile fields, contact info, sliders, or budget.
 
-* **Endpoints:** `PATCH /api/students/profile` *(Alias: `PATCH /api/students/me/profile`)*
-* **Headers:** `Authorization: Bearer <token>`
-* **Role:** `STUDENT`
-* **Validation Schema:** `UpdateStudentProfileSchema` (requires at least one valid field to update)
+- **Endpoints:** `PATCH /api/students/profile` _(Alias: `PATCH /api/students/me/profile`)_
+- **Headers:** `Authorization: Bearer <token>`
+- **Role:** `STUDENT`
+- **Validation Schema:** `UpdateStudentProfileSchema` (requires at least one valid field to update)
 
 #### Request Body (Example: Updating contact and budget only)
+
 ```json
 {
   "phone_number": "0819998888",
-  "budget_max": 750.00
+  "budget_max": 750.0
 }
 ```
 
 #### Request Body (Example: Updating slider ratings)
+
 ```json
 {
   "style_profile": [4, 4, 3, 5, 3],
@@ -1004,6 +1116,7 @@ Updates any subset of profile fields, contact info, sliders, or budget.
 ```
 
 #### Response `200 OK`
+
 ```json
 {
   "success": true,
@@ -1017,7 +1130,7 @@ Updates any subset of profile fields, contact info, sliders, or budget.
     "tutor_type_pref": "ANY",
     "style_profile": [4, 4, 3, 5, 3],
     "personality_profile": [5, 5, 4, 4],
-    "budget_max": 750.00
+    "budget_max": 750.0
   },
   "message": "Student profile updated successfully"
 }
@@ -1026,7 +1139,9 @@ Updates any subset of profile fields, contact info, sliders, or budget.
 #### Error Responses
 
 ##### `400 Bad Request`
-*(Returned when request body is empty, contains invalid slider ratings, negative budget, or invalid grade level)*
+
+_(Returned when request body is empty, contains invalid slider ratings, negative budget, or invalid grade level)_
+
 ```json
 {
   "success": false,
@@ -1036,7 +1151,9 @@ Updates any subset of profile fields, contact info, sliders, or budget.
 ```
 
 ##### `401 Unauthorized`
-*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+
+_(Returned when Authorization header is missing, token is expired, or user is unauthenticated)_
+
 ```json
 {
   "success": false,
@@ -1046,7 +1163,9 @@ Updates any subset of profile fields, contact info, sliders, or budget.
 ```
 
 ##### `403 Forbidden`
-*(Returned when authenticated user is not in `STUDENT` role)*
+
+_(Returned when authenticated user is not in `STUDENT` role)_
+
 ```json
 {
   "success": false,
@@ -1056,7 +1175,9 @@ Updates any subset of profile fields, contact info, sliders, or budget.
 ```
 
 ##### `404 Not Found`
-*(Returned when student profile does not exist for this user)*
+
+_(Returned when student profile does not exist for this user)_
+
 ```json
 {
   "success": false,
@@ -1066,7 +1187,9 @@ Updates any subset of profile fields, contact info, sliders, or budget.
 ```
 
 ##### `500 Internal Server Error`
-*(Returned when database update fails or unhandled operational exception occurs)*
+
+_(Returned when database update fails or unhandled operational exception occurs)_
+
 ```json
 {
   "success": false,
@@ -1081,10 +1204,11 @@ Updates any subset of profile fields, contact info, sliders, or budget.
 
 Retrieves the student's recurring weekly availability time slots.
 
-* **Headers:** `Authorization: Bearer <token>`
-* **Role:** `STUDENT`
+- **Headers:** `Authorization: Bearer <token>`
+- **Role:** `STUDENT`
 
 #### Response `200 OK`
+
 ```json
 {
   "success": true,
@@ -1108,7 +1232,9 @@ Retrieves the student's recurring weekly availability time slots.
 #### Error Responses
 
 ##### `401 Unauthorized`
-*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+
+_(Returned when Authorization header is missing, token is expired, or user is unauthenticated)_
+
 ```json
 {
   "success": false,
@@ -1118,7 +1244,9 @@ Retrieves the student's recurring weekly availability time slots.
 ```
 
 ##### `403 Forbidden`
-*(Returned when authenticated user is not in `STUDENT` role)*
+
+_(Returned when authenticated user is not in `STUDENT` role)_
+
 ```json
 {
   "success": false,
@@ -1128,7 +1256,9 @@ Retrieves the student's recurring weekly availability time slots.
 ```
 
 ##### `404 Not Found`
-*(Returned when student profile does not exist for this user)*
+
+_(Returned when student profile does not exist for this user)_
+
 ```json
 {
   "success": false,
@@ -1138,7 +1268,9 @@ Retrieves the student's recurring weekly availability time slots.
 ```
 
 ##### `500 Internal Server Error`
-*(Returned when query execution fails)*
+
+_(Returned when query execution fails)_
+
 ```json
 {
   "success": false,
@@ -1153,11 +1285,12 @@ Retrieves the student's recurring weekly availability time slots.
 
 Overwrites the student's recurring weekly availability time slots. Existing slots for this user are replaced atomically in a single database transaction.
 
-* **Headers:** `Authorization: Bearer <token>`
-* **Role:** `STUDENT`
-* **Validation Schema:** `SetStudentAvailabilitySchema` (accepts `{ "availability": [...] }` as primary, with `{ "slots": [...] }` supported as a backwards-compatible alias)
+- **Headers:** `Authorization: Bearer <token>`
+- **Role:** `STUDENT`
+- **Validation Schema:** `SetStudentAvailabilitySchema` (accepts `{ "availability": [...] }` as primary, with `{ "slots": [...] }` supported as a backwards-compatible alias)
 
 #### Request Body
+
 ```json
 {
   "availability": [
@@ -1181,12 +1314,14 @@ Overwrites the student's recurring weekly availability time slots. Existing slot
 ```
 
 #### Validation Rules:
-* `day_of_week`: `MONDAY` | `TUESDAY` | `WEDNESDAY` | `THURSDAY` | `FRIDAY` | `SATURDAY` | `SUNDAY`
-* `start_time`, `end_time`: 24-hour format `HH:mm` (e.g., `"17:00"`).
-* `start_time` must be strictly earlier than `end_time`.
-* Slots on the same day must not overlap.
+
+- `day_of_week`: `MONDAY` | `TUESDAY` | `WEDNESDAY` | `THURSDAY` | `FRIDAY` | `SATURDAY` | `SUNDAY`
+- `start_time`, `end_time`: 24-hour format `HH:mm` (e.g., `"17:00"`).
+- `start_time` must be strictly earlier than `end_time`.
+- Slots on the same day must not overlap.
 
 #### Response `200 OK`
+
 ```json
 {
   "success": true,
@@ -1217,7 +1352,9 @@ Overwrites the student's recurring weekly availability time slots. Existing slot
 #### Error Responses
 
 ##### `400 Bad Request`
-*(Returned when slot timing is invalid or slots overlap on the same day)*
+
+_(Returned when slot timing is invalid or slots overlap on the same day)_
+
 ```json
 {
   "success": false,
@@ -1225,10 +1362,13 @@ Overwrites the student's recurring weekly availability time slots. Existing slot
   "details": null
 }
 ```
-*(Or when time bounds fail: `Invalid time slot for MONDAY: start_time (19:00) must be earlier than end_time (17:00)`)*
+
+_(Or when time bounds fail: `Invalid time slot for MONDAY: start_time (19:00) must be earlier than end_time (17:00)`)_
 
 ##### `401 Unauthorized`
-*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+
+_(Returned when Authorization header is missing, token is expired, or user is unauthenticated)_
+
 ```json
 {
   "success": false,
@@ -1238,7 +1378,9 @@ Overwrites the student's recurring weekly availability time slots. Existing slot
 ```
 
 ##### `403 Forbidden`
-*(Returned when authenticated user is not in `STUDENT` role)*
+
+_(Returned when authenticated user is not in `STUDENT` role)_
+
 ```json
 {
   "success": false,
@@ -1248,7 +1390,9 @@ Overwrites the student's recurring weekly availability time slots. Existing slot
 ```
 
 ##### `404 Not Found`
-*(Returned when student profile does not exist for this user)*
+
+_(Returned when student profile does not exist for this user)_
+
 ```json
 {
   "success": false,
@@ -1258,7 +1402,9 @@ Overwrites the student's recurring weekly availability time slots. Existing slot
 ```
 
 ##### `500 Internal Server Error`
-*(Returned when database transaction replacement fails)*
+
+_(Returned when database transaction replacement fails)_
+
 ```json
 {
   "success": false,
@@ -1273,10 +1419,11 @@ Overwrites the student's recurring weekly availability time slots. Existing slot
 
 Retrieves the student's selected target subjects with category and learning goal details.
 
-* **Headers:** `Authorization: Bearer <token>`
-* **Role:** `STUDENT`
+- **Headers:** `Authorization: Bearer <token>`
+- **Role:** `STUDENT`
 
 #### Response `200 OK`
+
 ```json
 {
   "success": true,
@@ -1302,7 +1449,9 @@ Retrieves the student's selected target subjects with category and learning goal
 #### Error Responses
 
 ##### `401 Unauthorized`
-*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+
+_(Returned when Authorization header is missing, token is expired, or user is unauthenticated)_
+
 ```json
 {
   "success": false,
@@ -1312,7 +1461,9 @@ Retrieves the student's selected target subjects with category and learning goal
 ```
 
 ##### `403 Forbidden`
-*(Returned when authenticated user is not in `STUDENT` role)*
+
+_(Returned when authenticated user is not in `STUDENT` role)_
+
 ```json
 {
   "success": false,
@@ -1322,7 +1473,9 @@ Retrieves the student's selected target subjects with category and learning goal
 ```
 
 ##### `404 Not Found`
-*(Returned when student profile does not exist for this user)*
+
+_(Returned when student profile does not exist for this user)_
+
 ```json
 {
   "success": false,
@@ -1332,7 +1485,9 @@ Retrieves the student's selected target subjects with category and learning goal
 ```
 
 ##### `500 Internal Server Error`
-*(Returned when database query execution fails)*
+
+_(Returned when database query execution fails)_
+
 ```json
 {
   "success": false,
@@ -1347,11 +1502,12 @@ Retrieves the student's selected target subjects with category and learning goal
 
 Replaces the student's selected target subject requirements.
 
-* **Headers:** `Authorization: Bearer <token>`
-* **Role:** `STUDENT`
-* **Validation Schema:** `SetStudentSubjectsSchema` (`{ variant_ids: string[] }`)
+- **Headers:** `Authorization: Bearer <token>`
+- **Role:** `STUDENT`
+- **Validation Schema:** `SetStudentSubjectsSchema` (`{ variant_ids: string[] }`)
 
 #### Request Body
+
 ```json
 {
   "variant_ids": [
@@ -1362,11 +1518,13 @@ Replaces the student's selected target subject requirements.
 ```
 
 #### Field Validation Rules:
-* `variant_ids`: Required array containing at least 1 valid UUID string.
-* Duplicate subject variant UUIDs are strictly rejected.
-* Every referenced UUID must exist in the `subject_variants` catalog.
+
+- `variant_ids`: Required array containing at least 1 valid UUID string.
+- Duplicate subject variant UUIDs are strictly rejected.
+- Every referenced UUID must exist in the `subject_variants` catalog.
 
 #### Response `200 OK`
+
 ```json
 {
   "success": true,
@@ -1393,7 +1551,9 @@ Replaces the student's selected target subject requirements.
 #### Error Responses
 
 ##### `400 Bad Request`
-*(Returned when `variant_ids` array is empty, contains non-UUID strings, or contains duplicate variants)*
+
+_(Returned when `variant_ids` array is empty, contains non-UUID strings, or contains duplicate variants)_
+
 ```json
 {
   "success": false,
@@ -1401,10 +1561,13 @@ Replaces the student's selected target subject requirements.
   "details": null
 }
 ```
-*(Or Zod validation error when empty: `At least one subject variant is required`)*
+
+_(Or Zod validation error when empty: `At least one subject variant is required`)_
 
 ##### `401 Unauthorized`
-*(Returned when Authorization header is missing, token is expired, or user is unauthenticated)*
+
+_(Returned when Authorization header is missing, token is expired, or user is unauthenticated)_
+
 ```json
 {
   "success": false,
@@ -1414,7 +1577,9 @@ Replaces the student's selected target subject requirements.
 ```
 
 ##### `403 Forbidden`
-*(Returned when authenticated user is not in `STUDENT` role)*
+
+_(Returned when authenticated user is not in `STUDENT` role)_
+
 ```json
 {
   "success": false,
@@ -1424,7 +1589,9 @@ Replaces the student's selected target subject requirements.
 ```
 
 ##### `404 Not Found`
-*(Returned when student profile does not exist OR referenced subject variant ID does not exist in `subject_variants`)*
+
+_(Returned when student profile does not exist OR referenced subject variant ID does not exist in `subject_variants`)_
+
 ```json
 {
   "success": false,
@@ -1434,7 +1601,9 @@ Replaces the student's selected target subject requirements.
 ```
 
 ##### `500 Internal Server Error`
-*(Returned when database transaction replacement fails)*
+
+_(Returned when database transaction replacement fails)_
+
 ```json
 {
   "success": false,
@@ -1451,22 +1620,22 @@ To guarantee perfect algorithmic alignment with Module 4 (Tutor Profile) and Mod
 
 ### 6.1. Learning Style (5 Sliders — Student vs Tutor Counterpart)
 
-| # | Dimension Title | Student Prompt (Learning Style) | Tutor Prompt (Teaching Style) | Value 1 (Left Label) | Value 5 (Right Label) |
-|---|---|---|---|---|---|
-| **1** | Teaching Pace & Structure | I prefer learning... | I usually teach... | Step-by-step carefully | Focus on key points & move fast |
-| **2** | Teaching Method | I prefer... | I focus more on... | Doing a lot of practice exercises | Understanding the concept first |
-| **3** | Interaction Format | During class I like to... | I prefer... | Chat and discuss with the tutor | Quiet sessions focused on listening |
-| **4** | Guidance Approach | I like tutors who... | I... | Guide me step-by-step | Let them explore independently |
-| **5** | Lesson Atmosphere | I prefer... | I make lessons... | A fun and relaxed atmosphere | Calm and focused |
+| #     | Dimension Title           | Student Prompt (Learning Style) | Tutor Prompt (Teaching Style) | Value 1 (Left Label)              | Value 5 (Right Label)               |
+| ----- | ------------------------- | ------------------------------- | ----------------------------- | --------------------------------- | ----------------------------------- |
+| **1** | Teaching Pace & Structure | I prefer learning...            | I usually teach...            | Step-by-step carefully            | Focus on key points & move fast     |
+| **2** | Teaching Method           | I prefer...                     | I focus more on...            | Doing a lot of practice exercises | Understanding the concept first     |
+| **3** | Interaction Format        | During class I like to...       | I prefer...                   | Chat and discuss with the tutor   | Quiet sessions focused on listening |
+| **4** | Guidance Approach         | I like tutors who...            | I...                          | Guide me step-by-step             | Let them explore independently      |
+| **5** | Lesson Atmosphere         | I prefer...                     | I make lessons...             | A fun and relaxed atmosphere      | Calm and focused                    |
 
 ### 6.2. Personality Preferences (4 Sliders — Student vs Tutor Counterpart)
 
-| # | Dimension Title | Student Prompt (Personality Preference) | Tutor Prompt (Self-Personality) | Value 1 (Left Label) | Value 5 (Right Label) |
-|---|---|---|---|---|---|
-| **1** | Communication Style | I prefer a tutor who is... | I am usually... | Formal and polite | Casual and friendly |
-| **2** | Session Management | I want a tutor who is... | I... | Strictly on schedule / Always on time | Flexible and adaptable depending on situation |
-| **3** | Energy Level | I like tutors who are... | I'm... | Calm, gentle & composed | Energetic and lively / expressive |
-| **4** | Motivation Strategy | I prefer tutors who... | I motivate students by... | Focus on discipline / challenge | Encourage & praise / relaxed atmosphere |
+| #     | Dimension Title     | Student Prompt (Personality Preference) | Tutor Prompt (Self-Personality) | Value 1 (Left Label)                  | Value 5 (Right Label)                         |
+| ----- | ------------------- | --------------------------------------- | ------------------------------- | ------------------------------------- | --------------------------------------------- |
+| **1** | Communication Style | I prefer a tutor who is...              | I am usually...                 | Formal and polite                     | Casual and friendly                           |
+| **2** | Session Management  | I want a tutor who is...                | I...                            | Strictly on schedule / Always on time | Flexible and adaptable depending on situation |
+| **3** | Energy Level        | I like tutors who are...                | I'm...                          | Calm, gentle & composed               | Energetic and lively / expressive             |
+| **4** | Motivation Strategy | I prefer tutors who...                  | I motivate students by...       | Focus on discipline / challenge       | Encourage & praise / relaxed atmosphere       |
 
 ---
 
@@ -1490,18 +1659,20 @@ apps/client/src/features/students/
 ```
 
 ### Key Reusable Assets from Module 4:
+
 1. [`SliderInput.tsx`](../apps/client/src/components/forms/SliderInput.tsx): Discrete 1–5 thumb slider with active value pill and left/right labels.
 2. **Color Palette & Cards**:
-   * Style Profile block uses `var(--color-primary-tint)` (`#EFF6FF`).
-   * Personality Profile block uses `var(--color-secondary-tint)` (`#ECFDF5`).
-   * Requirements & Budget block uses `var(--color-accent-tint)` (`#FFFBEB`).
-3. **Availability Slot Management**: Identical time slot presets (*Morning 09:00–12:00*, *Afternoon 13:00–17:00*, *Evening 18:00–21:00*) and overlap validation.
+   - Style Profile block uses `var(--color-primary-tint)` (`#EFF6FF`).
+   - Personality Profile block uses `var(--color-secondary-tint)` (`#ECFDF5`).
+   - Requirements & Budget block uses `var(--color-accent-tint)` (`#FFFBEB`).
+3. **Availability Slot Management**: Identical time slot presets (_Morning 09:00–12:00_, _Afternoon 13:00–17:00_, _Evening 18:00–21:00_) and overlap validation.
 
 ---
 
 ## 8. Database Schema Mapping
 
 ### `students` Table:
+
 ```sql
 CREATE TABLE students (
   user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
@@ -1518,6 +1689,7 @@ CREATE TABLE students (
 ```
 
 ### `availabilities` Table:
+
 ```sql
 CREATE TABLE availabilities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1533,20 +1705,18 @@ CREATE TABLE availabilities (
 ## 9. Verification & Testing Requirements
 
 1. **Unit Tests** (`apps/server/src/modules/students/students.service.test.ts`):
-   * Validation of 1–5 range bounds and array length enforcement (exactly 5 for style, 4 for personality).
-   * Budget positive check.
-   * Start time $<$ End time check and non-overlapping slot validation.
+   - Validation of 1–5 range bounds and array length enforcement (exactly 5 for style, 4 for personality).
+   - Budget positive check.
+   - Start time $<$ End time check and non-overlapping slot validation.
 2. **Integration Tests** (`apps/server/src/modules/students/students.integration.test.ts`):
-   * Role enforcement: Access denied for unauthenticated requests (`401`) and non-students (`403`).
-   * Profile creation (`POST 201`), profile retrieval (`GET 200`), profile update (`PATCH 200`).
-   * Atomic replacement of availability slots via `PUT /api/students/availability`.
+   - Role enforcement: Access denied for unauthenticated requests (`401`) and non-students (`403`).
+   - Profile creation (`POST 201`), profile retrieval (`GET 200`), profile update (`PATCH 200`).
+   - Atomic replacement of availability slots via `PUT /api/students/availability`.
 3. **Studio Inspection**: Run `npm run db:studio` to visually inspect inserted and updated student records.
-
-
 
 ---
 
-# Part 2: Module 4 — Tutor Profile & Verification
+# Module 4: Tutor Profile & Verification
 
 > **Access Role:** Tutor endpoints require the `TUTOR` role enforced via backend `requireRole(['TUTOR'])` middleware. Catalog reference endpoints (`/api/subjects`) are accessible to all authenticated roles.
 
@@ -1555,6 +1725,7 @@ CREATE TABLE availabilities (
 Clients **do not** pass a `tutor_id` in the URL or query parameters for self-service tutor endpoints (`/tutors/profile`, `/tutors/subjects`, etc.).
 
 Identity is resolved securely from the authentication token:
+
 1. The frontend sends the Bearer JWT token in the `Authorization` header:
    ```http
    Authorization: Bearer <cognito-access-token>
@@ -1568,25 +1739,26 @@ Identity is resolved securely from the authentication token:
 5. **Security Benefit:** Tutors can never view, overwrite, or tamper with another tutor's profile by manipulating URL parameters.
 
 ---
+
 ## Endpoints Summary
 
 The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and components) connects to the following endpoints:
 
-| Domain | Method | Endpoint | Description | Frontend Client Use Case |
-|---|---|---|---|---|
-| **Profile** | `GET` | `/tutors/profile` | Retrieve the authenticated tutor's full profile | Pre-fills onboarding step 1, settings tab, & computes checklist progress |
-| **Profile** | `POST` | `/tutors/profile` | Create initial tutor profile & sliders | Step 1 Onboarding submit ("Save Profile & Continue →") |
-| **Profile** | `PATCH` | `/tutors/profile` | Update profile information | "Profile & Style" settings tab ("Save Profile Changes") |
-| **Subjects** | `GET` | `/tutors/subjects` | List subjects & variants taught by tutor | Displays offerings in Step 2, Settings tab, & requirement proofs in Step 4 |
-| **Subjects** | `PUT` | `/tutors/subjects` | Overwrite tutor's offered subjects & rates | Step 2 Onboarding ("Save Subjects & Continue →") & Settings tab |
-| **Availability**| `GET` | `/tutors/availability`| Get recurring weekly availability slots | Pre-fills weekly schedule grid in Step 3 & "Weekly Schedule" tab |
-| **Availability**| `PUT` | `/tutors/availability`| Overwrite recurring weekly availability schedule | Step 3 Onboarding ("Save Schedule & Continue →") & Settings tab |
-| **Verification**| `GET` | `/tutors/verification`| Check verification status & uploaded documents | Pre-fills Step 4 verification checklist & "Verification Docs" tab |
-| **Catalog** | `GET` | `/subjects` | Get subjects catalog reference data | Powers 3-step cascading dropdowns in `SubjectSelector` (Category → Subject → Variant) |
-| **Documents** | `POST` | `/documents/presigned-upload` | Generate S3 presigned PUT URL | Step 1 of S3 direct upload workflow for transcripts, CVs, and certificates |
-| **Documents** | `PUT` | `<presigned-s3-url>` | Upload raw binary document to S3 bucket | Step 2 of S3 direct upload workflow (direct to AWS S3 or mock S3 endpoint) |
-| **Documents** | `POST` | `/documents/confirm` | Confirm upload & record metadata in DB | Step 3 of S3 direct upload workflow (creates record in `documents` table) |
-| **Documents** | `DELETE`| `/documents/:id` | Delete uploaded document record | Removes incorrect or obsolete certificates in `VerificationSection` |
+| Domain           | Method   | Endpoint                      | Description                                      | Frontend Client Use Case                                                              |
+| ---------------- | -------- | ----------------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| **Profile**      | `GET`    | `/tutors/profile`             | Retrieve the authenticated tutor's full profile  | Pre-fills onboarding step 1, settings tab, & computes checklist progress              |
+| **Profile**      | `POST`   | `/tutors/profile`             | Create initial tutor profile & sliders           | Step 1 Onboarding submit ("Save Profile & Continue →")                                |
+| **Profile**      | `PATCH`  | `/tutors/profile`             | Update profile information                       | "Profile & Style" settings tab ("Save Profile Changes")                               |
+| **Subjects**     | `GET`    | `/tutors/subjects`            | List subjects & variants taught by tutor         | Displays offerings in Step 2, Settings tab, & requirement proofs in Step 4            |
+| **Subjects**     | `PUT`    | `/tutors/subjects`            | Overwrite tutor's offered subjects & rates       | Step 2 Onboarding ("Save Subjects & Continue →") & Settings tab                       |
+| **Availability** | `GET`    | `/tutors/availability`        | Get recurring weekly availability slots          | Pre-fills weekly schedule grid in Step 3 & "Weekly Schedule" tab                      |
+| **Availability** | `PUT`    | `/tutors/availability`        | Overwrite recurring weekly availability schedule | Step 3 Onboarding ("Save Schedule & Continue →") & Settings tab                       |
+| **Verification** | `GET`    | `/tutors/verification`        | Check verification status & uploaded documents   | Pre-fills Step 4 verification checklist & "Verification Docs" tab                     |
+| **Catalog**      | `GET`    | `/subjects`                   | Get subjects catalog reference data              | Powers 3-step cascading dropdowns in `SubjectSelector` (Category → Subject → Variant) |
+| **Documents**    | `POST`   | `/documents/presigned-upload` | Generate S3 presigned PUT URL                    | Step 1 of S3 direct upload workflow for transcripts, CVs, and certificates            |
+| **Documents**    | `PUT`    | `<presigned-s3-url>`          | Upload raw binary document to S3 bucket          | Step 2 of S3 direct upload workflow (direct to AWS S3 or mock S3 endpoint)            |
+| **Documents**    | `POST`   | `/documents/confirm`          | Confirm upload & record metadata in DB           | Step 3 of S3 direct upload workflow (creates record in `documents` table)             |
+| **Documents**    | `DELETE` | `/documents/:id`              | Delete uploaded document record                  | Removes incorrect or obsolete certificates in `VerificationSection`                   |
 
 ---
 
@@ -1626,6 +1798,7 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 ```
 
 > **Field Notes:**
+>
 > - `line_id`: Optional LINE ID for student-tutor contact upon matchmaking.
 > - `tutor_type`: `UNDERGRADUATE` | `FREELANCE` | `INSTITUTIONAL`.
 > - `style_profile`: Exactly 5 integers (1 to 5) corresponding to teaching pace, method, interaction, problem style, and structure.
@@ -1703,7 +1876,7 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
     "personality_profile": [5, 4, 4, 3],
     "verification_status": "PENDING",
     "rejection_reason": null,
-    "average_rating": 0.00,
+    "average_rating": 0.0,
     "review_count": 0
   },
   "message": "Tutor profile created successfully"
@@ -1719,7 +1892,10 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
     "message": "Request validation failed",
     "details": [
       { "field": "phone_number", "message": "Phone number is required" },
-      { "field": "style_profile", "message": "Style profile requires exactly 5 ratings" }
+      {
+        "field": "style_profile",
+        "message": "Style profile requires exactly 5 ratings"
+      }
     ]
   }
   ```
@@ -1787,7 +1963,10 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
     "success": false,
     "message": "Request validation failed",
     "details": [
-      { "field": "style_profile", "message": "Style profile requires exactly 5 ratings" }
+      {
+        "field": "style_profile",
+        "message": "Style profile requires exactly 5 ratings"
+      }
     ]
   }
   ```
@@ -1832,7 +2011,7 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
         "category": "GENERAL_LEARNING",
         "learning_goal": "SCHOOL_CURRICULUM",
         "requires_proof": false,
-        "hourly_rate": 500.00,
+        "hourly_rate": 500.0,
         "grade_levels": ["G7", "G8", "G9"],
         "teaching_focus": "Curriculum strengthening and homework assistance"
       },
@@ -1844,7 +2023,7 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
         "category": "UNIVERSITY_ENTRANCE",
         "learning_goal": "A_LEVEL",
         "requires_proof": true,
-        "hourly_rate": 750.00,
+        "hourly_rate": 750.0,
         "grade_levels": ["G12"],
         "teaching_focus": "Intensive mock testing and speed problem solving"
       }
@@ -1885,13 +2064,13 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
   "subjects": [
     {
       "variant_id": "4b5d6e7f-8a9b-0c1d-2e3f-4a5b6c7d8e9f",
-      "hourly_rate": 500.00,
+      "hourly_rate": 500.0,
       "grade_levels": ["G7", "G8", "G9"],
       "teaching_focus": "Curriculum strengthening and homework assistance"
     },
     {
       "variant_id": "7c8d9e0f-1a2b-3c4d-5e6f-7a8b9c0d1e2f",
-      "hourly_rate": 750.00,
+      "hourly_rate": 750.0,
       "grade_levels": ["G12"],
       "teaching_focus": "Intensive mock testing and speed problem solving"
     }
@@ -1914,7 +2093,7 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
         "category": "GENERAL_LEARNING",
         "learning_goal": "SCHOOL_CURRICULUM",
         "requires_proof": false,
-        "hourly_rate": 500.00,
+        "hourly_rate": 500.0,
         "grade_levels": ["G7", "G8", "G9"],
         "teaching_focus": "Curriculum strengthening and homework assistance"
       },
@@ -1926,7 +2105,7 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
         "category": "UNIVERSITY_ENTRANCE",
         "learning_goal": "A_LEVEL",
         "requires_proof": true,
-        "hourly_rate": 750.00,
+        "hourly_rate": 750.0,
         "grade_levels": ["G12"],
         "teaching_focus": "Intensive mock testing and speed problem solving"
       }
@@ -1995,6 +2174,7 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 ```
 
 > **Field Notes:**
+>
 > - `day_of_week`: `MONDAY` | `TUESDAY` | `WEDNESDAY` | `THURSDAY` | `FRIDAY` | `SATURDAY` | `SUNDAY`
 > - `start_time` / `end_time`: 24-hour time format string `HH:mm` or `HH:mm:ss`.
 
@@ -2160,6 +2340,7 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
 ```
 
 > **Field Notes:**
+>
 > - `document_type`: `DEGREE_TRANSCRIPT` | `CV` | `SUBJECT_QUALIFICATION`
 > - `variant_id`: Null for general credentials (Degree, CV); UUID when attached to a specific standardized subject variant requiring proof.
 
@@ -2190,7 +2371,8 @@ The tutor frontend client (`TutorOnboardingPage`, `TutorProfilePage`, and compon
   - `validateRequest(SubjectQuerySchema, 'query')`
 
 **Query Parameters:**
-- `category` *(optional)*: `GENERAL_LEARNING` | `LANGUAGE_TESTING` | `UNIVERSITY_ENTRANCE`
+
+- `category` _(optional)_: `GENERAL_LEARNING` | `LANGUAGE_TESTING` | `UNIVERSITY_ENTRANCE`
 
 **Response `200 OK`**
 
@@ -2458,12 +2640,12 @@ sequenceDiagram
 
 ## 2. Admin Verification Endpoints Summary
 
-| Domain | Method | Endpoint | Description | Frontend Client Use Case |
-|---|---|---|---|---|
-| **Queue** | `GET` | `/admin/tutors` | List tutor applications with status filter & FIFO sorting | Populates applications workbench list and live count badges |
-| **Profile** | `GET` | `/admin/tutors/:id` | Retrieve detailed tutor profile, subjects & documents | Detailed inspection view for credentials and offerings |
-| **Documents** | `GET` | `/admin/tutors/:id/documents/:docId/view-url` | Generate secure 15-minute S3 Presigned View URL | "View" button for CV, degrees, and subject proofs |
-| **Verification** | `PATCH` | `/admin/tutors/:id/verify` | Approve or reject application with mandatory feedback | "Approve Application" & "Reject Application" modal actions |
+| Domain           | Method  | Endpoint                                      | Description                                               | Frontend Client Use Case                                    |
+| ---------------- | ------- | --------------------------------------------- | --------------------------------------------------------- | ----------------------------------------------------------- |
+| **Queue**        | `GET`   | `/admin/tutors`                               | List tutor applications with status filter & FIFO sorting | Populates applications workbench list and live count badges |
+| **Profile**      | `GET`   | `/admin/tutors/:id`                           | Retrieve detailed tutor profile, subjects & documents     | Detailed inspection view for credentials and offerings      |
+| **Documents**    | `GET`   | `/admin/tutors/:id/documents/:docId/view-url` | Generate secure 15-minute S3 Presigned View URL           | "View" button for CV, degrees, and subject proofs           |
+| **Verification** | `PATCH` | `/admin/tutors/:id/verify`                    | Approve or reject application with mandatory feedback     | "Approve Application" & "Reject Application" modal actions  |
 
 ---
 
@@ -2480,7 +2662,8 @@ sequenceDiagram
   - `validateRequest(AdminTutorsQuerySchema, 'query')`
 
 **Query Parameters:**
-- `status` *(optional)*: `PENDING` | `APPROVED` | `REJECTED` | `ALL` (default: `ALL`).
+
+- `status` _(optional)_: `PENDING` | `APPROVED` | `REJECTED` | `ALL` (default: `ALL`).
 
 **Response `200 OK`**
 
@@ -2548,7 +2731,8 @@ sequenceDiagram
   - `validateRequest(UuidParamSchema, 'params')`
 
 **Path Parameters:**
-- `id` *(required)*: UUID of the tutor applicant.
+
+- `id` _(required)_: UUID of the tutor applicant.
 
 **Response `200 OK`**
 
@@ -2632,8 +2816,9 @@ sequenceDiagram
   - `validateRequest(TutorDocumentParamsSchema, 'params')`
 
 **Path Parameters:**
-- `id` *(required)*: UUID of the tutor applicant.
-- `docId` *(required)*: UUID of the document record.
+
+- `id` _(required)_: UUID of the tutor applicant.
+- `docId` _(required)_: UUID of the document record.
 
 **Response `200 OK`**
 
@@ -2660,7 +2845,10 @@ sequenceDiagram
     "success": false,
     "message": "Request validation failed",
     "details": [
-      { "field": "docId", "message": "Invalid document ID: must be a valid UUID" }
+      {
+        "field": "docId",
+        "message": "Invalid document ID: must be a valid UUID"
+      }
     ]
   }
   ```
@@ -2689,7 +2877,8 @@ sequenceDiagram
   - `validateRequest(VerifyTutorSchema, 'body')`
 
 **Path Parameters:**
-- `id` *(required)*: UUID of the tutor applicant.
+
+- `id` _(required)_: UUID of the tutor applicant.
 
 **Request Body (Approval)**
 
@@ -2794,7 +2983,6 @@ The server incorporates application-level fallbacks ensuring that unhandled rout
      }
      ```
 
-
 ---
 
 # Module 6: Tutor Matching
@@ -2808,10 +2996,10 @@ The server incorporates application-level fallbacks ensuring that unhandled rout
 
 ## 1. Endpoints Summary
 
-| Task | Method | Path | Purpose |
-|---|---|---|---|
-| **TP-8** | `POST` | `/api/matching` | Run the two-stage match and return the Top 3 tutors for one subject variant |
-| **TP-9** | `POST` | `/api/matching/:matchRequestId/confirm` | Confirm exactly one of the recommended tutors and notify them |
+| Task     | Method | Path                                    | Purpose                                                                     |
+| -------- | ------ | --------------------------------------- | --------------------------------------------------------------------------- |
+| **TP-8** | `POST` | `/api/matching`                         | Run the two-stage match and return the Top 3 tutors for one subject variant |
+| **TP-9** | `POST` | `/api/matching/:matchRequestId/confirm` | Confirm exactly one of the recommended tutors and notify them               |
 
 ## 2. How the Match Works
 
@@ -2821,12 +3009,12 @@ The client sends **only the requested subject variant**. Everything else comes f
 
 A tutor is eliminated unless **all** of these hold:
 
-| Gate | Rule |
-|---|---|
-| Verified | `verification_status = 'APPROVED'` |
-| Variant | the tutor teaches exactly the requested `variant_id` (Math ≠ Science, Primary ≠ Secondary) |
-| Grade | only when the variant's `learning_goal = 'SCHOOL_CURRICULUM'`: the tutor's `grade_levels` for that variant must include the student's `grade_level`. A tutor with no grade levels is eliminated. Other learning goals skip this gate. |
-| Availability | at least one student slot and one tutor slot on the **same day** overlap by **≥ 60 minutes** (`MIN_OVERLAP_MINUTES`). Slots that only touch (`16:00–17:00` and `17:00–18:00`) do not overlap. |
+| Gate         | Rule                                                                                                                                                                                                                                  |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Verified     | `verification_status = 'APPROVED'`                                                                                                                                                                                                    |
+| Variant      | the tutor teaches exactly the requested `variant_id` (Math ≠ Science, Primary ≠ Secondary)                                                                                                                                            |
+| Grade        | only when the variant's `learning_goal = 'SCHOOL_CURRICULUM'`: the tutor's `grade_levels` for that variant must include the student's `grade_level`. A tutor with no grade levels is eliminated. Other learning goals skip this gate. |
+| Availability | at least one student slot and one tutor slot on the **same day** overlap by **≥ 60 minutes** (`MIN_OVERLAP_MINUTES`). Slots that only touch (`16:00–17:00` and `17:00–18:00`) do not overlap.                                         |
 
 > **Online/Onsite mode** is listed as a hard filter in `PROJECT_CONTEXT.md` §3.3, but no mode column exists and all sessions are online by default (see the Module 4 format note), so this gate is not applied.
 
@@ -2854,8 +3042,8 @@ Candidates are sorted by score (descending), then by `tutor_id` (ascending) so e
 { "variant_id": "3f2b8c1e-5a4d-4e6f-9a7b-1c2d3e4f5a6b" }
 ```
 
-* `variant_id`: required UUID of a `subject_variants` row (from the 3-step subject selection).
-* Any other field is ignored. Profile data cannot be overridden from the request.
+- `variant_id`: required UUID of a `subject_variants` row (from the 3-step subject selection).
+- Any other field is ignored. Profile data cannot be overridden from the request.
 
 #### Response `200 OK`
 
@@ -2898,15 +3086,15 @@ A student keeps **one open request per variant**: running a match again for the 
 
 #### Error Responses
 
-| Status | Error Class | When |
-|---|---|---|
-| `400` | `BadRequestError` | Body is not valid JSON, or `variant_id` is missing or not a UUID |
-| `401` | `UnauthorizedError` | Missing or invalid bearer token |
-| `403` | `ForbiddenError` | Caller is not a `STUDENT` |
-| `404` | `NotFoundError` | The student has no profile yet, or the variant does not exist |
-| `409` | `ConflictError` | A tutor or the variant was removed while the match was being saved: *"The tutor list changed while matching. Please try again"* |
-| `413` | — | Body larger than 1 MB |
-| `422` | `UnprocessableEntityError` | The student has no weekly availability (*"Set your weekly availability before matching"*), or the student's saved sliders are invalid (*"Your learning preferences are incomplete. Please update your profile before matching"*) |
+| Status | Error Class                | When                                                                                                                                                                                                                             |
+| ------ | -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `400`  | `BadRequestError`          | Body is not valid JSON, or `variant_id` is missing or not a UUID                                                                                                                                                                 |
+| `401`  | `UnauthorizedError`        | Missing or invalid bearer token                                                                                                                                                                                                  |
+| `403`  | `ForbiddenError`           | Caller is not a `STUDENT`                                                                                                                                                                                                        |
+| `404`  | `NotFoundError`            | The student has no profile yet, or the variant does not exist                                                                                                                                                                    |
+| `409`  | `ConflictError`            | A tutor or the variant was removed while the match was being saved: _"The tutor list changed while matching. Please try again"_                                                                                                  |
+| `413`  | —                          | Body larger than 1 MB                                                                                                                                                                                                            |
+| `422`  | `UnprocessableEntityError` | The student has no weekly availability (_"Set your weekly availability before matching"_), or the student's saved sliders are invalid (_"Your learning preferences are incomplete. Please update your profile before matching"_) |
 
 ```bash
 curl -X POST http://localhost:4000/api/matching \
@@ -2930,15 +3118,15 @@ The student confirms **exactly one** of the recommended tutors. Middleware: `aut
 }
 ```
 
-* `:matchRequestId`: the `match_request_id` returned by `POST /api/matching`.
-* `recommendation_id` and `tutor_id`: both required UUIDs, and they must describe the same recommendation.
+- `:matchRequestId`: the `match_request_id` returned by `POST /api/matching`.
+- `recommendation_id` and `tutor_id`: both required UUIDs, and they must describe the same recommendation.
 
 #### What happens (one database transaction)
 
 1. The `match_requests` row is locked (`SELECT … FOR UPDATE`), so two simultaneous confirms for the same request run one after the other.
 2. Checks, in order: request exists and belongs to the caller → not already confirmed → recommendation belongs to this request → `tutor_id` matches it → the tutor is still `APPROVED`.
 3. `match_requests.status` becomes `CONFIRMED` and the chosen recommendation gets `is_selected = true`. Other recommendations stay unselected.
-4. A `TUTOR_SELECTED` notification is created for the tutor with `requires_email = true` and `email_status = 'PENDING'`, message *"A student has selected you as their tutor. Please check your contact details."* If any step fails, nothing is saved.
+4. A `TUTOR_SELECTED` notification is created for the tutor with `requires_email = true` and `email_status = 'PENDING'`, message _"A student has selected you as their tutor. Please check your contact details."_ If any step fails, nothing is saved.
 
 The email is sent later by the background worker. This request never calls SES.
 
@@ -2963,76 +3151,76 @@ No contact details are returned. Revealing contact channels belongs to Module 7.
 
 #### Error Responses
 
-| Status | Error Class | When |
-|---|---|---|
-| `400` | `BadRequestError` | Body is not valid JSON, or a field is missing or not a UUID |
-| `401` | `UnauthorizedError` | Missing or invalid bearer token |
-| `403` | `ForbiddenError` | Caller is not a `STUDENT` |
-| `404` | `NotFoundError` | Request id unknown or malformed, **or the request belongs to another student** (same response, so another student's request is never revealed); or the recommendation is not part of this request |
-| `409` | `ConflictError` | The request is already `CONFIRMED` (including the loser of two simultaneous confirms) |
-| `413` | — | Body larger than 1 MB |
-| `422` | `UnprocessableEntityError` | `tutor_id` does not match the recommendation, or the tutor is no longer approved or was removed meanwhile: *"This tutor is no longer available"* |
+| Status | Error Class                | When                                                                                                                                                                                              |
+| ------ | -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `400`  | `BadRequestError`          | Body is not valid JSON, or a field is missing or not a UUID                                                                                                                                       |
+| `401`  | `UnauthorizedError`        | Missing or invalid bearer token                                                                                                                                                                   |
+| `403`  | `ForbiddenError`           | Caller is not a `STUDENT`                                                                                                                                                                         |
+| `404`  | `NotFoundError`            | Request id unknown or malformed, **or the request belongs to another student** (same response, so another student's request is never revealed); or the recommendation is not part of this request |
+| `409`  | `ConflictError`            | The request is already `CONFIRMED` (including the loser of two simultaneous confirms)                                                                                                             |
+| `413`  | —                          | Body larger than 1 MB                                                                                                                                                                             |
+| `422`  | `UnprocessableEntityError` | `tutor_id` does not match the recommendation, or the tutor is no longer approved or was removed meanwhile: _"This tutor is no longer available"_                                                  |
 
 ## 5. Error Handling & Input Guards (Module 6)
 
-Every failure returns the standard envelope from the [global template](#2-standard-error-response-structure): `{ "success": false, "message": "...", "details": ... }`. Unknown routes, malformed JSON, oversized bodies and unhandled exceptions follow the global fallbacks in the *Global API Fallbacks & Resilience* section above.
+Every failure returns the standard envelope from the [global template](#2-standard-error-response-structure): `{ "success": false, "message": "...", "details": ... }`. Unknown routes, malformed JSON, oversized bodies and unhandled exceptions follow the global fallbacks in the _Global API Fallbacks & Resilience_ section above.
 
 ### 5.1 Order in which a request is checked
 
-| # | Check | Where | Failure |
-|---|---|---|---|
-| 1 | JSON body parses and is within 1 MB | `express.json` | `400` malformed JSON / `413` too large |
-| 2 | `Authorization: Bearer <token>` is present and valid | `authenticate` | `401` |
-| 3 | Caller has the `STUDENT` role | `requireRole` | `403` |
-| 4 | Body shape and types (Zod) | `validateRequest` | `400` with `details: [{ field, message }]` |
-| 5 | `:matchRequestId` is a UUID (confirm only) | service | `404` (a malformed id can never exist, so it is reported like an unknown one) |
-| 6 | Business rules and ownership | service | `404` / `409` / `422` (see below) |
-| 7 | Database failures | repository / global handler | `409` race, otherwise `500` |
+| #   | Check                                                | Where                       | Failure                                                                       |
+| --- | ---------------------------------------------------- | --------------------------- | ----------------------------------------------------------------------------- |
+| 1   | JSON body parses and is within 1 MB                  | `express.json`              | `400` malformed JSON / `413` too large                                        |
+| 2   | `Authorization: Bearer <token>` is present and valid | `authenticate`              | `401`                                                                         |
+| 3   | Caller has the `STUDENT` role                        | `requireRole`               | `403`                                                                         |
+| 4   | Body shape and types (Zod)                           | `validateRequest`           | `400` with `details: [{ field, message }]`                                    |
+| 5   | `:matchRequestId` is a UUID (confirm only)           | service                     | `404` (a malformed id can never exist, so it is reported like an unknown one) |
+| 6   | Business rules and ownership                         | service                     | `404` / `409` / `422` (see below)                                             |
+| 7   | Database failures                                    | repository / global handler | `409` race, otherwise `500`                                                   |
 
 ### 5.2 Input guards
 
-| Input | Guard |
-|---|---|
-| `variant_id` (match) | required, string, UUID. Any other body field is ignored, so grade, sliders, budget and availability can only come from the saved profile |
-| `recommendation_id`, `tutor_id` (confirm) | both required, strings, UUID |
-| `:matchRequestId` | UUID, else `404` |
-| Student slider data | 5 style + 4 personality integers in 1–5, else `422` pointing at the profile |
-| Tutor slider data | same rule; a tutor who fails it is **skipped and logged** so one bad row cannot fail the student's request |
-| Ownership | a request is only found for its own student; another student's request is indistinguishable from an unknown id (`404`) |
+| Input                                     | Guard                                                                                                                                    |
+| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `variant_id` (match)                      | required, string, UUID. Any other body field is ignored, so grade, sliders, budget and availability can only come from the saved profile |
+| `recommendation_id`, `tutor_id` (confirm) | both required, strings, UUID                                                                                                             |
+| `:matchRequestId`                         | UUID, else `404`                                                                                                                         |
+| Student slider data                       | 5 style + 4 personality integers in 1–5, else `422` pointing at the profile                                                              |
+| Tutor slider data                         | same rule; a tutor who fails it is **skipped and logged** so one bad row cannot fail the student's request                               |
+| Ownership                                 | a request is only found for its own student; another student's request is indistinguishable from an unknown id (`404`)                   |
 
 ### 5.3 Error catalogue
 
 **`POST /api/matching`**
 
-| Status | Message | Cause |
-|---|---|---|
-| `400` | `Malformed JSON in request body` | body is not parseable JSON |
-| `400` | `Request validation failed` (+ `details`) | `variant_id` missing / not a UUID |
-| `401` | `Missing or malformed Authorization header` or a token error | no or invalid token |
-| `403` | `Access denied. Required role: [STUDENT], …` | caller is a `TUTOR` or `ADMIN` |
-| `404` | `Student profile not found` | student has not created a profile |
-| `404` | `Subject variant not found` | `variant_id` does not exist |
-| `409` | `The tutor list changed while matching. Please try again` | tutor or variant deleted between loading and saving |
-| `413` | `Request body too large` | body above 1 MB |
-| `422` | `Set your weekly availability before matching` | student has no availability slots |
-| `422` | `Your learning preferences are incomplete. Please update your profile before matching` | stored student sliders invalid |
-| `500` | `An unexpected error occurred. Please try again later.` | unhandled failure, e.g. database unreachable |
+| Status | Message                                                                                | Cause                                               |
+| ------ | -------------------------------------------------------------------------------------- | --------------------------------------------------- |
+| `400`  | `Malformed JSON in request body`                                                       | body is not parseable JSON                          |
+| `400`  | `Request validation failed` (+ `details`)                                              | `variant_id` missing / not a UUID                   |
+| `401`  | `Missing or malformed Authorization header` or a token error                           | no or invalid token                                 |
+| `403`  | `Access denied. Required role: [STUDENT], …`                                           | caller is a `TUTOR` or `ADMIN`                      |
+| `404`  | `Student profile not found`                                                            | student has not created a profile                   |
+| `404`  | `Subject variant not found`                                                            | `variant_id` does not exist                         |
+| `409`  | `The tutor list changed while matching. Please try again`                              | tutor or variant deleted between loading and saving |
+| `413`  | `Request body too large`                                                               | body above 1 MB                                     |
+| `422`  | `Set your weekly availability before matching`                                         | student has no availability slots                   |
+| `422`  | `Your learning preferences are incomplete. Please update your profile before matching` | stored student sliders invalid                      |
+| `500`  | `An unexpected error occurred. Please try again later.`                                | unhandled failure, e.g. database unreachable        |
 
 No eligible tutor is **not** an error: the response is `200` with `recommendations: []`.
 
 **`POST /api/matching/:matchRequestId/confirm`**
 
-| Status | Message | Cause |
-|---|---|---|
-| `400` | `Malformed JSON in request body` / `Request validation failed` (+ `details`) | bad JSON, or a field missing / not a UUID |
-| `401` / `403` | as above | auth or role |
-| `404` | `Match request not found` | unknown id, malformed id, or **another student's request** |
-| `404` | `Recommendation not found for this match request` | `recommendation_id` is not part of this request |
-| `409` | `This match request has already been confirmed` | already `CONFIRMED`, including the loser of two simultaneous confirms |
-| `413` | `Request body too large` | body above 1 MB |
-| `422` | `tutor_id does not match the selected recommendation` | ids disagree |
-| `422` | `This tutor is no longer available` | tutor no longer `APPROVED`, or removed during the confirm |
-| `500` | `An unexpected error occurred. Please try again later.` | unhandled failure |
+| Status        | Message                                                                      | Cause                                                                 |
+| ------------- | ---------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `400`         | `Malformed JSON in request body` / `Request validation failed` (+ `details`) | bad JSON, or a field missing / not a UUID                             |
+| `401` / `403` | as above                                                                     | auth or role                                                          |
+| `404`         | `Match request not found`                                                    | unknown id, malformed id, or **another student's request**            |
+| `404`         | `Recommendation not found for this match request`                            | `recommendation_id` is not part of this request                       |
+| `409`         | `This match request has already been confirmed`                              | already `CONFIRMED`, including the loser of two simultaneous confirms |
+| `413`         | `Request body too large`                                                     | body above 1 MB                                                       |
+| `422`         | `tutor_id does not match the selected recommendation`                        | ids disagree                                                          |
+| `422`         | `This tutor is no longer available`                                          | tutor no longer `APPROVED`, or removed during the confirm             |
+| `500`         | `An unexpected error occurred. Please try again later.`                      | unhandled failure                                                     |
 
 Confirm is all-or-nothing: if any step fails, the request stays `PENDING`, no recommendation is selected and no notification is created.
 
@@ -3046,7 +3234,7 @@ Confirm is all-or-nothing: if any step fails, the request stays `PENDING`, no re
 > • **TP-19**: Verified Tutor Reviews & 4-Metric Rating Breakdown Display  
 > • **TP-30**: 4-Category Review Submission & Anti-Fraud Gating  
 > • **TP-34**: Student Match History & Top Tutor Revisit Feature  
-> • **TP-35**: Detailed Tutor Profile & S3 Presigned CV/Resume Inspection  
+> • **TP-35**: Detailed Tutor Profile & S3 Presigned CV/Resume Inspection
 >
 > **Access Roles:** Authenticated (`STUDENT` for match history & review submission; `STUDENT`, `TUTOR`, `ADMIN` for tutor profile inspection; Public/Authenticated for tutor reviews summary).  
 > **Identity:** Student identity is resolved automatically from the JWT bearer token (`req.user.id`). Clients never pass `student_id` in URL paths or request bodies.  
@@ -3054,13 +3242,13 @@ Confirm is all-or-nothing: if any step fails, the request stays `PENDING`, no re
 
 ## 1. Endpoints Summary
 
-| Task | Method | Path | Access Role | Purpose |
-|---|---|---|---|---|
-| **TP-10 / TP-34** | `GET` | `/api/matching/history` | `STUDENT` | Retrieve complete match history with revealed confirmed contact channels and past Top 3 recommendations |
-| **TP-35** | `GET` | `/api/tutors/:tutorId` | Authenticated | Inspect full tutor profile, subject pricing, style/personality radar, secure S3 presigned CV URL, and conditionally unlocked contacts |
-| **TP-30** | `POST` | `/api/reviews` | `STUDENT` | Submit a verified 4-category review with anti-fraud gating and atomic rating recalculation |
-| **TP-30** | `GET` | `/api/reviews/recommendation/:recommendationId` | `STUDENT` | Prefetch recommendation & tutor context to initialize review submission form |
-| **TP-19** | `GET` | `/api/reviews/tutor/:tutorId` | Public / Auth | Retrieve tutor's average rating, review count, 4-metric score breakdown, and written student review list |
+| Task              | Method | Path                                            | Access Role   | Purpose                                                                                                                               |
+| ----------------- | ------ | ----------------------------------------------- | ------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| **TP-10 / TP-34** | `GET`  | `/api/matching/history`                         | `STUDENT`     | Retrieve complete match history with revealed confirmed contact channels and past Top 3 recommendations                               |
+| **TP-35**         | `GET`  | `/api/tutors/:tutorId`                          | Authenticated | Inspect full tutor profile, subject pricing, style/personality radar, secure S3 presigned CV URL, and conditionally unlocked contacts |
+| **TP-30**         | `POST` | `/api/reviews`                                  | `STUDENT`     | Submit a verified 4-category review with anti-fraud gating and atomic rating recalculation                                            |
+| **TP-30**         | `GET`  | `/api/reviews/recommendation/:recommendationId` | `STUDENT`     | Prefetch recommendation & tutor context to initialize review submission form                                                          |
+| **TP-19**         | `GET`  | `/api/reviews/tutor/:tutorId`                   | Public / Auth | Retrieve tutor's average rating, review count, 4-metric score breakdown, and written student review list                              |
 
 ---
 
@@ -3073,12 +3261,14 @@ Fetches the complete chronological history of match requests submitted by the au
 - **Contact Channels Unlocking**: When `status = 'CONFIRMED'`, the `selected` field is populated with the confirmed tutor's phone number, LINE ID, and email. For `PENDING` requests, `selected` is `null`.
 
 #### Request
+
 ```http
 GET /api/matching/history HTTP/1.1
 Authorization: Bearer <jwt-token>
 ```
 
 #### Response `200 OK`
+
 ```json
 {
   "success": true,
@@ -3159,37 +3349,18 @@ Retrieves a detailed tutor profile for students inspecting recommended tutors or
 - **Review Gating Status**: Exposes `confirmed_recommendation_id` and `has_reviewed` to control the client-side "Write Review" button.
 
 #### Request
+
 ```http
 GET /api/tutors/c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f HTTP/1.1
 Authorization: Bearer <jwt-token>
 ```
 
 #### Response `200 OK`
-=======
-# Module 8: Tutor Notifications & Email Delivery (TP-13, TP-14)
 
-## 1. Endpoints and Access
-
-All paths include `/api`. All three endpoints require `Authorization: Bearer <token>` and the database role `TUTOR`. Identity is resolved from `req.user.id`; clients cannot choose a notification recipient. For local development, use the token returned by `/api/auth/mock-login`, not a token constructed from the database UUID. Mock tokens are rejected in production.
-
-| Method | Path | Purpose | Success |
-|---|---|---|---|
-| GET | `/api/notifications` | List the current tutor's notifications and unread count | 200 |
-| PATCH | `/api/notifications/:id/read` | Mark one owned notification read | 200 |
-| PATCH | `/api/notifications/read-all` | Mark all currently unread owned notifications read | 200 |
-
-No query parameters are supported, including `unread`, pagination, or recipient filters. Query fields are rejected with 400. No request body is required; an empty JSON object is accepted. Unknown body fields, arrays, null and primitive bodies are rejected. The `:id` parameter must be a UUID. Authentication and role checks precede endpoint validation; global JSON parsing/size checks happen before routing.
-
-## 2. Response Contracts
-
-### GET `/api/notifications`
-
->>>>>>> origin/master
 ```json
 {
   "success": true,
   "data": {
-<<<<<<< HEAD
     "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
     "first_name": "Kru Ananya",
     "last_name": "Siriwong",
@@ -3242,6 +3413,7 @@ Submits a verified 4-category review with written feedback for a confirmed tutor
 - **In-App Notification**: Triggers an in-app `NEW_REVIEW` notification to the reviewed tutor.
 
 #### Request Body (`CreateReviewSchema`)
+
 ```json
 {
   "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
@@ -3255,6 +3427,7 @@ Submits a verified 4-category review with written feedback for a confirmed tutor
 ```
 
 #### Response `201 Created`
+
 ```json
 {
   "success": true,
@@ -3275,12 +3448,14 @@ Submits a verified 4-category review with written feedback for a confirmed tutor
 Prefetches context for the review submission page (tutor name, subject, and existing review status) to validate that the student is allowed to review before rendering the form.
 
 #### Request
+
 ```http
 GET /api/reviews/recommendation/7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d HTTP/1.1
 Authorization: Bearer <jwt-token>
 ```
 
 #### Response `200 OK`
+
 ```json
 {
   "success": true,
@@ -3313,11 +3488,13 @@ Returns the rating summary, 4-metric score breakdown, and all student reviews fo
 - **Privacy**: Only public student display names (first name + first letter of last name, or full name if opted-in) and written comments are returned.
 
 #### Request
+
 ```http
 GET /api/reviews/tutor/c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f HTTP/1.1
 ```
 
 #### Response `200 OK`
+
 ```json
 {
   "success": true,
@@ -3357,6 +3534,7 @@ GET /api/reviews/tutor/c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f HTTP/1.1
 ## 7. Error Handling & Input Guards (Module 7)
 
 Every failure strictly returns the standard response envelope from the [Global Error Template](#2-standard-error-response-structure):
+
 ```json
 {
   "success": false,
@@ -3367,53 +3545,53 @@ Every failure strictly returns the standard response envelope from the [Global E
 
 ### 7.1 Execution & Guard Order
 
-| # | Guard / Check | Middleware / Layer | Failure Code & Response |
-|---|---|---|---|
-| 1 | JSON parsing & size limit (1 MB) | `express.json()` | `400 Bad Request` / `413 Payload Too Large` |
-| 2 | Bearer JWT presence & verification | `authenticate` | `401 Unauthorized` |
-| 3 | Role-Based Access Control | `requireRole([UserRole.STUDENT])` | `403 Forbidden` (`Access denied`) |
-| 4 | Zod Request Body Validation | `validateRequest(CreateReviewSchema)` | `400 Bad Request` with field details |
-| 5 | UUID Param Integrity Check | `service / repository` | `404 Not Found` (malformed UUIDs treated as non-existent) |
-| 6 | Match Ownership & Gating Verification | `reviews.service.ts` | `404 Not Found` / `409 ConflictError` |
-| 7 | Duplicate Review Prevention | `reviews.service.ts` | `409 ConflictError` (`You have already submitted a review...`) |
-| 8 | Transactional Integrity & Concurrency | `reviews.repository.ts` | `500 InternalServerError` |
+| #   | Guard / Check                         | Middleware / Layer                    | Failure Code & Response                                        |
+| --- | ------------------------------------- | ------------------------------------- | -------------------------------------------------------------- |
+| 1   | JSON parsing & size limit (1 MB)      | `express.json()`                      | `400 Bad Request` / `413 Payload Too Large`                    |
+| 2   | Bearer JWT presence & verification    | `authenticate`                        | `401 Unauthorized`                                             |
+| 3   | Role-Based Access Control             | `requireRole([UserRole.STUDENT])`     | `403 Forbidden` (`Access denied`)                              |
+| 4   | Zod Request Body Validation           | `validateRequest(CreateReviewSchema)` | `400 Bad Request` with field details                           |
+| 5   | UUID Param Integrity Check            | `service / repository`                | `404 Not Found` (malformed UUIDs treated as non-existent)      |
+| 6   | Match Ownership & Gating Verification | `reviews.service.ts`                  | `404 Not Found` / `409 ConflictError`                          |
+| 7   | Duplicate Review Prevention           | `reviews.service.ts`                  | `409 ConflictError` (`You have already submitted a review...`) |
+| 8   | Transactional Integrity & Concurrency | `reviews.repository.ts`               | `500 InternalServerError`                                      |
 
 ### 7.2 Input Guards & Validation Matrix
 
-| Input Field | Source | Guard & Rule | Failure Behavior |
-|---|---|---|---|
-| `tutor_id` | Body | Required, UUID v4 format | `400 Bad Request` |
-| `recommendation_id` | Body | Required, UUID v4 format | `400 Bad Request` |
-| `rating_knowledge` | Body | Integer, min: 1, max: 5 | `400 Bad Request` |
-| `rating_preparation` | Body | Integer, min: 1, max: 5 | `400 Bad Request` |
-| `rating_clarity` | Body | Integer, min: 1, max: 5 | `400 Bad Request` |
-| `rating_punctuality` | Body | Integer, min: 1, max: 5 | `400 Bad Request` |
-| `comment` | Body | Optional string, max length 2,000 characters | `400 Bad Request` |
-| `:tutorId` | URL Param | UUID format, must exist in `tutors` table | `404 Not Found` |
-| `:recommendationId`| URL Param | UUID format, must belong to authenticated student | `404 Not Found` |
+| Input Field          | Source    | Guard & Rule                                      | Failure Behavior  |
+| -------------------- | --------- | ------------------------------------------------- | ----------------- |
+| `tutor_id`           | Body      | Required, UUID v4 format                          | `400 Bad Request` |
+| `recommendation_id`  | Body      | Required, UUID v4 format                          | `400 Bad Request` |
+| `rating_knowledge`   | Body      | Integer, min: 1, max: 5                           | `400 Bad Request` |
+| `rating_preparation` | Body      | Integer, min: 1, max: 5                           | `400 Bad Request` |
+| `rating_clarity`     | Body      | Integer, min: 1, max: 5                           | `400 Bad Request` |
+| `rating_punctuality` | Body      | Integer, min: 1, max: 5                           | `400 Bad Request` |
+| `comment`            | Body      | Optional string, max length 2,000 characters      | `400 Bad Request` |
+| `:tutorId`           | URL Param | UUID format, must exist in `tutors` table         | `404 Not Found`   |
+| `:recommendationId`  | URL Param | UUID format, must belong to authenticated student | `404 Not Found`   |
 
 ### 7.3 Module 7 Error Catalogue
 
-| Endpoint | HTTP Status | Error Class | Exact Message | Cause |
-|---|---|---|---|---|
-| `GET /api/matching/history` | `401` | `UnauthorizedError` | `Missing or malformed Authorization header` | Token omitted or expired |
-| | `403` | `ForbiddenError` | `Access denied. Required role: [STUDENT]` | Role is `TUTOR` or `ADMIN` |
-| | `404` | `NotFoundError` | `Student not found` | Authenticated student id is invalid |
-| `GET /api/tutors/:tutorId` | `401` | `UnauthorizedError` | `Missing or malformed Authorization header` | Unauthenticated request |
-| | `404` | `NotFoundError` | `Tutor not found` | Invalid UUID or tutor does not exist |
-| `POST /api/reviews` | `400` | `BadRequestError` | `Request validation failed` | Missing fields or rating not in 1–5 |
-| | `401` | `UnauthorizedError` | `Missing or malformed Authorization header` | Unauthenticated request |
-| | `403` | `ForbiddenError` | `Access denied. Required role: [STUDENT]` | Tutor or Admin attempting to submit review |
-| | `404` | `NotFoundError` | `Confirmed match recommendation not found` | Invalid recommendation or not owned by student |
-| | `409` | `ConflictError` | `You can only review tutors from confirmed matches` | Match is still `PENDING` or unselected |
-| | `409` | `ConflictError` | `You have already submitted a review for this tutor match` | Duplicate review attempt |
-| | `422` | `UnprocessableEntityError` | `tutor_id does not match the recommendation tutor` | Tampered body payload |
-| `GET /api/reviews/recommendation/:recommendationId` | `401` | `UnauthorizedError` | `Missing or malformed Authorization header` | Unauthenticated |
-| | `403` | `ForbiddenError` | `Access denied. Required role: [STUDENT]` | Non-student caller |
-| | `404` | `NotFoundError` | `Match recommendation not found` | ID does not exist or not owned by student |
-| | `409` | `ConflictError` | `You can only review tutors from confirmed matches` | Request not confirmed |
-| `GET /api/reviews/tutor/:tutorId` | `404` | `NotFoundError` | `Tutor not found` | ID not a UUID or tutor does not exist in DB |
-| All Endpoints | `500` | `InternalServerError` | `An unexpected error occurred. Please try again later.` | Unhandled database or system exception |
+| Endpoint                                            | HTTP Status | Error Class                | Exact Message                                              | Cause                                          |
+| --------------------------------------------------- | ----------- | -------------------------- | ---------------------------------------------------------- | ---------------------------------------------- |
+| `GET /api/matching/history`                         | `401`       | `UnauthorizedError`        | `Missing or malformed Authorization header`                | Token omitted or expired                       |
+|                                                     | `403`       | `ForbiddenError`           | `Access denied. Required role: [STUDENT]`                  | Role is `TUTOR` or `ADMIN`                     |
+|                                                     | `404`       | `NotFoundError`            | `Student not found`                                        | Authenticated student id is invalid            |
+| `GET /api/tutors/:tutorId`                          | `401`       | `UnauthorizedError`        | `Missing or malformed Authorization header`                | Unauthenticated request                        |
+|                                                     | `404`       | `NotFoundError`            | `Tutor not found`                                          | Invalid UUID or tutor does not exist           |
+| `POST /api/reviews`                                 | `400`       | `BadRequestError`          | `Request validation failed`                                | Missing fields or rating not in 1–5            |
+|                                                     | `401`       | `UnauthorizedError`        | `Missing or malformed Authorization header`                | Unauthenticated request                        |
+|                                                     | `403`       | `ForbiddenError`           | `Access denied. Required role: [STUDENT]`                  | Tutor or Admin attempting to submit review     |
+|                                                     | `404`       | `NotFoundError`            | `Confirmed match recommendation not found`                 | Invalid recommendation or not owned by student |
+|                                                     | `409`       | `ConflictError`            | `You can only review tutors from confirmed matches`        | Match is still `PENDING` or unselected         |
+|                                                     | `409`       | `ConflictError`            | `You have already submitted a review for this tutor match` | Duplicate review attempt                       |
+|                                                     | `422`       | `UnprocessableEntityError` | `tutor_id does not match the recommendation tutor`         | Tampered body payload                          |
+| `GET /api/reviews/recommendation/:recommendationId` | `401`       | `UnauthorizedError`        | `Missing or malformed Authorization header`                | Unauthenticated                                |
+|                                                     | `403`       | `ForbiddenError`           | `Access denied. Required role: [STUDENT]`                  | Non-student caller                             |
+|                                                     | `404`       | `NotFoundError`            | `Match recommendation not found`                           | ID does not exist or not owned by student      |
+|                                                     | `409`       | `ConflictError`            | `You can only review tutors from confirmed matches`        | Request not confirmed                          |
+| `GET /api/reviews/tutor/:tutorId`                   | `404`       | `NotFoundError`            | `Tutor not found`                                          | ID not a UUID or tutor does not exist in DB    |
+| All Endpoints                                       | `500`       | `InternalServerError`      | `An unexpected error occurred. Please try again later.`    | Unhandled database or system exception         |
 
 ---
 
@@ -3423,11 +3601,11 @@ Every failure strictly returns the standard response envelope from the [Global E
 
 All paths include `/api`. All three endpoints require `Authorization: Bearer <token>` and the database role `TUTOR`. Identity is resolved from `req.user.id`; clients cannot choose a notification recipient. For local development, use the token returned by `/api/auth/mock-login`, not a token constructed from the database UUID. Mock tokens are rejected in production.
 
-| Method | Path | Purpose | Success |
-|---|---|---|---|
-| GET | `/api/notifications` | List the current tutor's notifications and unread count | 200 |
-| PATCH | `/api/notifications/:id/read` | Mark one owned notification read | 200 |
-| PATCH | `/api/notifications/read-all` | Mark all currently unread owned notifications read | 200 |
+| Method | Path                          | Purpose                                                 | Success |
+| ------ | ----------------------------- | ------------------------------------------------------- | ------- |
+| GET    | `/api/notifications`          | List the current tutor's notifications and unread count | 200     |
+| PATCH  | `/api/notifications/:id/read` | Mark one owned notification read                        | 200     |
+| PATCH  | `/api/notifications/read-all` | Mark all currently unread owned notifications read      | 200     |
 
 No query parameters are supported, including `unread`, pagination, or recipient filters. Query fields are rejected with 400. No request body is required; an empty JSON object is accepted. Unknown body fields, arrays, null and primitive bodies are rejected. The `:id` parameter must be a UUID. Authentication and role checks precede endpoint validation; global JSON parsing/size checks happen before routing.
 
@@ -3458,7 +3636,10 @@ Returns all owned rows, newest first; equal timestamps are ordered by ID descend
 ### PATCH `/api/notifications/:id/read`
 
 ```json
-{"success":true,"data":{"id":"00000000-0000-4000-8000-000000000001","is_read":true}}
+{
+  "success": true,
+  "data": { "id": "00000000-0000-4000-8000-000000000001", "is_read": true }
+}
 ```
 
 Owner-scoped and repeat-safe: an already-read owned item still returns 200. Unknown IDs and another tutor's IDs return the same 404, without revealing ownership.
@@ -3466,7 +3647,7 @@ Owner-scoped and repeat-safe: an already-read owned item still returns 200. Unkn
 ### PATCH `/api/notifications/read-all`
 
 ```json
-{"success":true,"data":{"updatedCount":2}}
+{ "success": true, "data": { "updatedCount": 2 } }
 ```
 
 `updatedCount` counts newly changed rows. A repeated request returns zero when none remain unread. This action does not delete notifications or change email delivery status.
@@ -3481,29 +3662,29 @@ Uses the existing global `errorResponse` envelope and `errorHandler`; controller
 {
   "success": false,
   "message": "Request validation failed",
-  "details": [{"field":"id","message":"Invalid ID: must be a valid UUID"}]
+  "details": [{ "field": "id", "message": "Invalid ID: must be a valid UUID" }]
 }
 ```
 
-| Status | Applies to | Condition / response |
-|---|---|---|
-| 400 | All | Unsupported query/body fields or invalid body type; `Request validation failed` with field details; malformed JSON is `Malformed JSON in request body` |
-| 400 | Single-read | Malformed UUID, before repository access; shared UUID validation details |
-| 401 | All | Missing/malformed/invalid/expired credentials or no corresponding user; existing authentication error message |
-| 403 | All | Authenticated STUDENT/ADMIN or other non-TUTOR role; existing role-guard message |
-| 404 | Single-read | Missing notification or another tutor's notification; `Notification not found` |
-| 413 | All, where a body is sent | Global 1 MB JSON limit; `Request body too large` |
-| 500 | All | Unexpected database/service failure; production message `An unexpected error occurred. Please try again later.`; development/test may expose the underlying error message |
+| Status | Applies to                | Condition / response                                                                                                                                                      |
+| ------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 400    | All                       | Unsupported query/body fields or invalid body type; `Request validation failed` with field details; malformed JSON is `Malformed JSON in request body`                    |
+| 400    | Single-read               | Malformed UUID, before repository access; shared UUID validation details                                                                                                  |
+| 401    | All                       | Missing/malformed/invalid/expired credentials or no corresponding user; existing authentication error message                                                             |
+| 403    | All                       | Authenticated STUDENT/ADMIN or other non-TUTOR role; existing role-guard message                                                                                          |
+| 404    | Single-read               | Missing notification or another tutor's notification; `Notification not found`                                                                                            |
+| 413    | All, where a body is sent | Global 1 MB JSON limit; `Request body too large`                                                                                                                          |
+| 500    | All                       | Unexpected database/service failure; production message `An unexpected error occurred. Please try again later.`; development/test may expose the underlying error message |
 
 The existing global PostgreSQL mappings also apply: invalid parameter format (22P02) -> 400; unique conflict (23505) -> 409; foreign-key violation (23503) -> 400. These are shared fallbacks, not expected normal read-endpoint outcomes. No new global error format is introduced.
 
 ## 4. Integration Events and Guards
 
-| Event | Trigger and validation | Atomicity and repeat handling |
-|---|---|---|
-| `TUTOR_SELECTED` (TP-13) | Existing STUDENT-only `POST /api/matching/:matchRequestId/confirm`; required UUID `recommendation_id` and `tutor_id`; service validates request ownership/identity, recommendation membership, tutor identity and approval status | Confirmation and notification are one transaction. Already-confirmed requests return 409; concurrent confirmations cannot create two selections. Full 400/401/403/404/409/413/422/500 catalogue remains in Module 6 above. |
-| `VERIFICATION_APPROVED` (TP-14) | Existing ADMIN-only `PATCH /api/admin/tutors/:id/verify`; UUID tutor ID and status `APPROVED` | Status and notification saved together under a tutor-row lock. Repeated same-status decisions do not create another event. |
-| `VERIFICATION_REJECTED` (TP-14) | Same admin route with status `REJECTED` and a nonblank `rejection_reason` string, maximum 1000 characters | Rejection reason is trimmed and included in the notification/email. Notification persistence failure rolls back the decision. |
+| Event                           | Trigger and validation                                                                                                                                                                                                            | Atomicity and repeat handling                                                                                                                                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `TUTOR_SELECTED` (TP-13)        | Existing STUDENT-only `POST /api/matching/:matchRequestId/confirm`; required UUID `recommendation_id` and `tutor_id`; service validates request ownership/identity, recommendation membership, tutor identity and approval status | Confirmation and notification are one transaction. Already-confirmed requests return 409; concurrent confirmations cannot create two selections. Full 400/401/403/404/409/413/422/500 catalogue remains in Module 6 above. |
+| `VERIFICATION_APPROVED` (TP-14) | Existing ADMIN-only `PATCH /api/admin/tutors/:id/verify`; UUID tutor ID and status `APPROVED`                                                                                                                                     | Status and notification saved together under a tutor-row lock. Repeated same-status decisions do not create another event.                                                                                                 |
+| `VERIFICATION_REJECTED` (TP-14) | Same admin route with status `REJECTED` and a nonblank `rejection_reason` string, maximum 1000 characters                                                                                                                         | Rejection reason is trimmed and included in the notification/email. Notification persistence failure rolls back the decision.                                                                                              |
 
 Admin verification errors retain the global envelope: malformed ID/missing or invalid body/status/reason -> 400; authentication -> 401; non-admin -> 403; missing database tutor -> 404; body limit -> 413; unexpected persistence failure -> 500. Rejection requires a reason in both the shared schema and service. In-memory sample tutors cannot be approved as if they were persisted database records. Matching scoring, authentication and document-upload contracts are not modified by this specification.
 
