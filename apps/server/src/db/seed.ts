@@ -99,11 +99,20 @@ async function seed() {
       .onConflictDoNothing();
 
     // =========================================================================
-    // 1. GENERAL LEARNING
+    // 1. GENERAL LEARNING (G1–G12 THAI & INTERNATIONAL CURRICULA)
     // =========================================================================
     const math = await getOrCreateSubject('Mathematics', SubjectCategory.GENERAL_LEARNING);
+    await ensureVariant(math.id, 'Primary School Mathematics (G1–G6)', LearningGoal.SCHOOL_CURRICULUM, false);
+    await ensureVariant(math.id, 'Lower Secondary Mathematics (G7–G9)', LearningGoal.SCHOOL_CURRICULUM, false);
+    await ensureVariant(math.id, 'Upper Secondary Mathematics (G10–G12)', LearningGoal.SCHOOL_CURRICULUM, false);
     await ensureVariant(math.id, 'School Curriculum Mathematics', LearningGoal.SCHOOL_CURRICULUM, false);
     await ensureVariant(math.id, 'Math Olympiad & Competitions', LearningGoal.COMPETITIONS, true);
+
+    const science = await getOrCreateSubject('General Science', SubjectCategory.GENERAL_LEARNING);
+    await ensureVariant(science.id, 'Primary School Science (G1–G6)', LearningGoal.SCHOOL_CURRICULUM, false);
+    await ensureVariant(science.id, 'Lower Secondary Science (G7–G9)', LearningGoal.SCHOOL_CURRICULUM, false);
+    await ensureVariant(science.id, 'Primary & Lower Secondary Science', LearningGoal.SCHOOL_CURRICULUM, false);
+    await ensureVariant(science.id, 'Junior Science Olympiad (IJSO)', LearningGoal.COMPETITIONS, true);
 
     const physics = await getOrCreateSubject('Physics', SubjectCategory.GENERAL_LEARNING);
     await ensureVariant(physics.id, 'School Curriculum Physics', LearningGoal.SCHOOL_CURRICULUM, false);
@@ -118,14 +127,26 @@ async function seed() {
     await ensureVariant(biology.id, 'Medical Biology & POSN Olympiad', LearningGoal.COMPETITIONS, true);
 
     const english = await getOrCreateSubject('English', SubjectCategory.GENERAL_LEARNING);
+    await ensureVariant(english.id, 'Primary English Foundations (G1–G6)', LearningGoal.SCHOOL_CURRICULUM, false);
+    await ensureVariant(english.id, 'Secondary English & Grammar (G7–G12)', LearningGoal.SCHOOL_CURRICULUM, false);
     await ensureVariant(english.id, 'School English (Grammar & Writing)', LearningGoal.SCHOOL_CURRICULUM, false);
     await ensureVariant(english.id, 'Conversational English', LearningGoal.PRACTICAL_APPLICATION, false);
 
-    const science = await getOrCreateSubject('General Science', SubjectCategory.GENERAL_LEARNING);
-    await ensureVariant(science.id, 'Primary & Lower Secondary Science', LearningGoal.SCHOOL_CURRICULUM, false);
+    const thai = await getOrCreateSubject('Thai Language & Literature', SubjectCategory.GENERAL_LEARNING);
+    await ensureVariant(thai.id, 'Primary Thai Reading & Writing (G1–G6)', LearningGoal.SCHOOL_CURRICULUM, false);
+    await ensureVariant(thai.id, 'Secondary Thai Grammar & Essay (G7–G12)', LearningGoal.SCHOOL_CURRICULUM, false);
+
+    const social = await getOrCreateSubject('Social Studies & History', SubjectCategory.GENERAL_LEARNING);
+    await ensureVariant(social.id, 'Primary Social Studies (G1–G6)', LearningGoal.SCHOOL_CURRICULUM, false);
+    await ensureVariant(social.id, 'Secondary Social Studies & History (G7–G12)', LearningGoal.SCHOOL_CURRICULUM, false);
+
+    const coding = await getOrCreateSubject('Computer Science & Coding', SubjectCategory.GENERAL_LEARNING);
+    await ensureVariant(coding.id, 'Scratch & Block Coding (G1–G6)', LearningGoal.GENERAL_SKILLS, false);
+    await ensureVariant(coding.id, 'Python Programming & Algorithms (G7–G12)', LearningGoal.GENERAL_SKILLS, false);
+    await ensureVariant(coding.id, 'POSN Computer Olympiad (C++)', LearningGoal.COMPETITIONS, true);
 
     // =========================================================================
-    // 2. LANGUAGE TESTING
+    // 2. LANGUAGE TESTING (ENGLISH, ASIAN & EUROPEAN LANGUAGES)
     // =========================================================================
     const ielts = await getOrCreateSubject('IELTS', SubjectCategory.LANGUAGE_TESTING);
     await ensureVariant(ielts.id, 'IELTS Academic (Target 6.5+)', LearningGoal.STANDARDIZED_EXAMS, true);
@@ -137,18 +158,35 @@ async function seed() {
     const toefl = await getOrCreateSubject('TOEFL', SubjectCategory.LANGUAGE_TESTING);
     await ensureVariant(toefl.id, 'TOEFL iBT (90+)', LearningGoal.STANDARDIZED_EXAMS, true);
 
+    const cambridge = await getOrCreateSubject('Cambridge English', SubjectCategory.LANGUAGE_TESTING);
+    await ensureVariant(cambridge.id, 'Cambridge Young Learners (YLE Starters/Movers/Flyers)', LearningGoal.STANDARDIZED_EXAMS, true);
+    await ensureVariant(cambridge.id, 'Cambridge KET & PET (A2/B1)', LearningGoal.STANDARDIZED_EXAMS, true);
+
+    const chinese = await getOrCreateSubject('Chinese (Mandarin)', SubjectCategory.LANGUAGE_TESTING);
+    await ensureVariant(chinese.id, 'HSK 4-6 (Advanced Chinese)', LearningGoal.STANDARDIZED_EXAMS, true);
+    await ensureVariant(chinese.id, 'HSK 1-3 (Elementary Chinese)', LearningGoal.STANDARDIZED_EXAMS, true);
+    await ensureVariant(chinese.id, 'Youth Chinese Test (YCT for G1–G9)', LearningGoal.STANDARDIZED_EXAMS, true);
+    await ensureVariant(chinese.id, 'Conversational Mandarin', LearningGoal.PRACTICAL_APPLICATION, false);
+
     const japanese = await getOrCreateSubject('Japanese', SubjectCategory.LANGUAGE_TESTING);
     await ensureVariant(japanese.id, 'JLPT N1 / N2 (Advanced)', LearningGoal.STANDARDIZED_EXAMS, true);
     await ensureVariant(japanese.id, 'JLPT N3 / N4 / N5 (Foundation)', LearningGoal.STANDARDIZED_EXAMS, true);
     await ensureVariant(japanese.id, 'Daily & Business Japanese', LearningGoal.PRACTICAL_APPLICATION, false);
 
-    const chinese = await getOrCreateSubject('Chinese (Mandarin)', SubjectCategory.LANGUAGE_TESTING);
-    await ensureVariant(chinese.id, 'HSK 4-6 (Advanced Chinese)', LearningGoal.STANDARDIZED_EXAMS, true);
-    await ensureVariant(chinese.id, 'HSK 1-3 (Elementary Chinese)', LearningGoal.STANDARDIZED_EXAMS, true);
-    await ensureVariant(chinese.id, 'Conversational Mandarin', LearningGoal.PRACTICAL_APPLICATION, false);
+    const korean = await getOrCreateSubject('Korean', SubjectCategory.LANGUAGE_TESTING);
+    await ensureVariant(korean.id, 'TOPIK I (Levels 1–2)', LearningGoal.STANDARDIZED_EXAMS, true);
+    await ensureVariant(korean.id, 'TOPIK II (Levels 3–6)', LearningGoal.STANDARDIZED_EXAMS, true);
+    await ensureVariant(korean.id, 'Conversational Korean', LearningGoal.PRACTICAL_APPLICATION, false);
+
+    const french = await getOrCreateSubject('French', SubjectCategory.LANGUAGE_TESTING);
+    await ensureVariant(french.id, 'DELF Prim & Junior (A1–B2)', LearningGoal.STANDARDIZED_EXAMS, true);
+    await ensureVariant(french.id, 'Conversational French', LearningGoal.PRACTICAL_APPLICATION, false);
+
+    const german = await getOrCreateSubject('German', SubjectCategory.LANGUAGE_TESTING);
+    await ensureVariant(german.id, 'Goethe-Zertifikat (A1–B2)', LearningGoal.STANDARDIZED_EXAMS, true);
 
     // =========================================================================
-    // 3. UNIVERSITY ENTRANCE
+    // 3. UNIVERSITY & HIGH SCHOOL ENTRANCE (TCAS, INTER & ELITE SCHOOLS)
     // =========================================================================
     const sat = await getOrCreateSubject('Digital SAT', SubjectCategory.UNIVERSITY_ENTRANCE);
     await ensureVariant(sat.id, 'Digital SAT Math (700+)', LearningGoal.STANDARDIZED_EXAMS, true);
@@ -161,18 +199,28 @@ async function seed() {
 
     const tpat = await getOrCreateSubject('TPAT', SubjectCategory.UNIVERSITY_ENTRANCE);
     await ensureVariant(tpat.id, 'TPAT 1 Medical Aptitude (GAT-Doctor)', LearningGoal.TPAT, true);
+    await ensureVariant(tpat.id, 'TPAT 2 Visual Arts & Architecture Aptitude', LearningGoal.TPAT, false);
     await ensureVariant(tpat.id, 'TPAT 3 Science & Engineering Aptitude', LearningGoal.TPAT, false);
     await ensureVariant(tpat.id, 'TPAT 5 Teacher Professional Aptitude', LearningGoal.TPAT, false);
 
     const aLevel = await getOrCreateSubject('A-Level (Thai National)', SubjectCategory.UNIVERSITY_ENTRANCE);
     await ensureVariant(aLevel.id, 'A-Level Applied Math 1', LearningGoal.A_LEVEL, false);
+    await ensureVariant(aLevel.id, 'A-Level Applied Math 2 (Basic Math)', LearningGoal.A_LEVEL, false);
     await ensureVariant(aLevel.id, 'A-Level Physics', LearningGoal.A_LEVEL, false);
     await ensureVariant(aLevel.id, 'A-Level Chemistry', LearningGoal.A_LEVEL, false);
+    await ensureVariant(aLevel.id, 'A-Level Biology', LearningGoal.A_LEVEL, false);
     await ensureVariant(aLevel.id, 'A-Level English', LearningGoal.A_LEVEL, false);
+    await ensureVariant(aLevel.id, 'A-Level Thai Language', LearningGoal.A_LEVEL, false);
+    await ensureVariant(aLevel.id, 'A-Level Social Studies', LearningGoal.A_LEVEL, false);
 
     const ged = await getOrCreateSubject('GED', SubjectCategory.UNIVERSITY_ENTRANCE);
     await ensureVariant(ged.id, 'GED Mathematical Reasoning', LearningGoal.STANDARDIZED_EXAMS, true);
+    await ensureVariant(ged.id, 'GED Reasoning Through Language Arts (RLA)', LearningGoal.STANDARDIZED_EXAMS, true);
     await ensureVariant(ged.id, 'GED Science & Social Studies', LearningGoal.STANDARDIZED_EXAMS, true);
+
+    const entrancePrep = await getOrCreateSubject('Secondary & High School Entrance', SubjectCategory.UNIVERSITY_ENTRANCE);
+    await ensureVariant(entrancePrep.id, 'Triam Udom & MWIT M.4 Entrance Exam Prep', LearningGoal.COMPETITIONS, true);
+    await ensureVariant(entrancePrep.id, 'Demonstration Schools M.1 Entrance Exam Prep', LearningGoal.SCHOOL_CURRICULUM, false);
 
     // =========================================================================
     // 4. VERIFIED SAMPLE TUTORS (FOR MATCHMAKING & REVIEWS TESTING)
@@ -181,9 +229,20 @@ async function seed() {
 
     const mathSchool = await ensureVariant(math.id, 'School Curriculum Mathematics', LearningGoal.SCHOOL_CURRICULUM, false);
     const mathComp = await ensureVariant(math.id, 'Math Olympiad & Competitions', LearningGoal.COMPETITIONS, true);
+    const primaryMath = await ensureVariant(math.id, 'Primary School Mathematics (G1–G6)', LearningGoal.SCHOOL_CURRICULUM, false);
+    const primaryScience = await ensureVariant(science.id, 'Primary School Science (G1–G6)', LearningGoal.SCHOOL_CURRICULUM, false);
+    const primaryEnglish = await ensureVariant(english.id, 'Primary English Foundations (G1–G6)', LearningGoal.SCHOOL_CURRICULUM, false);
+    const primaryThai = await ensureVariant(thai.id, 'Primary Thai Reading & Writing (G1–G6)', LearningGoal.SCHOOL_CURRICULUM, false);
     const engSchool = await ensureVariant(english.id, 'School English (Grammar & Writing)', LearningGoal.SCHOOL_CURRICULUM, false);
     const satSubject = await getOrCreateSubject('Digital SAT', SubjectCategory.UNIVERSITY_ENTRANCE);
     const satMath = await ensureVariant(satSubject.id, 'Digital SAT Math (700+)', LearningGoal.STANDARDIZED_EXAMS, true);
+    const satRw = await ensureVariant(satSubject.id, 'Digital SAT Reading & Writing', LearningGoal.STANDARDIZED_EXAMS, true);
+    const ieltsAcademic = await ensureVariant(ielts.id, 'IELTS Academic (Target 6.5+)', LearningGoal.STANDARDIZED_EXAMS, true);
+    const bioMed = await ensureVariant(biology.id, 'Medical Biology & POSN Olympiad', LearningGoal.COMPETITIONS, true);
+    const chemOly = await ensureVariant(chemistry.id, 'Chemistry Olympiad (POSN)', LearningGoal.COMPETITIONS, true);
+    const tpatDoctor = await ensureVariant(tpat.id, 'TPAT 1 Medical Aptitude (GAT-Doctor)', LearningGoal.TPAT, true);
+    const codingScratch = await ensureVariant(coding.id, 'Scratch & Block Coding (G1–G6)', LearningGoal.GENERAL_SKILLS, false);
+    const codingPython = await ensureVariant(coding.id, 'Python Programming & Algorithms (G7–G12)', LearningGoal.GENERAL_SKILLS, false);
 
     async function upsertVerifiedTutor(params: {
       cognitoSub: string;
@@ -655,6 +714,222 @@ async function seed() {
         ratingPunctuality: 4,
         comment: 'Great energy and relatable peer mentor! Explained school math shortcuts and test hacks that saved me so much time in exams.',
         daysAgo: 19,
+      });
+    }
+
+    // Tutor 4: Kru Pim (Pimpisa Ratanaporn) - Primary Specialist (G1–G6 Math, Science, Thai, English)
+    if (primaryMath && primaryScience && primaryEnglish && primaryThai) {
+      const pimId = await upsertVerifiedTutor({
+        cognitoSub: 'seed-tutor-pim',
+        email: 'pim.primary@tutorpair.local',
+        firstName: 'Pimpisa',
+        lastName: 'Ratanaporn',
+        phoneNumber: '0834567890',
+        lineId: 'kru_pim_primary',
+        description: 'Primary education specialist (Chula Education, First-Class Honors). 6+ years helping young learners (G1-G6) build strong math foundations, positive study habits, and joyful confidence.',
+        tutorType: TutorType.INSTITUTIONAL,
+        styleProfile: [1, 5, 1, 1, 1], // Very step-by-step, concept-first, highly conversational, guided, relaxed
+        personalityProfile: [2, 1, 1, 2], // Casual/friendly, strictly on time, calm/gentle, encouraging
+        averageRating: '4.95',
+        reviewCount: 42,
+        subjects: [
+          {
+            variantId: primaryMath.id,
+            hourlyRate: '350.00',
+            gradeLevels: ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'],
+            teachingFocus: 'Primary Math Foundations, Problem-Solving & Mental Math',
+          },
+          {
+            variantId: primaryEnglish.id,
+            hourlyRate: '350.00',
+            gradeLevels: ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'],
+            teachingFocus: 'Phonics, Vocabulary Building & Confident Speaking',
+          },
+          {
+            variantId: primaryScience.id,
+            hourlyRate: '350.00',
+            gradeLevels: ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'],
+            teachingFocus: 'Curious Science Concepts & Hands-On Problem Solving',
+          },
+          {
+            variantId: primaryThai.id,
+            hourlyRate: '300.00',
+            gradeLevels: ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'],
+            teachingFocus: 'Thai Reading, Writing & Creative Expression',
+          },
+        ],
+        slots: [
+          { day: DayOfWeek.MONDAY, start: '16:00', end: '19:00' },
+          { day: DayOfWeek.TUESDAY, start: '16:00', end: '19:00' },
+          { day: DayOfWeek.WEDNESDAY, start: '16:00', end: '19:00' },
+          { day: DayOfWeek.SATURDAY, start: '09:00', end: '17:00' },
+          { day: DayOfWeek.SUNDAY, start: '09:00', end: '17:00' },
+        ],
+      });
+
+      await seedReviewForTutor({
+        studentSub: 'seed-student-nannapas',
+        studentEmail: 'nannapas.s@tutorpair.local',
+        studentFirstName: 'Nannapas',
+        studentLastName: 'Suwannawin',
+        tutorUserId: pimId,
+        variantId: primaryMath.id,
+        ratingKnowledge: 5,
+        ratingPreparation: 5,
+        ratingClarity: 5,
+        ratingPunctuality: 5,
+        comment: 'Kru Pim has an extraordinary gift with younger kids. My Grade 3 son used to cry during math homework, but now he actually asks when his next lesson with Kru Pim is!',
+        daysAgo: 14,
+      });
+    }
+
+    // Tutor 5: Dr. Teerapat Chanthara (Dr. Tee) - Medical, Biology, Chemistry & TPAT 1
+    if (bioMed && chemOly && tpatDoctor) {
+      const teeId = await upsertVerifiedTutor({
+        cognitoSub: 'seed-tutor-teerapat',
+        email: 'teerapat.med@tutorpair.local',
+        firstName: 'Teerapat',
+        lastName: 'Chanthara',
+        phoneNumber: '0845678901',
+        lineId: '@dr_tee_med',
+        description: 'Chulalongkorn Faculty of Medicine graduate & former POSN Biology gold medalist. Specializes in intensive Medical College Aptitude (TPAT 1 / กสพท), high-yield Biology, and Organic Chemistry.',
+        tutorType: TutorType.FREELANCE,
+        styleProfile: [5, 4, 3, 3, 5], // Fast-paced, high yield, structured, focused
+        personalityProfile: [4, 1, 3, 4],
+        averageRating: '4.92',
+        reviewCount: 31,
+        subjects: [
+          {
+            variantId: bioMed.id,
+            hourlyRate: '650.00',
+            gradeLevels: ['G10', 'G11', 'G12'],
+            teachingFocus: 'High-Yield Medical Biology & POSN Camp Selection',
+          },
+          {
+            variantId: chemOly.id,
+            hourlyRate: '650.00',
+            gradeLevels: ['G10', 'G11', 'G12'],
+            teachingFocus: 'Organic Chemistry & Stoichiometry Mastery',
+          },
+          {
+            variantId: tpatDoctor.id,
+            hourlyRate: '750.00',
+            gradeLevels: ['G11', 'G12'],
+            teachingFocus: 'TPAT 1 Medical Ethics, Critical Analysis & Spatial Reasoning',
+          },
+        ],
+        slots: [
+          { day: DayOfWeek.TUESDAY, start: '18:00', end: '22:00' },
+          { day: DayOfWeek.THURSDAY, start: '18:00', end: '22:00' },
+          { day: DayOfWeek.SATURDAY, start: '10:00', end: '19:00' },
+          { day: DayOfWeek.SUNDAY, start: '10:00', end: '19:00' },
+        ],
+      });
+
+      await seedReviewForTutor({
+        studentSub: 'seed-student-thanida',
+        studentEmail: 'thanida.w@tutorpair.local',
+        studentFirstName: 'Thanida',
+        studentLastName: 'Wongsuwan',
+        tutorUserId: teeId,
+        variantId: tpatDoctor.id,
+        ratingKnowledge: 5,
+        ratingPreparation: 5,
+        ratingClarity: 5,
+        ratingPunctuality: 5,
+        comment: 'Dr. Tee is the ultimate mentor for medical school preparation. His breakdown of medical ethics dilemmas and analytical thinking was identical to the actual exam format.',
+        daysAgo: 10,
+      });
+    }
+
+    // Tutor 6: Jessica Miller (Tutor Jessica) - IELTS, SAT Reading & Writing, Cambridge English
+    if (ieltsAcademic && satRw) {
+      const jessicaId = await upsertVerifiedTutor({
+        cognitoSub: 'seed-tutor-jessica',
+        email: 'jessica.ielts@tutorpair.local',
+        firstName: 'Jessica',
+        lastName: 'Miller',
+        phoneNumber: '0856789012',
+        lineId: 'jessica_ielts_prep',
+        description: 'Certified Cambridge English & IELTS coach with 7+ years mentoring international and bilingual program students in Bangkok. Expert in academic writing frameworks and fluency.',
+        tutorType: TutorType.FREELANCE,
+        styleProfile: [3, 2, 1, 2, 2], // Highly interactive, discussion-rich, step-by-step feedback
+        personalityProfile: [3, 2, 4, 3],
+        averageRating: '4.88',
+        reviewCount: 25,
+        subjects: [
+          {
+            variantId: ieltsAcademic.id,
+            hourlyRate: '600.00',
+            gradeLevels: ['G9', 'G10', 'G11', 'G12'],
+            teachingFocus: 'IELTS Band 7.0+ Writing Task 2 & Speaking Fluency',
+          },
+          {
+            variantId: satRw.id,
+            hourlyRate: '650.00',
+            gradeLevels: ['G10', 'G11', 'G12'],
+            teachingFocus: 'Digital SAT Rhetoric, Grammar & Inference Reading',
+          },
+        ],
+        slots: [
+          { day: DayOfWeek.WEDNESDAY, start: '16:00', end: '20:00' },
+          { day: DayOfWeek.FRIDAY, start: '16:00', end: '20:00' },
+          { day: DayOfWeek.SATURDAY, start: '09:00', end: '16:00' },
+          { day: DayOfWeek.SUNDAY, start: '09:00', end: '16:00' },
+        ],
+      });
+
+      await seedReviewForTutor({
+        studentSub: 'seed-student-kittisak',
+        studentEmail: 'kittisak.p@tutorpair.local',
+        studentFirstName: 'Kittisak',
+        studentLastName: 'Prasert',
+        tutorUserId: jessicaId,
+        variantId: ieltsAcademic.id,
+        ratingKnowledge: 5,
+        ratingPreparation: 5,
+        ratingClarity: 5,
+        ratingPunctuality: 5,
+        comment: 'Teacher Jessica helped me go from 6.0 to 7.5 in IELTS writing in just two months! Her paragraph blueprints and lexical feedback are incredibly clear.',
+        daysAgo: 16,
+      });
+    }
+
+    // Tutor 7: Thanaphat Suksom (Tutor Peak) - Coding, Python & Computer Science
+    if (codingScratch && codingPython) {
+      await upsertVerifiedTutor({
+        cognitoSub: 'seed-tutor-peak',
+        email: 'peak.coding@tutorpair.local',
+        firstName: 'Thanaphat',
+        lastName: 'Suksom',
+        phoneNumber: '0867890123',
+        lineId: 'peak_code_hub',
+        description: 'KMITL Computer Engineering student and competitive programming tutor. Teaches Scratch for young learners (G1-G6) and Python/Algorithms for middle & high school students.',
+        tutorType: TutorType.UNDERGRADUATE,
+        styleProfile: [2, 1, 2, 4, 2], // Heavy practice/hands-on, explorative, fun atmosphere
+        personalityProfile: [3, 2, 4, 4],
+        averageRating: '4.90',
+        reviewCount: 15,
+        subjects: [
+          {
+            variantId: codingScratch.id,
+            hourlyRate: '400.00',
+            gradeLevels: ['G1', 'G2', 'G3', 'G4', 'G5', 'G6'],
+            teachingFocus: 'Block Coding, Game Design & Computational Thinking',
+          },
+          {
+            variantId: codingPython.id,
+            hourlyRate: '450.00',
+            gradeLevels: ['G7', 'G8', 'G9', 'G10', 'G11', 'G12'],
+            teachingFocus: 'Python Programming, Data Structures & Logic Drills',
+          },
+        ],
+        slots: [
+          { day: DayOfWeek.TUESDAY, start: '17:00', end: '21:00' },
+          { day: DayOfWeek.THURSDAY, start: '17:00', end: '21:00' },
+          { day: DayOfWeek.SATURDAY, start: '10:00', end: '18:00' },
+          { day: DayOfWeek.SUNDAY, start: '10:00', end: '18:00' },
+        ],
       });
     }
 
