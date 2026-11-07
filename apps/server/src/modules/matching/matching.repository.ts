@@ -1,14 +1,25 @@
-import { and, eq } from 'drizzle-orm';
+import { and, eq, desc, inArray } from 'drizzle-orm';
 import { db, type DbExecutor } from '../../db/client.js';
 import {
+  users,
   tutors,
   tutorSubjects,
+  subjects,
   subjectVariants,
   availabilities,
   matchRequests,
   matchRecommendations,
+  reviews,
 } from '../../db/schema/index.js';
-import { MatchRequestStatus, VerificationStatus, type TutorType } from '@tutorpair/shared';
+import {
+  MatchRequestStatus,
+  VerificationStatus,
+  SubjectCategory,
+  type TutorType,
+  type MatchHistoryItemDto,
+  type MatchRecommendationDto,
+  type ConfirmedTutorDetailsDto,
+} from '@tutorpair/shared';
 import type { TimeSlot, HardFilterVariant } from '../../common/utils/scoring.util.js';
 
 /**
@@ -243,4 +254,128 @@ export const matchingRepository = {
         )
       );
   },
+
+  /**
+   * Fetches the complete matching history for a student, ordered by created_at descending.
+   * If a match request is CONFIRMED, the selected tutor's contact channels (phone, Line ID, email)
+   * and review status are revealed.
+   */
+  async getStudentMatchHistory(studentId: string): Promise<MatchHistoryItemDto[]> {
+    const requests = await db
+      .select({
+        id: matchRequests.id,
+        variant_id: matchRequests.variant_id,
+        status: matchRequests.status,
+        created_at: matchRequests.created_at,
+        subject_name: subjects.name,
+        variant_name: subjectVariants.name,
+        category: subjects.category,
+      })
+      .from(matchRequests)
+      .innerJoin(subjectVariants, eq(matchRequests.variant_id, subjectVariants.id))
+      .innerJoin(subjects, eq(subjectVariants.subject_id, subjects.id))
+      .where(eq(matchRequests.student_id, studentId))
+      .orderBy(desc(matchRequests.created_at));
+
+    if (requests.length === 0) return [];
+
+    const requestIds = requests.map((r) => r.id);
+
+    const recRows = await db
+      .select({
+        recommendation_id: matchRecommendations.id,
+        match_request_id: matchRecommendations.match_request_id,
+        rank: matchRecommendations.rank,
+        score: matchRecommendations.score,
+        is_selected: matchRecommendations.is_selected,
+        tutor_id: tutors.user_id,
+        first_name: tutors.first_name,
+        last_name: tutors.last_name,
+        phone_number: tutors.phone_number,
+        line_id: tutors.line_id,
+        description: tutors.description,
+        tutor_type: tutors.tutor_type,
+        average_rating: tutors.average_rating,
+        review_count: tutors.review_count,
+        hourly_rate: tutorSubjects.hourly_rate,
+        teaching_focus: tutorSubjects.teaching_focus,
+        email: users.email,
+        review_id: reviews.id,
+      })
+      .from(matchRecommendations)
+      .innerJoin(tutors, eq(matchRecommendations.tutor_id, tutors.user_id))
+      .innerJoin(users, eq(tutors.user_id, users.id))
+      .innerJoin(matchRequests, eq(matchRecommendations.match_request_id, matchRequests.id))
+      .leftJoin(
+        tutorSubjects,
+        and(
+          eq(tutorSubjects.tutor_id, tutors.user_id),
+          eq(tutorSubjects.variant_id, matchRequests.variant_id)
+        )
+      )
+      .leftJoin(reviews, eq(reviews.recommendation_id, matchRecommendations.id))
+      .where(inArray(matchRecommendations.match_request_id, requestIds));
+
+    const recsByRequest = new Map<string, typeof recRows>();
+    for (const row of recRows) {
+      const list = recsByRequest.get(row.match_request_id) ?? [];
+      list.push(row);
+      recsByRequest.set(row.match_request_id, list);
+    }
+
+    return requests.map((req) => {
+      const rows = (recsByRequest.get(req.id) ?? []).sort((a, b) => a.rank - b.rank);
+
+      const recommendations: MatchRecommendationDto[] = rows.map((r) => ({
+        recommendation_id: r.recommendation_id,
+        rank: r.rank,
+        score: Number(r.score),
+        tutor: {
+          tutor_id: r.tutor_id,
+          first_name: r.first_name,
+          last_name: r.last_name,
+          description: r.description,
+          tutor_type: r.tutor_type as TutorType,
+          average_rating: Number(r.average_rating),
+          review_count: r.review_count,
+          hourly_rate: Number(r.hourly_rate ?? 0),
+          teaching_focus: r.teaching_focus,
+        },
+      }));
+
+      const selectedRow = rows.find((r) => r.is_selected);
+      let selected: ConfirmedTutorDetailsDto | null = null;
+
+      if (req.status === MatchRequestStatus.CONFIRMED && selectedRow) {
+        selected = {
+          recommendation_id: selectedRow.recommendation_id,
+          tutor_id: selectedRow.tutor_id,
+          first_name: selectedRow.first_name,
+          last_name: selectedRow.last_name,
+          phone_number: selectedRow.phone_number,
+          line_id: selectedRow.line_id,
+          email: selectedRow.email,
+          hourly_rate: Number(selectedRow.hourly_rate ?? 0),
+          tutor_type: selectedRow.tutor_type as TutorType,
+          average_rating: Number(selectedRow.average_rating),
+          review_count: selectedRow.review_count,
+          has_reviewed: Boolean(selectedRow.review_id),
+          review_id: selectedRow.review_id ?? null,
+        };
+      }
+
+      return {
+        match_request_id: req.id,
+        variant_id: req.variant_id,
+        subject_name: req.subject_name,
+        variant_name: req.variant_name,
+        category: req.category as SubjectCategory,
+        status: req.status as MatchRequestStatus,
+        created_at: req.created_at.toISOString(),
+        recommendations,
+        selected,
+      };
+    });
+  },
 };
+

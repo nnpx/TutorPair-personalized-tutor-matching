@@ -64,7 +64,6 @@ export const authenticate = asyncHandler(
 
     // Lookup user via Repository layer (encapsulates Drizzle ORM / SQL query)
     let user = await authRepository.findByCognitoSub(cognitoSub);
-
     // Defensive fallback for local dev / tests: if token was passed as mock-token-<uuid>
     if (!user && (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && UUID_REGEX.test(cognitoSub)) {
       user = await authRepository.findById(cognitoSub);

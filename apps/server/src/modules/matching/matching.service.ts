@@ -5,6 +5,7 @@ import {
   VerificationStatus,
   type ConfirmSelectionResultDto,
   type ConfirmTutorSelectionInput,
+  type MatchHistoryItemDto,
   type MatchRequestInput,
   type MatchResultDto,
   type TutorTypePref,
@@ -188,4 +189,13 @@ export const matchingService = {
       );
     });
   },
+
+  /**
+   * TP-10 / TP-34: Returns complete match history for student.
+   */
+  async getHistory(studentId: string): Promise<MatchHistoryItemDto[]> {
+    if (!isUuid(studentId)) throw new NotFoundError('Student not found');
+    return matchingRepository.getStudentMatchHistory(studentId);
+  },
 };
+

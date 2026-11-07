@@ -229,7 +229,135 @@ export interface ConfirmSelectionResultDto {
   selected: {
     recommendation_id: string;
     tutor_id: string;
+    first_name?: string;
+    last_name?: string;
+    phone_number?: string | null;
+    line_id?: string | null;
+    email?: string | null;
   };
+}
+
+// ---- Module 7: Results, History & Reviews (TP-10, TP-19, TP-30, TP-34, TP-35) ----
+
+export interface ConfirmedTutorDetailsDto {
+  recommendation_id: string;
+  tutor_id: string;
+  first_name: string;
+  last_name: string;
+  phone_number?: string | null;
+  line_id?: string | null;
+  email?: string | null;
+  hourly_rate: number;
+  tutor_type: TutorType;
+  average_rating: number;
+  review_count: number;
+  has_reviewed: boolean;
+  review_id?: string | null;
+}
+
+export interface MatchHistoryItemDto {
+  match_request_id: string;
+  variant_id: string;
+  subject_name: string;
+  variant_name: string;
+  category: SubjectCategory;
+  status: MatchRequestStatus;
+  created_at: string;
+  recommendations: MatchRecommendationDto[];
+  selected: ConfirmedTutorDetailsDto | null;
+}
+
+export interface DetailedTutorPublicDto {
+  tutor_id: string;
+  first_name: string;
+  last_name: string;
+  description: string | null;
+  tutor_type: TutorType;
+  hourly_rate: number;
+  teaching_focus: string | null;
+  style_profile: number[];
+  personality_profile: number[];
+  average_rating: number;
+  review_count: number;
+  subjects: Array<{
+    variant_id: string;
+    subject_name: string;
+    variant_name: string;
+    category: SubjectCategory;
+    hourly_rate: number;
+    grade_levels: string[] | null;
+    teaching_focus: string | null;
+  }>;
+  contact_unlocked: boolean;
+  phone_number?: string | null;
+  line_id?: string | null;
+  email?: string | null;
+  cv_url?: string | null;
+  confirmed_recommendation_id?: string | null;
+  has_reviewed?: boolean;
+}
+
+export interface ReviewItemDto {
+  id: string;
+  student_id: string;
+  student_name: string;
+  tutor_id: string;
+  recommendation_id: string;
+  rating_knowledge: number;
+  rating_preparation: number;
+  rating_clarity: number;
+  rating_punctuality: number;
+  overall_rating: number;
+  comment: string | null;
+  created_at: string;
+}
+
+export interface TutorReviewsSummaryDto {
+  tutor_id: string;
+  average_rating: number;
+  review_count: number;
+  rating_breakdown: {
+    knowledge: number;
+    preparation: number;
+    clarity: number;
+    punctuality: number;
+  };
+  reviews: ReviewItemDto[];
+}
+
+export interface NotificationDto {
+  id: string;
+  user_id: string;
+  event_type: NotificationEventType;
+  message: string;
+  is_read: boolean;
+  requires_email: boolean;
+  email_status: EmailStatus;
+  created_at: string;
+}
+
+export interface NotificationListResponseDto {
+  notifications: NotificationDto[];
+  unread_count: number;
+}
+
+export interface MatchedStudentDto {
+  match_request_id: string;
+  student_id: string;
+  student_name: string;
+  first_name: string;
+  last_name: string;
+  grade_level: string;
+  phone_number: string | null;
+  line_id: string | null;
+  email: string | null;
+  subject_name: string;
+  variant_name: string;
+  category: SubjectCategory;
+  hourly_rate: number;
+  confirmed_at: string;
+  style_profile: number[];
+  personality_profile: number[];
 }
 
 /** Public bell payload; email dispatch internals stay on the server. */

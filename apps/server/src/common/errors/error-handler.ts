@@ -12,6 +12,9 @@ export function errorHandler(
 ): void {
   // Operational AppError subclasses (BadRequestError, NotFoundError, ConflictError, etc.)
   if (err instanceof AppError) {
+    if (env.NODE_ENV === 'development') {
+      console.warn(`[AppError ${err.statusCode}] ${err.message}`, err.details || '');
+    }
     res.status(err.statusCode).json(errorResponse(err.message, err.details));
     return;
   }

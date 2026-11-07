@@ -3038,6 +3038,385 @@ Confirm is all-or-nothing: if any step fails, the request stays `PENDING`, no re
 
 ---
 
+# Module 7: Matching Results, History & Reviews
+
+> **Jira Epic:** TP-10: Development — Results, History & Reviews  
+> **Sub-Tasks:**  
+> • **TP-10**: Matching Results & Confirmed Tutor Contact Channels Unlock  
+> • **TP-19**: Verified Tutor Reviews & 4-Metric Rating Breakdown Display  
+> • **TP-30**: 4-Category Review Submission & Anti-Fraud Gating  
+> • **TP-34**: Student Match History & Top Tutor Revisit Feature  
+> • **TP-35**: Detailed Tutor Profile & S3 Presigned CV/Resume Inspection  
+>
+> **Access Roles:** Authenticated (`STUDENT` for match history & review submission; `STUDENT`, `TUTOR`, `ADMIN` for tutor profile inspection; Public/Authenticated for tutor reviews summary).  
+> **Identity:** Student identity is resolved automatically from the JWT bearer token (`req.user.id`). Clients never pass `student_id` in URL paths or request bodies.  
+> **Mock Auth:** `Authorization: Bearer mock-token-<user_id>` works in `development` and `test` environments.
+
+## 1. Endpoints Summary
+
+| Task | Method | Path | Access Role | Purpose |
+|---|---|---|---|---|
+| **TP-10 / TP-34** | `GET` | `/api/matching/history` | `STUDENT` | Retrieve complete match history with revealed confirmed contact channels and past Top 3 recommendations |
+| **TP-35** | `GET` | `/api/tutors/:tutorId` | Authenticated | Inspect full tutor profile, subject pricing, style/personality radar, secure S3 presigned CV URL, and conditionally unlocked contacts |
+| **TP-30** | `POST` | `/api/reviews` | `STUDENT` | Submit a verified 4-category review with anti-fraud gating and atomic rating recalculation |
+| **TP-30** | `GET` | `/api/reviews/recommendation/:recommendationId` | `STUDENT` | Prefetch recommendation & tutor context to initialize review submission form |
+| **TP-19** | `GET` | `/api/reviews/tutor/:tutorId` | Public / Auth | Retrieve tutor's average rating, review count, 4-metric score breakdown, and written student review list |
+
+---
+
+## 2. `GET /api/matching/history` (TP-10 & TP-34)
+
+Fetches the complete chronological history of match requests submitted by the authenticated student.
+
+- **Status Isolation**: Requests can be `PENDING` (student hasn't selected a tutor yet) or `CONFIRMED` (student committed to 1 tutor).
+- **Student Revisit Feature**: All recommended tutors (Top 3) for each request are returned in order of rank. Students can revisit these profiles later to compare or book additional subjects.
+- **Contact Channels Unlocking**: When `status = 'CONFIRMED'`, the `selected` field is populated with the confirmed tutor's phone number, LINE ID, and email. For `PENDING` requests, `selected` is `null`.
+
+#### Request
+```http
+GET /api/matching/history HTTP/1.1
+Authorization: Bearer <jwt-token>
+```
+
+#### Response `200 OK`
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "match_request_id": "0b9c7f52-1d2e-4f3a-8b4c-5d6e7f8a9b0c",
+      "variant_id": "8a7b6c5d-4e3f-2a1b-0c9d-8e7f6a5b4c3d",
+      "subject_name": "Mathematics",
+      "variant_name": "Secondary Math (G7-G9)",
+      "category": "GENERAL_LEARNING",
+      "status": "CONFIRMED",
+      "created_at": "2026-11-01T08:30:00.000Z",
+      "recommendations": [
+        {
+          "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+          "rank": 1,
+          "score": 94.5,
+          "is_selected": true,
+          "tutor": {
+            "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+            "first_name": "Kru Ananya",
+            "last_name": "Siriwong",
+            "description": "Patient math tutor specializing in G7-G9 algebra and foundation building.",
+            "tutor_type": "FREELANCE",
+            "average_rating": 4.95,
+            "review_count": 38,
+            "hourly_rate": 450,
+            "teaching_focus": "Foundation Building & Step-by-Step Problem Solving"
+          }
+        },
+        {
+          "recommendation_id": "6b2c3d4e-5f6a-7b8c-9d0e-1f2a3b4c5d6e",
+          "rank": 2,
+          "score": 89.0,
+          "is_selected": false,
+          "tutor": {
+            "tutor_id": "d2e3f4a5-b6c7-4d8e-9f0a-1b2c3d4e5f6a",
+            "first_name": "Dr. Somchai",
+            "last_name": "Jaidee",
+            "description": "Experienced secondary mathematics teacher with over 10 years experience.",
+            "tutor_type": "INSTITUTIONAL",
+            "average_rating": 4.88,
+            "review_count": 52,
+            "hourly_rate": 600,
+            "teaching_focus": "Exam Prep & Structured Practice"
+          }
+        }
+      ],
+      "selected": {
+        "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+        "first_name": "Kru Ananya",
+        "last_name": "Siriwong",
+        "phone_number": "0812345678",
+        "line_id": "@kru_ananya",
+        "email": "ananya.siriwong@tutorpair.local",
+        "hourly_rate": 450,
+        "tutor_type": "FREELANCE",
+        "average_rating": 4.95,
+        "review_count": 38,
+        "has_reviewed": false,
+        "review_id": null
+      }
+    }
+  ],
+  "message": "Operation completed successfully"
+}
+```
+
+---
+
+## 3. `GET /api/tutors/:tutorId` (TP-35)
+
+Retrieves a detailed tutor profile for students inspecting recommended tutors or history.
+
+- **Contact Privacy**: Contact channels (`phone_number`, `line_id`, `email`) are unlocked **only** if the caller is a student who previously confirmed this tutor (`isConfirmed = true`), the tutor themselves, or an `ADMIN`. For unconfirmed students, contact fields are strictly returned as `null`.
+- **CV / Resume S3 Session**: If the tutor has uploaded a verified CV (`cv_file_key`), the backend generates a secure, short-lived S3 Presigned View URL (`cv_url`, valid for 60 minutes) so students can inspect credentials safely.
+- **Review Gating Status**: Exposes `confirmed_recommendation_id` and `has_reviewed` to control the client-side "Write Review" button.
+
+#### Request
+```http
+GET /api/tutors/c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f HTTP/1.1
+Authorization: Bearer <jwt-token>
+```
+
+#### Response `200 OK`
+=======
+# Module 8: Tutor Notifications & Email Delivery (TP-13, TP-14)
+
+## 1. Endpoints and Access
+
+All paths include `/api`. All three endpoints require `Authorization: Bearer <token>` and the database role `TUTOR`. Identity is resolved from `req.user.id`; clients cannot choose a notification recipient. For local development, use the token returned by `/api/auth/mock-login`, not a token constructed from the database UUID. Mock tokens are rejected in production.
+
+| Method | Path | Purpose | Success |
+|---|---|---|---|
+| GET | `/api/notifications` | List the current tutor's notifications and unread count | 200 |
+| PATCH | `/api/notifications/:id/read` | Mark one owned notification read | 200 |
+| PATCH | `/api/notifications/read-all` | Mark all currently unread owned notifications read | 200 |
+
+No query parameters are supported, including `unread`, pagination, or recipient filters. Query fields are rejected with 400. No request body is required; an empty JSON object is accepted. Unknown body fields, arrays, null and primitive bodies are rejected. The `:id` parameter must be a UUID. Authentication and role checks precede endpoint validation; global JSON parsing/size checks happen before routing.
+
+## 2. Response Contracts
+
+### GET `/api/notifications`
+
+>>>>>>> origin/master
+```json
+{
+  "success": true,
+  "data": {
+<<<<<<< HEAD
+    "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+    "first_name": "Kru Ananya",
+    "last_name": "Siriwong",
+    "description": "Patient math tutor specializing in G7-G9 algebra and foundation building.",
+    "tutor_type": "FREELANCE",
+    "hourly_rate": 450,
+    "teaching_focus": "Foundation Building & Step-by-Step Problem Solving",
+    "style_profile": [1, 2, 2, 1, 1],
+    "personality_profile": [2, 1, 1, 2],
+    "average_rating": 4.95,
+    "review_count": 38,
+    "subjects": [
+      {
+        "variant_id": "8a7b6c5d-4e3f-2a1b-0c9d-8e7f6a5b4c3d",
+        "subject_name": "Mathematics",
+        "variant_name": "Secondary Math (G7-G9)",
+        "category": "GENERAL_LEARNING",
+        "hourly_rate": 450,
+        "grade_levels": ["G7", "G8", "G9"],
+        "teaching_focus": "Foundation Building & Step-by-Step Problem Solving"
+      }
+    ],
+    "contact_unlocked": true,
+    "phone_number": "0812345678",
+    "line_id": "@kru_ananya",
+    "email": "ananya.siriwong@tutorpair.local",
+    "cv_url": "https://s3.ap-southeast-1.amazonaws.com/tutorpair-docs/resumes/tutor-c1d2e3f4.pdf?X-Amz-Expires=3600...",
+    "confirmed_recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    "has_reviewed": false
+  },
+  "message": "Operation completed successfully"
+}
+```
+
+---
+
+## 4. `POST /api/reviews` (TP-30)
+
+Submits a verified 4-category review with written feedback for a confirmed tutor match.
+
+- **Anti-Fraud Gating**:
+  1. The student must own the match request.
+  2. The match request status must be `CONFIRMED`.
+  3. The `recommendation_id` must be the chosen recommendation (`is_selected = true`).
+  4. The `tutor_id` must match the tutor assigned to that recommendation.
+  5. The student can only review this confirmed match **once** (`409 ConflictError` on duplicate submission).
+- **Metric Computation**: Overall rating is calculated as the arithmetic mean of the 4 metrics:
+  $$\text{Overall Rating} = \frac{\text{Knowledge} + \text{Preparation} + \text{Clarity} + \text{Punctuality}}{4}$$
+- **Atomic Recalculation**: In a single transaction, the review is inserted, and the tutor's `average_rating` and `review_count` are recomputed and updated in the `tutors` table.
+- **In-App Notification**: Triggers an in-app `NEW_REVIEW` notification to the reviewed tutor.
+
+#### Request Body (`CreateReviewSchema`)
+```json
+{
+  "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+  "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+  "rating_knowledge": 5,
+  "rating_preparation": 5,
+  "rating_clarity": 5,
+  "rating_punctuality": 4,
+  "comment": "Kru Ananya explains step-by-step with great clarity. My child's test scores improved significantly."
+}
+```
+
+#### Response `201 Created`
+```json
+{
+  "success": true,
+  "data": {
+    "review_id": "e5f6a7b8-c9d0-1e2f-3a4b-5c6d7e8f9a0b",
+    "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+    "overall_rating": 4.75,
+    "created_at": "2026-11-01T10:15:00.000Z"
+  },
+  "message": "Review submitted successfully"
+}
+```
+
+---
+
+## 5. `GET /api/reviews/recommendation/:recommendationId` (TP-30)
+
+Prefetches context for the review submission page (tutor name, subject, and existing review status) to validate that the student is allowed to review before rendering the form.
+
+#### Request
+```http
+GET /api/reviews/recommendation/7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d HTTP/1.1
+Authorization: Bearer <jwt-token>
+```
+
+#### Response `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+    "tutor_name": "Kru Ananya Siriwong",
+    "tutor_type": "FREELANCE",
+    "hourly_rate": 450,
+    "subject_name": "Mathematics",
+    "variant_name": "Secondary Math (G7-G9)",
+    "already_reviewed": false,
+    "existing_review_id": null
+  },
+  "message": "Operation completed successfully"
+}
+```
+
+---
+
+## 6. `GET /api/reviews/tutor/:tutorId` (TP-19)
+
+Returns the rating summary, 4-metric score breakdown, and all student reviews for a tutor.
+
+- **Rating Breakdown Dimensions**:
+  - `knowledge`: Subject mastery and accuracy.
+  - `preparation`: Structured materials and lesson organization.
+  - `clarity`: Communication and ability to explain difficult concepts.
+  - `punctuality`: Timeliness and reliability.
+- **Privacy**: Only public student display names (first name + first letter of last name, or full name if opted-in) and written comments are returned.
+
+#### Request
+```http
+GET /api/reviews/tutor/c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f HTTP/1.1
+```
+
+#### Response `200 OK`
+```json
+{
+  "success": true,
+  "data": {
+    "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+    "average_rating": 4.95,
+    "review_count": 38,
+    "rating_breakdown": {
+      "knowledge": 5.0,
+      "preparation": 4.9,
+      "clarity": 5.0,
+      "punctuality": 4.9
+    },
+    "reviews": [
+      {
+        "id": "e5f6a7b8-c9d0-1e2f-3a4b-5c6d7e8f9a0b",
+        "student_id": "1a2b3c4d-5e6f-7a8b-9c0d-1e2f3a4b5c6d",
+        "student_name": "Nong Mind (Grade 8)",
+        "tutor_id": "c1d2e3f4-a5b6-4c7d-8e9f-0a1b2c3d4e5f",
+        "recommendation_id": "7a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+        "rating_knowledge": 5,
+        "rating_preparation": 5,
+        "rating_clarity": 5,
+        "rating_punctuality": 4,
+        "overall_rating": 4.75,
+        "comment": "Kru Ananya explains step-by-step with great clarity. My child's test scores improved significantly.",
+        "created_at": "2026-11-01T10:15:00.000Z"
+      }
+    ]
+  },
+  "message": "Operation completed successfully"
+}
+```
+
+---
+
+## 7. Error Handling & Input Guards (Module 7)
+
+Every failure strictly returns the standard response envelope from the [Global Error Template](#2-standard-error-response-structure):
+```json
+{
+  "success": false,
+  "message": "Human-readable error description",
+  "details": null
+}
+```
+
+### 7.1 Execution & Guard Order
+
+| # | Guard / Check | Middleware / Layer | Failure Code & Response |
+|---|---|---|---|
+| 1 | JSON parsing & size limit (1 MB) | `express.json()` | `400 Bad Request` / `413 Payload Too Large` |
+| 2 | Bearer JWT presence & verification | `authenticate` | `401 Unauthorized` |
+| 3 | Role-Based Access Control | `requireRole([UserRole.STUDENT])` | `403 Forbidden` (`Access denied`) |
+| 4 | Zod Request Body Validation | `validateRequest(CreateReviewSchema)` | `400 Bad Request` with field details |
+| 5 | UUID Param Integrity Check | `service / repository` | `404 Not Found` (malformed UUIDs treated as non-existent) |
+| 6 | Match Ownership & Gating Verification | `reviews.service.ts` | `404 Not Found` / `409 ConflictError` |
+| 7 | Duplicate Review Prevention | `reviews.service.ts` | `409 ConflictError` (`You have already submitted a review...`) |
+| 8 | Transactional Integrity & Concurrency | `reviews.repository.ts` | `500 InternalServerError` |
+
+### 7.2 Input Guards & Validation Matrix
+
+| Input Field | Source | Guard & Rule | Failure Behavior |
+|---|---|---|---|
+| `tutor_id` | Body | Required, UUID v4 format | `400 Bad Request` |
+| `recommendation_id` | Body | Required, UUID v4 format | `400 Bad Request` |
+| `rating_knowledge` | Body | Integer, min: 1, max: 5 | `400 Bad Request` |
+| `rating_preparation` | Body | Integer, min: 1, max: 5 | `400 Bad Request` |
+| `rating_clarity` | Body | Integer, min: 1, max: 5 | `400 Bad Request` |
+| `rating_punctuality` | Body | Integer, min: 1, max: 5 | `400 Bad Request` |
+| `comment` | Body | Optional string, max length 2,000 characters | `400 Bad Request` |
+| `:tutorId` | URL Param | UUID format, must exist in `tutors` table | `404 Not Found` |
+| `:recommendationId`| URL Param | UUID format, must belong to authenticated student | `404 Not Found` |
+
+### 7.3 Module 7 Error Catalogue
+
+| Endpoint | HTTP Status | Error Class | Exact Message | Cause |
+|---|---|---|---|---|
+| `GET /api/matching/history` | `401` | `UnauthorizedError` | `Missing or malformed Authorization header` | Token omitted or expired |
+| | `403` | `ForbiddenError` | `Access denied. Required role: [STUDENT]` | Role is `TUTOR` or `ADMIN` |
+| | `404` | `NotFoundError` | `Student not found` | Authenticated student id is invalid |
+| `GET /api/tutors/:tutorId` | `401` | `UnauthorizedError` | `Missing or malformed Authorization header` | Unauthenticated request |
+| | `404` | `NotFoundError` | `Tutor not found` | Invalid UUID or tutor does not exist |
+| `POST /api/reviews` | `400` | `BadRequestError` | `Request validation failed` | Missing fields or rating not in 1–5 |
+| | `401` | `UnauthorizedError` | `Missing or malformed Authorization header` | Unauthenticated request |
+| | `403` | `ForbiddenError` | `Access denied. Required role: [STUDENT]` | Tutor or Admin attempting to submit review |
+| | `404` | `NotFoundError` | `Confirmed match recommendation not found` | Invalid recommendation or not owned by student |
+| | `409` | `ConflictError` | `You can only review tutors from confirmed matches` | Match is still `PENDING` or unselected |
+| | `409` | `ConflictError` | `You have already submitted a review for this tutor match` | Duplicate review attempt |
+| | `422` | `UnprocessableEntityError` | `tutor_id does not match the recommendation tutor` | Tampered body payload |
+| `GET /api/reviews/recommendation/:recommendationId` | `401` | `UnauthorizedError` | `Missing or malformed Authorization header` | Unauthenticated |
+| | `403` | `ForbiddenError` | `Access denied. Required role: [STUDENT]` | Non-student caller |
+| | `404` | `NotFoundError` | `Match recommendation not found` | ID does not exist or not owned by student |
+| | `409` | `ConflictError` | `You can only review tutors from confirmed matches` | Request not confirmed |
+| `GET /api/reviews/tutor/:tutorId` | `404` | `NotFoundError` | `Tutor not found` | ID not a UUID or tutor does not exist in DB |
+| All Endpoints | `500` | `InternalServerError` | `An unexpected error occurred. Please try again later.` | Unhandled database or system exception |
+
+---
+
 # Module 8: Tutor Notifications & Email Delivery (TP-13, TP-14)
 
 ## 1. Endpoints and Access

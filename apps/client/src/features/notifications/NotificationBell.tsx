@@ -42,7 +42,18 @@ export function NotificationBell() {
       read.mutate(item.id);
     }
     setOpen(false);
-    navigate('/tutor/profile');
+
+    if (item.event_type === 'NEW_REVIEW') {
+      navigate('/tutor/profile#reviews');
+      setTimeout(() => {
+        const el = document.getElementById('reviews');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 150);
+    } else {
+      navigate('/tutor/profile');
+    }
   };
 
   useEffect(() => () => { client.removeQueries({ queryKey: ['notifications', user?.id], exact: true }); }, [client, user?.id]);

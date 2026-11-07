@@ -1,15 +1,26 @@
-import React, { useState, useEffect } from 'react';
+import { LearningGoal, SubjectCategory } from '@tutorpair/shared';
+import { BookOpen, Coins, FileCheck, Plus, Trash2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Alert, Button, Card, SaveButton } from '../../../components/ui';
 import {
-  SubjectCategory,
-  LearningGoal,
-} from '@tutorpair/shared';
-import { useSubjectsCatalog, useTutorSubjects, useSetTutorSubjects } from '../hooks/useTutors';
-import { Card, Button, Alert, SaveButton } from '../../../components/ui';
-import { BookOpen, Plus, Trash2, FileCheck, Coins } from 'lucide-react';
+  useSetTutorSubjects,
+  useSubjectsCatalog,
+  useTutorSubjects,
+} from '../hooks/useTutors';
 
 const GRADE_LEVELS = [
-  'G1', 'G2', 'G3', 'G4', 'G5', 'G6',
-  'G7', 'G8', 'G9', 'G10', 'G11', 'G12',
+  'G1',
+  'G2',
+  'G3',
+  'G4',
+  'G5',
+  'G6',
+  'G7',
+  'G8',
+  'G9',
+  'G10',
+  'G11',
+  'G12',
 ];
 
 export function formatLearningGoal(goal: string): string {
@@ -58,7 +69,9 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
   const setSubjectsMutation = useSetTutorSubjects();
 
   // Local state for subjects being configured
-  const [internalSubjects, setInternalSubjects] = useState<ConfiguredSubjectItem[]>([]);
+  const [internalSubjects, setInternalSubjects] = useState<
+    ConfiguredSubjectItem[]
+  >([]);
   const configuredSubjects = value !== undefined ? value : internalSubjects;
 
   const updateConfiguredSubjects = (newList: ConfiguredSubjectItem[]) => {
@@ -68,7 +81,9 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
     onChange?.(newList);
   };
 
-  const [selectedCategory, setSelectedCategory] = useState<SubjectCategory>(SubjectCategory.GENERAL_LEARNING);
+  const [selectedCategory, setSelectedCategory] = useState<SubjectCategory>(
+    SubjectCategory.GENERAL_LEARNING,
+  );
   const [selectedSubjectId, setSelectedSubjectId] = useState<string>('');
   const [selectedVariantId, setSelectedVariantId] = useState<string>('');
   const [hourlyRate, setHourlyRate] = useState<number>(500);
@@ -79,7 +94,12 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
 
   // Sync configuredSubjects from server on initial load if not controlled
   useEffect(() => {
-    if (value === undefined && currentSubjects && currentSubjects.length > 0 && internalSubjects.length === 0) {
+    if (
+      value === undefined &&
+      currentSubjects &&
+      currentSubjects.length > 0 &&
+      internalSubjects.length === 0
+    ) {
       const mapped = currentSubjects.map((s) => ({
         variant_id: s.variant_id,
         subject_name: s.subject_name,
@@ -97,11 +117,14 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
   }, [currentSubjects, value, internalSubjects.length, onChange]);
 
   // Fetch subjects catalog for currently selected category
-  const { data: catalog = [], isLoading: loadingCatalog } = useSubjectsCatalog(selectedCategory);
+  const { data: catalog = [], isLoading: loadingCatalog } =
+    useSubjectsCatalog(selectedCategory);
 
   // Currently selected subject & variant objects
   const activeSubject = catalog.find((s) => s.id === selectedSubjectId);
-  const activeVariant = activeSubject?.variants.find((v) => v.id === selectedVariantId);
+  const activeVariant = activeSubject?.variants.find(
+    (v) => v.id === selectedVariantId,
+  );
 
   // Group variants by learning_goal
   const groupedVariants = React.useMemo(() => {
@@ -153,14 +176,21 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
     }
 
     // Check duplicate
-    if (configuredSubjects.some((item) => item.variant_id === selectedVariantId)) {
+    if (
+      configuredSubjects.some((item) => item.variant_id === selectedVariantId)
+    ) {
       setFormError('You have already added this subject variant.');
       return;
     }
 
     // If school curriculum, must select at least 1 grade level
-    if (activeVariant.learning_goal === LearningGoal.SCHOOL_CURRICULUM && selectedGrades.length === 0) {
-      setFormError('Please select at least one grade level (G1–G12) for school curriculum.');
+    if (
+      activeVariant.learning_goal === LearningGoal.SCHOOL_CURRICULUM &&
+      selectedGrades.length === 0
+    ) {
+      setFormError(
+        'Please select at least one grade level (G1–G12) for school curriculum.',
+      );
       return;
     }
 
@@ -187,7 +217,9 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
 
   // Remove subject
   const handleRemoveSubject = (variantId: string) => {
-    updateConfiguredSubjects(configuredSubjects.filter((s) => s.variant_id !== variantId));
+    updateConfiguredSubjects(
+      configuredSubjects.filter((s) => s.variant_id !== variantId),
+    );
     setSaveSuccess(false);
   };
 
@@ -207,7 +239,8 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
       });
       setSaveSuccess(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to save subjects';
+      const message =
+        err instanceof Error ? err.message : 'Failed to save subjects';
       setFormError(message);
     }
   };
@@ -215,10 +248,30 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       {/* 1. Added Subjects List on TOP */}
-      <Card style={{ backgroundColor: 'var(--bg-canvas)', border: '2px solid var(--color-border)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '1rem' }}>
+      <Card
+        style={{
+          backgroundColor: 'var(--bg-canvas)',
+          border: '2px solid var(--color-border)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '1.25rem',
+            flexWrap: 'wrap',
+            gap: '1rem',
+          }}
+        >
           <div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)' }}>
+            <h3
+              style={{
+                fontSize: '1.25rem',
+                fontWeight: 800,
+                color: 'var(--fg-main)',
+              }}
+            >
               My Teaching Subjects
             </h3>
           </div>
@@ -233,12 +286,21 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
               borderRadius: 'var(--radius-md)',
             }}
           >
-            <p style={{ fontWeight: 600, color: '#6b7280', fontSize: '0.9375rem' }}>
-              No subjects added yet. Use the Add Subject box below to select your subjects and hourly rates.
+            <p
+              style={{
+                fontWeight: 600,
+                color: '#6b7280',
+                fontSize: '0.9375rem',
+              }}
+            >
+              No subjects added yet. Use the Add Subject box below to select
+              your subjects and hourly rates.
             </p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          <div
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+          >
             {configuredSubjects.map((item) => (
               <div
                 key={item.variant_id}
@@ -254,12 +316,32 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                 }}
               >
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.375rem', flexWrap: 'wrap' }}>
-                    <span style={{ fontWeight: 800, fontSize: '1.0625rem', color: 'var(--fg-main)' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      marginBottom: '0.375rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: 800,
+                        fontSize: '1.0625rem',
+                        color: 'var(--fg-main)',
+                      }}
+                    >
                       {item.subject_name}
                     </span>
                     <span style={{ color: '#9ca3af' }}>•</span>
-                    <span style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--color-primary)' }}>
+                    <span
+                      style={{
+                        fontWeight: 700,
+                        fontSize: '0.9375rem',
+                        color: 'var(--color-primary)',
+                      }}
+                    >
                       {item.variant_name}
                     </span>
                     <span
@@ -275,8 +357,8 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                         gap: '0.25rem',
                       }}
                     >
-                      <Coins size={14} strokeWidth={2.4} />
-                      ฿{item.hourly_rate} / hr
+                      <Coins size={14} strokeWidth={2.4} />฿{item.hourly_rate} /
+                      hr
                     </span>
                     {item.requires_proof && (
                       <span
@@ -298,14 +380,33 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
                     {item.grade_levels && item.grade_levels.length > 0 && (
-                      <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#4b5563' }}>
+                      <span
+                        style={{
+                          fontSize: '0.8125rem',
+                          fontWeight: 600,
+                          color: '#4b5563',
+                        }}
+                      >
                         Grades: {item.grade_levels.join(', ')}
                       </span>
                     )}
                     {item.teaching_focus && (
-                      <span style={{ fontSize: '0.8125rem', fontStyle: 'italic', color: '#6b7280' }}>
+                      <span
+                        style={{
+                          fontSize: '0.8125rem',
+                          fontStyle: 'italic',
+                          color: '#6b7280',
+                        }}
+                      >
                         Focus: "{item.teaching_focus}"
                       </span>
                     )}
@@ -340,8 +441,20 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
       </Card>
 
       {/* 2. Creation Box BELOW */}
-      <Card style={{ backgroundColor: 'var(--bg-canvas)', border: '2px solid var(--color-border)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
+      <Card
+        style={{
+          backgroundColor: 'var(--bg-canvas)',
+          border: '2px solid var(--color-border)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            marginBottom: '1.5rem',
+          }}
+        >
           <span
             style={{
               width: '2.75rem',
@@ -357,25 +470,66 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
             <BookOpen size={22} strokeWidth={2.4} />
           </span>
           <div>
-            <h2 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--fg-main)' }}>
+            <h2
+              style={{
+                fontSize: '1.375rem',
+                fontWeight: 800,
+                color: 'var(--fg-main)',
+              }}
+            >
               Add Subject
             </h2>
-            <p style={{ fontSize: '0.9375rem', color: '#4b5563', fontWeight: 500 }}>
-              Select category, subject, curriculum variant, and set your specific hourly rate.
+            <p
+              style={{
+                fontSize: '0.9375rem',
+                color: '#4b5563',
+                fontWeight: 500,
+              }}
+            >
+              Select category, subject, curriculum variant, and set your
+              specific hourly rate.
             </p>
           </div>
         </div>
 
         {/* Step 1: Category Selection */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#4b5563', marginBottom: '0.625rem' }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: '#4b5563',
+              marginBottom: '0.625rem',
+            }}
+          >
             1. Select Category
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '0.75rem',
+            }}
+          >
             {[
-              { id: SubjectCategory.GENERAL_LEARNING, label: 'General Learning', desc: 'School Math, Sciences, Languages' },
-              { id: SubjectCategory.LANGUAGE_TESTING, label: 'Language Testing', desc: 'IELTS, TOEFL, JLPT, HSK' },
-              { id: SubjectCategory.UNIVERSITY_ENTRANCE, label: 'University Entrance', desc: 'SAT, TGAT, TPAT, A-Level, POSN' },
+              {
+                id: SubjectCategory.GENERAL_LEARNING,
+                label: 'General Learning',
+                desc: 'School Math, Sciences, Languages',
+              },
+              {
+                id: SubjectCategory.LANGUAGE_TESTING,
+                label: 'Language Testing',
+                desc: 'IELTS, TOEFL, JLPT, HSK',
+              },
+              {
+                id: SubjectCategory.UNIVERSITY_ENTRANCE,
+                label: 'University Entrance',
+                desc: 'SAT, TGAT, TPAT, A-Level, POSN',
+              },
             ].map((cat) => {
               const isSelected = selectedCategory === cat.id;
               return (
@@ -387,17 +541,30 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                     padding: '0.875rem 1rem',
                     borderRadius: 'var(--radius-md)',
                     border: 'none',
-                    backgroundColor: isSelected ? 'var(--color-primary)' : 'var(--color-muted)',
+                    backgroundColor: isSelected
+                      ? 'var(--color-primary)'
+                      : 'var(--color-muted)',
                     color: isSelected ? 'var(--color-white)' : 'var(--fg-main)',
                     textAlign: 'left',
                     transition: 'all 0.2s ease',
                     cursor: 'pointer',
                   }}
                 >
-                  <div style={{ fontWeight: 800, fontSize: '0.9375rem', marginBottom: '0.25rem' }}>
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      fontSize: '0.9375rem',
+                      marginBottom: '0.25rem',
+                    }}
+                  >
                     {cat.label}
                   </div>
-                  <div style={{ fontSize: '0.75rem', opacity: isSelected ? 0.9 : 0.7 }}>
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      opacity: isSelected ? 0.9 : 0.7,
+                    }}
+                  >
                     {cat.desc}
                   </div>
                 </button>
@@ -408,11 +575,23 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
 
         {/* Step 2: Subject Dropdown */}
         <div style={{ marginBottom: '1.5rem' }}>
-          <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#4b5563', marginBottom: '0.5rem' }}>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.8125rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.05em',
+              color: '#4b5563',
+              marginBottom: '0.5rem',
+            }}
+          >
             2. Select Subject
           </label>
           {loadingCatalog ? (
-            <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>Loading catalog...</p>
+            <p style={{ color: '#6b7280', fontSize: '0.875rem' }}>
+              Loading catalog...
+            </p>
           ) : (
             <select
               value={selectedSubjectId}
@@ -437,13 +616,29 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
         {/* Step 3: Selection Grouped by Learning Goal (or direct grid if only 1 goal) */}
         {activeSubject && (
           <div style={{ marginBottom: '1.75rem' }}>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#4b5563', marginBottom: '0.75rem' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: '0.8125rem',
+                fontWeight: 800,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: '#4b5563',
+                marginBottom: '0.75rem',
+              }}
+            >
               3. Select Your Focus
             </label>
 
             {Object.keys(groupedVariants).length > 1 ? (
               /* Multiple goals (e.g. School Curriculum vs Competitions) -> Show grouped cards */
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '1.25rem',
+                }}
+              >
                 {Object.entries(groupedVariants).map(([goal, variants]) => {
                   const label = formatLearningGoal(goal);
                   return (
@@ -457,7 +652,14 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                       }}
                     >
                       {/* Learning Goal Header */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                          marginBottom: '0.75rem',
+                        }}
+                      >
                         <span
                           style={{
                             width: '0.5rem',
@@ -466,13 +668,28 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                             borderRadius: 'var(--radius-sm)',
                           }}
                         />
-                        <h4 style={{ fontSize: '0.9375rem', fontWeight: 800, color: 'var(--fg-main)', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                        <h4
+                          style={{
+                            fontSize: '0.9375rem',
+                            fontWeight: 800,
+                            color: 'var(--fg-main)',
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.03em',
+                          }}
+                        >
                           {label}
                         </h4>
                       </div>
 
                       {/* Variant Cards in this Goal */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.625rem' }}>
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns:
+                            'repeat(auto-fill, minmax(220px, 1fr))',
+                          gap: '0.625rem',
+                        }}
+                      >
                         {variants.map((v) => {
                           const isSelected = selectedVariantId === v.id;
                           return (
@@ -486,8 +703,12 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                               style={{
                                 padding: '0.75rem 0.875rem',
                                 borderRadius: 'var(--radius-md)',
-                                backgroundColor: isSelected ? 'var(--color-primary-tint)' : 'var(--bg-canvas)',
-                                border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                                backgroundColor: isSelected
+                                  ? 'var(--color-primary-tint)'
+                                  : 'var(--bg-canvas)',
+                                border: isSelected
+                                  ? '2px solid var(--color-primary)'
+                                  : '1px solid var(--color-border)',
                                 color: 'var(--fg-main)',
                                 textAlign: 'left',
                                 cursor: 'pointer',
@@ -498,7 +719,15 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                                 gap: '0.375rem',
                               }}
                             >
-                              <div style={{ fontWeight: 700, fontSize: '0.875rem', color: isSelected ? 'var(--color-primary-hover)' : 'var(--fg-main)' }}>
+                              <div
+                                style={{
+                                  fontWeight: 700,
+                                  fontSize: '0.875rem',
+                                  color: isSelected
+                                    ? 'var(--color-primary-hover)'
+                                    : 'var(--fg-main)',
+                                }}
+                              >
                                 {v.name}
                               </div>
 
@@ -531,7 +760,13 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
               </div>
             ) : (
               /* Single goal (e.g. TGAT, SAT) -> Direct flat grid with no redundant header */
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '0.75rem' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+                  gap: '0.75rem',
+                }}
+              >
                 {activeSubject.variants.map((v) => {
                   const isSelected = selectedVariantId === v.id;
                   return (
@@ -545,8 +780,12 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                       style={{
                         padding: '0.875rem 1rem',
                         borderRadius: 'var(--radius-md)',
-                        backgroundColor: isSelected ? 'var(--color-primary-tint)' : 'var(--color-muted)',
-                        border: isSelected ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                        backgroundColor: isSelected
+                          ? 'var(--color-primary-tint)'
+                          : 'var(--color-muted)',
+                        border: isSelected
+                          ? '2px solid var(--color-primary)'
+                          : '1px solid var(--color-border)',
                         color: 'var(--fg-main)',
                         textAlign: 'left',
                         cursor: 'pointer',
@@ -557,7 +796,15 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                         gap: '0.5rem',
                       }}
                     >
-                      <div style={{ fontWeight: 700, fontSize: '0.9375rem', color: isSelected ? 'var(--color-primary-hover)' : 'var(--fg-main)' }}>
+                      <div
+                        style={{
+                          fontWeight: 700,
+                          fontSize: '0.9375rem',
+                          color: isSelected
+                            ? 'var(--color-primary-hover)'
+                            : 'var(--fg-main)',
+                        }}
+                      >
                         {v.name}
                       </div>
 
@@ -590,32 +837,87 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
 
         {/* Step 4: Per-Subject Hourly Rate & Grade Levels */}
         {activeVariant && (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '1.5rem', backgroundColor: 'var(--color-muted)', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
+              gap: '1.25rem',
+              marginBottom: '1.5rem',
+              backgroundColor: 'var(--color-muted)',
+              padding: '1.25rem',
+              borderRadius: 'var(--radius-md)',
+            }}
+          >
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#4b5563', marginBottom: '0.375rem' }}>
-                Hourly Rate for this Subject (THB / hr) *
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.8125rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#4b5563',
+                  marginBottom: '0.375rem',
+                }}
+              >
+                Maximum Hourly Rate for this Subject (THB / hr) *
               </label>
-              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                <span style={{ position: 'absolute', left: '1rem', fontWeight: 800, color: '#6b7280' }}>฿</span>
+              <div
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: '1rem',
+                    fontWeight: 800,
+                    color: '#6b7280',
+                  }}
+                >
+                  ฿
+                </span>
                 <input
                   type="number"
                   min="100"
                   max="10000"
                   step="50"
                   value={hourlyRate}
-                  onChange={(e) => setHourlyRate(Math.max(0, parseInt(e.target.value, 10) || 0))}
+                  onChange={(e) =>
+                    setHourlyRate(
+                      Math.max(0, parseInt(e.target.value, 10) || 0),
+                    )
+                  }
                   className="flat-input"
                   style={{ paddingLeft: '2.5rem', fontWeight: 700 }}
                   placeholder="e.g. 500"
                 />
               </div>
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#6b7280',
+                  marginTop: '0.25rem',
+                }}
+              >
                 Each subject can have its own customized tuition fee.
               </p>
             </div>
 
             <div>
-              <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#4b5563', marginBottom: '0.375rem' }}>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.8125rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#4b5563',
+                  marginBottom: '0.375rem',
+                }}
+              >
                 Optional Teaching Focus / Specialization
               </label>
               <input
@@ -626,49 +928,87 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                 className="flat-input"
                 maxLength={255}
               />
-              <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
-                💡 Visible to students and parents on your profile to highlight your strengths.
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#6b7280',
+                  marginTop: '0.25rem',
+                }}
+              >
+                💡 Visible to students and parents on your profile to highlight
+                your strengths.
               </p>
             </div>
           </div>
         )}
 
         {/* Conditional UI: Grade Levels (G1–G12) for School Curriculum */}
-        {activeVariant && activeVariant.learning_goal === LearningGoal.SCHOOL_CURRICULUM && (
-          <div style={{ marginBottom: '1.5rem', backgroundColor: 'var(--color-muted)', padding: '1.25rem', borderRadius: 'var(--radius-md)' }}>
-            <label style={{ display: 'block', fontSize: '0.8125rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#4b5563', marginBottom: '0.5rem' }}>
-              Grade Levels Taught (Multi-select) *
-            </label>
-            <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginBottom: '0.75rem' }}>
-              Select all primary and secondary grades you are comfortable tutoring for this curriculum.
-            </p>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-              {GRADE_LEVELS.map((grade) => {
-                const isChecked = selectedGrades.includes(grade);
-                return (
-                  <button
-                    key={grade}
-                    type="button"
-                    onClick={() => toggleGrade(grade)}
-                    style={{
-                      padding: '0.5rem 0.875rem',
-                      borderRadius: 'var(--radius-md)',
-                      fontWeight: 700,
-                      fontSize: '0.875rem',
-                      backgroundColor: isChecked ? 'var(--color-secondary)' : 'var(--bg-canvas)',
-                      color: isChecked ? 'var(--color-white)' : 'var(--fg-main)',
-                      border: isChecked ? '2px solid var(--color-secondary)' : '2px solid var(--color-border)',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {grade}
-                  </button>
-                );
-              })}
+        {activeVariant &&
+          activeVariant.learning_goal === LearningGoal.SCHOOL_CURRICULUM && (
+            <div
+              style={{
+                marginBottom: '1.5rem',
+                backgroundColor: 'var(--color-muted)',
+                padding: '1.25rem',
+                borderRadius: 'var(--radius-md)',
+              }}
+            >
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.8125rem',
+                  fontWeight: 800,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.05em',
+                  color: '#4b5563',
+                  marginBottom: '0.5rem',
+                }}
+              >
+                Grade Levels Taught (Multi-select) *
+              </label>
+              <p
+                style={{
+                  fontSize: '0.8125rem',
+                  color: '#6b7280',
+                  marginBottom: '0.75rem',
+                }}
+              >
+                Select all primary and secondary grades you are comfortable
+                tutoring for this curriculum.
+              </p>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                {GRADE_LEVELS.map((grade) => {
+                  const isChecked = selectedGrades.includes(grade);
+                  return (
+                    <button
+                      key={grade}
+                      type="button"
+                      onClick={() => toggleGrade(grade)}
+                      style={{
+                        padding: '0.5rem 0.875rem',
+                        borderRadius: 'var(--radius-md)',
+                        fontWeight: 700,
+                        fontSize: '0.875rem',
+                        backgroundColor: isChecked
+                          ? 'var(--color-secondary)'
+                          : 'var(--bg-canvas)',
+                        color: isChecked
+                          ? 'var(--color-white)'
+                          : 'var(--fg-main)',
+                        border: isChecked
+                          ? '2px solid var(--color-secondary)'
+                          : '2px solid var(--color-border)',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      {grade}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
-        )}
+          )}
 
         {formError && (
           <Alert variant="error" style={{ marginBottom: '1.25rem' }}>
@@ -681,7 +1021,12 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
           onClick={handleAddSubject}
           disabled={!activeVariant}
           variant="primary"
-          style={{ width: '100%', height: '3.25rem', fontSize: '1rem', fontWeight: 800 }}
+          style={{
+            width: '100%',
+            height: '3.25rem',
+            fontSize: '1rem',
+            fontWeight: 800,
+          }}
         >
           <Plus size={20} strokeWidth={2.4} />
           Add More Subject
@@ -690,7 +1035,14 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
 
       {/* Save Button at the Bottom */}
       {showSaveButton && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.75rem',
+            marginTop: '0.5rem',
+          }}
+        >
           {saveSuccess && (
             <Alert variant="success">
               Subjects and hourly rates updated successfully!

@@ -1,25 +1,30 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import { Card } from '../../components/ui/Card';
-import { Button } from '../../components/ui/Button';
-import { Alert } from '../../components/ui/Alert';
-import { useAuthStore } from '../../store/auth.store';
-import { UserRole, ApiResponse } from '@tutorpair/shared';
+import { ApiResponse, UserRole } from '@tutorpair/shared';
 import {
-  Sparkles,
-  GraduationCap,
-  ShieldCheck,
   ChevronDown,
   ChevronUp,
-  Terminal,
+  GraduationCap,
   LogIn,
+  ShieldCheck,
+  Sparkles,
+  Terminal,
   UserPlus,
 } from 'lucide-react';
-import { queryClient } from '../../services/query-client';
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Alert } from '../../components/ui/Alert';
+import { Button } from '../../components/ui/Button';
+import { Card } from '../../components/ui/Card';
 import apiClient from '../../services/api-client';
+import { queryClient } from '../../services/query-client';
+import { useAuthStore } from '../../store/auth.store';
 
 const GoogleIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
     <path
       fill="#4285F4"
       d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.82-2.4 3.68v3.05h3.88c2.27-2.09 3.665-5.17 3.665-9.17Z"
@@ -48,10 +53,12 @@ export const LoginPage: React.FC = () => {
   const roleParam = searchParams.get('role');
 
   const [activeTab, setActiveTab] = useState<'signin' | 'register'>(() =>
-    modeParam === 'register' ? 'register' : 'signin'
+    modeParam === 'register' ? 'register' : 'signin',
   );
-  const [selectedRole, setSelectedRole] = useState<UserRole.STUDENT | UserRole.TUTOR>(() =>
-    roleParam?.toUpperCase() === 'TUTOR' ? UserRole.TUTOR : UserRole.STUDENT
+  const [selectedRole, setSelectedRole] = useState<
+    UserRole.STUDENT | UserRole.TUTOR
+  >(() =>
+    roleParam?.toUpperCase() === 'TUTOR' ? UserRole.TUTOR : UserRole.STUDENT,
   );
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -110,8 +117,9 @@ export const LoginPage: React.FC = () => {
       const fallbackEmail = `${selectedRole.toLowerCase()}@tutorpair.local`;
       const email =
         activeTab === 'register'
-          ? (customMockEmail.trim().toLowerCase() || `${selectedRole.toLowerCase()}-${Date.now()}@tutorpair.local`)
-          : (customMockEmail.trim().toLowerCase() || fallbackEmail);
+          ? customMockEmail.trim().toLowerCase() ||
+            `${selectedRole.toLowerCase()}-${Date.now()}@tutorpair.local`
+          : customMockEmail.trim().toLowerCase() || fallbackEmail;
 
       const sub = `google-user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`;
       const mockToken = `mock-token-${sub}`;
@@ -124,12 +132,18 @@ export const LoginPage: React.FC = () => {
           role: selectedRole,
           cognito_sub: sub,
         },
-        mockToken
+        mockToken,
       );
 
       // 2. Synchronize account with backend
       const syncRes = await apiClient.post<
-        ApiResponse<{ id: string; email: string; role: UserRole; cognito_sub?: string; is_new_user: boolean }>
+        ApiResponse<{
+          id: string;
+          email: string;
+          role: UserRole;
+          cognito_sub?: string;
+          is_new_user: boolean;
+        }>
       >('/api/auth/sync', { role: selectedRole });
 
       if (syncRes.data.data) {
@@ -141,14 +155,15 @@ export const LoginPage: React.FC = () => {
             role: syncedUser.role,
             cognito_sub: syncedUser.cognito_sub || sub,
           },
-          mockToken
+          mockToken,
         );
 
         routeByRole(syncedUser.role);
       }
     } catch (err: unknown) {
       const errorMsg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message ||
         'Authentication failed. Please check your credentials or network connection.';
       setErrorMessage(errorMsg);
     } finally {
@@ -166,11 +181,17 @@ export const LoginPage: React.FC = () => {
     queryClient.removeQueries();
 
     try {
-      const sanitizedEmail = customMockEmail.trim().toLowerCase() || defaultEmail;
+      const sanitizedEmail =
+        customMockEmail.trim().toLowerCase() || defaultEmail;
       const res = await apiClient.post<
         ApiResponse<{
           token: string;
-          user: { id: string; email: string; role: UserRole; cognito_sub?: string };
+          user: {
+            id: string;
+            email: string;
+            role: UserRole;
+            cognito_sub?: string;
+          };
         }>
       >('/api/auth/mock-login', {
         role,
@@ -186,15 +207,15 @@ export const LoginPage: React.FC = () => {
             role: user.role,
             cognito_sub: user.cognito_sub,
           },
-          token
+          token,
         );
 
         routeByRole(user.role);
       }
     } catch (err: unknown) {
       const errorMsg =
-        (err as { response?: { data?: { message?: string } } })?.response?.data?.message ||
-        'Mock login failed.';
+        (err as { response?: { data?: { message?: string } } })?.response?.data
+          ?.message || 'Mock login failed.';
       setErrorMessage(errorMsg);
     } finally {
       setIsLoading(false);
@@ -258,7 +279,9 @@ export const LoginPage: React.FC = () => {
             marginBottom: '0.25rem',
           }}
         >
-          {activeTab === 'signin' ? 'Sign In to TutorPair' : 'Create an Account'}
+          {activeTab === 'signin'
+            ? 'Sign In to TutorPair'
+            : 'Create an Account'}
         </h1>
         <p style={{ color: '#4b5563', fontSize: '0.875rem', fontWeight: 500 }}>
           {activeTab === 'signin'
@@ -288,7 +311,8 @@ export const LoginPage: React.FC = () => {
           style={{
             padding: '0.625rem',
             borderRadius: 'var(--radius-sm)',
-            backgroundColor: activeTab === 'signin' ? 'var(--bg-canvas)' : 'transparent',
+            backgroundColor:
+              activeTab === 'signin' ? 'var(--bg-canvas)' : 'transparent',
             color: activeTab === 'signin' ? 'var(--fg-main)' : '#6b7280',
             fontWeight: 800,
             fontSize: '0.875rem',
@@ -313,7 +337,8 @@ export const LoginPage: React.FC = () => {
           style={{
             padding: '0.625rem',
             borderRadius: 'var(--radius-sm)',
-            backgroundColor: activeTab === 'register' ? 'var(--bg-canvas)' : 'transparent',
+            backgroundColor:
+              activeTab === 'register' ? 'var(--bg-canvas)' : 'transparent',
             color: activeTab === 'register' ? 'var(--fg-main)' : '#6b7280',
             fontWeight: 800,
             fontSize: '0.875rem',
@@ -356,7 +381,13 @@ export const LoginPage: React.FC = () => {
           >
             I am joining as a:
           </label>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.625rem' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '0.625rem',
+            }}
+          >
             <button
               type="button"
               onClick={() => setSelectedRole(UserRole.STUDENT)}
@@ -364,7 +395,9 @@ export const LoginPage: React.FC = () => {
                 padding: '1rem 0.75rem',
                 borderRadius: 'var(--radius-md)',
                 backgroundColor:
-                  selectedRole === UserRole.STUDENT ? '#f3e8ff' : 'var(--bg-canvas)',
+                  selectedRole === UserRole.STUDENT
+                    ? '#f3e8ff'
+                    : 'var(--bg-canvas)',
                 border:
                   selectedRole === UserRole.STUDENT
                     ? '2px solid var(--color-primary)'
@@ -398,7 +431,13 @@ export const LoginPage: React.FC = () => {
               >
                 Student / Parent
               </span>
-              <span style={{ fontSize: '0.6875rem', color: '#6b7280', textAlign: 'center' }}>
+              <span
+                style={{
+                  fontSize: '0.6875rem',
+                  color: '#6b7280',
+                  textAlign: 'center',
+                }}
+              >
                 Find verified tutors
               </span>
             </button>
@@ -410,7 +449,9 @@ export const LoginPage: React.FC = () => {
                 padding: '1rem 0.75rem',
                 borderRadius: 'var(--radius-md)',
                 backgroundColor:
-                  selectedRole === UserRole.TUTOR ? '#fff7ed' : 'var(--bg-canvas)',
+                  selectedRole === UserRole.TUTOR
+                    ? '#fff7ed'
+                    : 'var(--bg-canvas)',
                 border:
                   selectedRole === UserRole.TUTOR
                     ? '2px solid var(--color-secondary)'
@@ -444,7 +485,13 @@ export const LoginPage: React.FC = () => {
               >
                 Tutor
               </span>
-              <span style={{ fontSize: '0.6875rem', color: '#6b7280', textAlign: 'center' }}>
+              <span
+                style={{
+                  fontSize: '0.6875rem',
+                  color: '#6b7280',
+                  textAlign: 'center',
+                }}
+              >
                 Teach & verify profile
               </span>
             </button>
@@ -524,7 +571,9 @@ export const LoginPage: React.FC = () => {
               padding: '0.25rem 0',
             }}
           >
-            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+            <span
+              style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}
+            >
               <Terminal size={16} strokeWidth={2.4} />
               🛠️ Local Dev Mock Mode (Offline)
             </span>
@@ -597,7 +646,10 @@ export const LoginPage: React.FC = () => {
                   type="button"
                   variant="primary"
                   onClick={() => {
-                    handleQuickMockLogin(UserRole.STUDENT, 'student@tutorpair.local');
+                    handleQuickMockLogin(
+                      UserRole.STUDENT,
+                      'student@tutorpair.local',
+                    );
                   }}
                   style={{
                     padding: '0.5rem',
@@ -608,10 +660,22 @@ export const LoginPage: React.FC = () => {
                     height: 'auto',
                   }}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                    }}
+                  >
                     <Sparkles size={14} /> Student
                   </span>
-                  <span style={{ fontSize: '0.625rem', opacity: 0.85, fontWeight: 500 }}>
+                  <span
+                    style={{
+                      fontSize: '0.625rem',
+                      opacity: 0.85,
+                      fontWeight: 500,
+                    }}
+                  >
                     {customMockEmail.trim() ? 'Custom' : 'student@...'}
                   </span>
                 </Button>
@@ -619,7 +683,10 @@ export const LoginPage: React.FC = () => {
                   type="button"
                   variant="secondary"
                   onClick={() => {
-                    handleQuickMockLogin(UserRole.TUTOR, 'tutor@tutorpair.local');
+                    handleQuickMockLogin(
+                      UserRole.TUTOR,
+                      'tutor@tutorpair.local',
+                    );
                   }}
                   style={{
                     padding: '0.5rem',
@@ -630,17 +697,32 @@ export const LoginPage: React.FC = () => {
                     height: 'auto',
                   }}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                    }}
+                  >
                     <GraduationCap size={14} /> Tutor
                   </span>
-                  <span style={{ fontSize: '0.625rem', opacity: 0.85, fontWeight: 500 }}>
+                  <span
+                    style={{
+                      fontSize: '0.625rem',
+                      opacity: 0.85,
+                      fontWeight: 500,
+                    }}
+                  >
                     {customMockEmail.trim() ? 'Custom' : 'tutor@...'}
                   </span>
                 </Button>
                 <Button
                   type="button"
                   onClick={() => {
-                    handleQuickMockLogin(UserRole.ADMIN, 'admin@tutorpair.local');
+                    handleQuickMockLogin(
+                      UserRole.ADMIN,
+                      'admin@tutorpair.local',
+                    );
                   }}
                   style={{
                     padding: '0.5rem',
@@ -653,10 +735,22 @@ export const LoginPage: React.FC = () => {
                     height: 'auto',
                   }}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.25rem',
+                    }}
+                  >
                     <ShieldCheck size={14} /> Admin
                   </span>
-                  <span style={{ fontSize: '0.625rem', opacity: 0.85, fontWeight: 500 }}>
+                  <span
+                    style={{
+                      fontSize: '0.625rem',
+                      opacity: 0.85,
+                      fontWeight: 500,
+                    }}
+                  >
                     {customMockEmail.trim() ? 'Custom' : 'admin@...'}
                   </span>
                 </Button>

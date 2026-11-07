@@ -151,7 +151,7 @@ export const StudentLayout: React.FC = () => {
             </nav>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <span style={{ fontSize: '0.9375rem', fontWeight: 600, color: 'var(--fg-main)' }}>
               {user?.email}
             </span>

@@ -4,7 +4,7 @@
  */
 import { db, type DbExecutor } from '../../db/client.js';
 import { notifications, NewNotification } from '../../db/schema/index.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, desc } from 'drizzle-orm';
 import { EmailStatus } from '@tutorpair/shared';
 
 export const notificationRepository = {
@@ -22,7 +22,7 @@ export const notificationRepository = {
       .select()
       .from(notifications)
       .where(and(...conditions))
-      .orderBy(notifications.created_at);
+      .orderBy(desc(notifications.created_at));
   },
 
   markAsRead: async (id: string, userId: string) => {

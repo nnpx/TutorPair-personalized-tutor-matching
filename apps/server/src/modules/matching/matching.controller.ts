@@ -18,4 +18,10 @@ export const matchingController = {
     );
     res.status(200).json(successResponse(result, 'Tutor selected successfully'));
   }),
+
+  getHistory: asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await matchingService.getHistory(req.user!.id);
+    res.status(200).json(successResponse(result));
+  }),
 };
+

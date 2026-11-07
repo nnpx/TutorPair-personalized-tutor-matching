@@ -119,6 +119,7 @@ export const documentsService = {
       return await getSignedUrl(s3Client, command, { expiresIn: expiresInSeconds });
     }
 
-    return `https://${env.S3_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${encodeURIComponent(fileKey)}?X-Amz-Expires=${expiresInSeconds}&mockSigned=true`;
+    // Local / Development mock presigned view URL
+    return `http://localhost:${env.PORT}/api/documents/mock-s3-view/${encodeURIComponent(fileKey)}`;
   },
 };

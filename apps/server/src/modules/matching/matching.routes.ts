@@ -16,6 +16,14 @@ router.post(
   matchingController.runMatch
 );
 
+// TP-10: student views matching history with revealed confirmed contacts
+router.get(
+  '/history',
+  authenticate,
+  requireRole([UserRole.STUDENT]),
+  matchingController.getHistory
+);
+
 // TP-9: student confirms exactly one of the recommended tutors
 router.post(
   '/:matchRequestId/confirm',
@@ -25,6 +33,5 @@ router.post(
   matchingController.confirmSelection
 );
 
-// GET /history belongs to Module 7 (TP-10).
-
 export const matchingRouter = router;
+
