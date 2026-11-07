@@ -3092,7 +3092,7 @@ Owner-scoped and repeat-safe: an already-read owned item still returns 200. Unkn
 
 `updatedCount` counts newly changed rows. A repeated request returns zero when none remain unread. This action does not delete notifications or change email delivery status.
 
-The current bell displays database notifications with unread indicators and refreshes on open, window focus and every 60 seconds while the window is visible. Sample-preview and manual read buttons are removed from the current local UI; the read APIs remain available. Opening the bell does not automatically mark notifications read.
+The current bell displays database notifications with unread indicators and refreshes on open, window focus and every 60 seconds while the window is visible. Tutors can mark individual notifications as read via the "Mark read" button or by clicking the card to navigate to `/tutor/profile` (where the status update banner and profile overview are displayed); "Mark all read" marks all owned unread notifications as read via `PATCH /api/notifications/read-all`. Opening the bell does not automatically mark notifications read.
 
 ## 3. Error Handling and Input Guards
 

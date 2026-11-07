@@ -20,7 +20,7 @@ Use an isolated local PostgreSQL database for write tests. The notification migr
 - PATCH /api/notifications/:id/read: owned notification only; malformed UUID -> 400, missing/other user's notification -> 404.
 - PATCH /api/notifications/read-all: current tutor only.
 
-All routes require authenticated TUTOR role. The response excludes recipient IDs and email-delivery internals. The bell polls every 60 seconds while visible and refreshes on focus/open. Read status is independent of email status. The bell has one database-backed notification view. See API_SPEC.md, Module 8, for complete request guards and error contracts.
+All routes require authenticated TUTOR role. The response excludes recipient IDs and email-delivery internals. The bell polls every 60 seconds while visible and refreshes on focus/open. Read status is independent of email status. The bell lists owned notifications with unread indicators, supports per-item and bulk "Mark all read" actions, and clicking a notification card marks it read and navigates to the tutor dashboard overview at `/tutor/profile`. See API_SPEC.md, Module 8, for complete request guards and error contracts.
 
 The student form saves the chosen budget/availability, calls POST /api/matching, then presents server-provided recommendations. Confirmation calls POST /api/matching/:matchRequestId/confirm with recommendation_id and tutor_id. The matching backend algorithm and API contract are unchanged. Budget/availability updates are separate requests; an earlier update can persist if a later request fails. Results currently use browser navigation state; persisted match history is outside this change.
 
