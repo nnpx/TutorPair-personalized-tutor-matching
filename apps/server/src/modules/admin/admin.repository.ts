@@ -1,3 +1,4 @@
+import type { DbExecutor } from '../../db/client.js';
 import { db } from '../../db/client.js';
 import {
   tutors,
@@ -247,6 +248,16 @@ function toListItemDto(t: AdminTutorDetailDto): AdminTutorListItemDto {
 }
 
 export const adminRepository = {
+  transaction: <T>(work: (tx: DbExecutor) => Promise<T>) => db.transaction(work),
+  lockTutor: async (tx: DbExecutor, tutorId: string) => {
+    const [row] = await tx.select().from(tutors).where(eq(tutors.user_id, tutorId)).for('update');
+    return row;
+  },
+  saveVerification: async (tx: DbExecutor, tutorId: string, status: VerificationStatus, reason: string | null) => {
+    const [row] = await tx.update(tutors).set({ verification_status: status, rejection_reason: reason })
+      .where(eq(tutors.user_id, tutorId)).returning();
+    return row;
+  },
   findTutors: async (statusFilter?: VerificationStatus | 'ALL') => {
     try {
       let query = db

@@ -1,3 +1,4 @@
+import { NotificationBell } from '../features/notifications/NotificationBell';
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
@@ -7,7 +8,6 @@ import { useTutorVerification } from '../features/tutors/hooks/useTutors';
 import { VerificationStatus } from '@tutorpair/shared';
 import { User, LogOut, Lock, LayoutDashboard } from 'lucide-react';
 import { Modal } from '../components/ui';
-import { NotificationBell } from '../components/notifications/NotificationBell';
 
 export const TutorLayout: React.FC = () => {
   const { user, clearUser } = useAuthStore();

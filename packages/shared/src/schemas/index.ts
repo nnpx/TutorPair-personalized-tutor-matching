@@ -7,3 +7,4 @@ export * from './review.schema.js';
 export * from './document.schema.js';
 export * from './admin.schema.js';
 export * from './subject.schema.js';
+export * from './notification.schema.js';

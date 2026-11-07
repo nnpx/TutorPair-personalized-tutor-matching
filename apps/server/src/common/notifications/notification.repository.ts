@@ -35,11 +35,10 @@ export const notificationRepository = {
   },
 
   markAllAsRead: async (userId: string) => {
-    return db
-      .update(notifications)
-      .set({ is_read: true })
+    const rows = await db.update(notifications).set({ is_read: true })
       .where(and(eq(notifications.user_id, userId), eq(notifications.is_read, false)))
-      .returning();
+      .returning({ id: notifications.id });
+    return rows.length;
   },
 
   getPendingEmails: async (limit = 10) => {

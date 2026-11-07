@@ -38,3 +38,6 @@ Thumbs.db
 # Database / Local storage
 *.sqlite
 postgres-data/
+
+# Local email previews may contain recipient addresses
+work/email-preview/

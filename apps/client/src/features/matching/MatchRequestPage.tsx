@@ -1,3 +1,5 @@
+import { apiClient } from '../../services/api-client';
+import { useQueryClient } from '@tanstack/react-query';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, Button, Modal } from '../../components/ui';
@@ -26,6 +28,7 @@ import { tutorsApi } from '../tutors/tutors.api';
 
 export const MatchRequestPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { data: profile, isLoading } = useStudentProfile();
   const { data: serverAvailability } = useStudentAvailability();
 
@@ -115,6 +118,7 @@ export const MatchRequestPage: React.FC = () => {
   };
 
   const handleFindTutors = () => {
+    if (runMatchMutation.isPending) return;
     setSubmitError(null);
     const errors: string[] = [];
 
@@ -134,6 +138,11 @@ export const MatchRequestPage: React.FC = () => {
       setIsValidationModalOpen(true);
       return;
     }
+
+    // Persist budget and availability before running match
+    apiClient.patch('/api/students/profile', { budget_max: Number(matchBudget) }).catch(console.error);
+    apiClient.put('/api/students/availability', { availability: matchSlots }).catch(console.error);
+    queryClient.invalidateQueries({ queryKey: ['students'] }).catch(console.error);
 
     // Trigger Module 6 Matching Engine!
     runMatchMutation.mutate(selectedSubject.variant_id);

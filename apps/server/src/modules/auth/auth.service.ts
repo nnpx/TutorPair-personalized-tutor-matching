@@ -80,9 +80,10 @@ export const authService = {
 
     const sanitizedEmail =
       customEmail?.trim().toLowerCase() || `${role.toLowerCase()}@tutorpair.local`;
-    const cognitoSub = customEmail
-      ? `mock-${role.toLowerCase()}-${sanitizedEmail.replace(/[^a-zA-Z0-9]/g, '-')}`
-      : `mock-${role.toLowerCase()}-id`;
+    const isDefaultRoleEmail = sanitizedEmail === `${role.toLowerCase()}@tutorpair.local`;
+    const cognitoSub = isDefaultRoleEmail
+      ? `mock-${role.toLowerCase()}-id`
+      : `mock-${role.toLowerCase()}-${sanitizedEmail.replace(/[^a-zA-Z0-9]/g, '-')}`;
 
     let user = await authRepository.findByCognitoSub(cognitoSub);
 
