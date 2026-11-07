@@ -1,58 +1,76 @@
-import React, { useState } from 'react';
+import type { MatchedStudentDto } from '@tutorpair/shared';
+import { VerificationStatus } from '@tutorpair/shared';
 import {
-  useTutorProfile,
-  useTutorVerification,
-  useTutorSubjects,
-  useTutorAvailability,
-  useTutorMatchedStudents,
-} from './hooks/useTutors';
-import { TutorProfileForm } from './components/TutorProfileForm';
-import { SubjectSelector } from './components/SubjectSelector';
-import { AvailabilityGrid } from './components/AvailabilityGrid';
-import { VerificationSection } from './components/VerificationSection';
-import { MatchedStudentModal } from './components/MatchedStudentModal';
-import { Card, Button, PageHeader } from '../../components/ui';
-import { Link, useSearchParams } from 'react-router-dom';
-import {
-  GraduationCap,
   ArrowRight,
-  ShieldCheck,
-  Clock,
-  XCircle,
-  User,
+  Bell,
   BookOpen,
   Calendar,
-  FileCheck,
   CheckCircle2,
-  Lock,
-  Bell,
-  Target,
-  Phone,
-  MessageSquare,
+  Clock,
   Eye,
+  FileCheck,
+  GraduationCap,
+  Lock,
+  MessageSquare,
+  Phone,
+  ShieldCheck,
   Sparkles,
+  Target,
+  User,
+  XCircle,
 } from 'lucide-react';
-import { VerificationStatus } from '@tutorpair/shared';
-import type { MatchedStudentDto } from '@tutorpair/shared';
+import React, { useEffect, useState } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
+import { Button, Card, PageHeader } from '../../components/ui';
+import { TutorReviewsSection } from '../reviews/components/TutorReviewsSection';
+import { AvailabilityGrid } from './components/AvailabilityGrid';
+import { MatchedStudentModal } from './components/MatchedStudentModal';
+import { SubjectSelector } from './components/SubjectSelector';
+import { TutorProfileForm } from './components/TutorProfileForm';
+import { VerificationSection } from './components/VerificationSection';
+import {
+  useTutorAvailability,
+  useTutorMatchedStudents,
+  useTutorProfile,
+  useTutorSubjects,
+  useTutorVerification,
+} from './hooks/useTutors';
 
 export const TutorProfilePage: React.FC = () => {
   const { data: profile, isLoading: loadingProfile } = useTutorProfile();
   const { data: verification } = useTutorVerification();
   const { data: subjects = [] } = useTutorSubjects();
   const { data: availability = [] } = useTutorAvailability();
-  const { data: matchedStudents = [], isLoading: loadingMatched } = useTutorMatchedStudents();
-  const [selectedStudentForModal, setSelectedStudentForModal] = useState<MatchedStudentDto | null>(null);
+  const { data: matchedStudents = [], isLoading: loadingMatched } =
+    useTutorMatchedStudents();
+  const [selectedStudentForModal, setSelectedStudentForModal] =
+    useState<MatchedStudentDto | null>(null);
   const [isStudentModalOpen, setIsStudentModalOpen] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const queryTab = searchParams.get('tab');
   const isProfileView = Boolean(
-    queryTab && ['profile', 'subjects', 'availability', 'documents'].includes(queryTab)
+    queryTab &&
+    ['profile', 'subjects', 'availability', 'documents'].includes(queryTab),
   );
   const activeProfileTab = (isProfileView ? queryTab : 'profile') as
     | 'profile'
     | 'subjects'
     | 'availability'
     | 'documents';
+
+  // Smooth scroll to #reviews if present in hash
+  useEffect(() => {
+    if (location.hash === '#reviews') {
+      const timer = setTimeout(() => {
+        const el = document.getElementById('reviews');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [location.hash, loadingProfile]);
 
   if (loadingProfile) {
     return (
@@ -67,7 +85,15 @@ export const TutorProfilePage: React.FC = () => {
   // If tutor does not have a profile yet (404), display onboarding journey roadmap
   if (!profile) {
     return (
-      <div style={{ maxWidth: '920px', margin: '1rem auto 3rem auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div
+        style={{
+          maxWidth: '920px',
+          margin: '1rem auto 3rem auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2rem',
+        }}
+      >
         {/* Header Hero */}
         <div style={{ textAlign: 'center' }}>
           <div
@@ -89,11 +115,29 @@ export const TutorProfilePage: React.FC = () => {
             <GraduationCap size={15} strokeWidth={2.4} />
             <span>Tutor Pathway</span>
           </div>
-          <h1 style={{ fontSize: '2.25rem', fontWeight: 800, color: 'var(--fg-main)', letterSpacing: '-0.02em', marginBottom: '0.5rem' }}>
+          <h1
+            style={{
+              fontSize: '2.25rem',
+              fontWeight: 800,
+              color: 'var(--fg-main)',
+              letterSpacing: '-0.02em',
+              marginBottom: '0.5rem',
+            }}
+          >
             Welcome to TutorPair!
           </h1>
-          <p style={{ color: '#4b5563', fontSize: '1rem', maxWidth: '560px', margin: '0 auto', lineHeight: 1.5, fontWeight: 500 }}>
-            Follow these 3 simple steps to get verified and start receiving student bookings:
+          <p
+            style={{
+              color: '#4b5563',
+              fontSize: '1rem',
+              maxWidth: '560px',
+              margin: '0 auto',
+              lineHeight: 1.5,
+              fontWeight: 500,
+            }}
+          >
+            Follow these 3 simple steps to get verified and start receiving
+            student bookings:
           </p>
         </div>
 
@@ -102,7 +146,15 @@ export const TutorProfilePage: React.FC = () => {
           {/* Step 1 Item */}
           <div style={{ display: 'flex', gap: '1.25rem' }}>
             {/* Left Track (Node 1 + Spine) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '3rem', flexShrink: 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                width: '3rem',
+                flexShrink: 0,
+              }}
+            >
               <span
                 style={{
                   width: '3rem',
@@ -142,8 +194,23 @@ export const TutorProfilePage: React.FC = () => {
                   gap: '1rem',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 800,
+                      color: 'var(--fg-main)',
+                      margin: 0,
+                    }}
+                  >
                     Fill Application & Credentials
                   </h2>
                   <span
@@ -161,8 +228,11 @@ export const TutorProfilePage: React.FC = () => {
                   </span>
                 </div>
 
-                <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}>
-                  Complete the 4 guided sections to build your profile and set your rates:
+                <p
+                  style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}
+                >
+                  Complete the 4 guided sections to build your profile and set
+                  your rates:
                 </p>
 
                 {/* 4 parts (Vertical, concise 1-phrase items) */}
@@ -176,43 +246,119 @@ export const TutorProfilePage: React.FC = () => {
                     borderRadius: 'var(--radius-md)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                    <span style={{ color: 'var(--color-primary)', display: 'inline-flex' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.625rem',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: 'var(--color-primary)',
+                        display: 'inline-flex',
+                      }}
+                    >
                       <User size={16} strokeWidth={2.4} />
                     </span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg-main)' }}>
+                    <span
+                      style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 700,
+                        color: 'var(--fg-main)',
+                      }}
+                    >
                       1. Profile & Bio
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                    <span style={{ color: 'var(--color-primary)', display: 'inline-flex' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.625rem',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: 'var(--color-primary)',
+                        display: 'inline-flex',
+                      }}
+                    >
                       <BookOpen size={16} strokeWidth={2.4} />
                     </span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg-main)' }}>
+                    <span
+                      style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 700,
+                        color: 'var(--fg-main)',
+                      }}
+                    >
                       2. Subjects & Hourly Rates
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                    <span style={{ color: 'var(--color-primary)', display: 'inline-flex' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.625rem',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: 'var(--color-primary)',
+                        display: 'inline-flex',
+                      }}
+                    >
                       <Calendar size={16} strokeWidth={2.4} />
                     </span>
-                    <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg-main)' }}>
+                    <span
+                      style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 700,
+                        color: 'var(--fg-main)',
+                      }}
+                    >
                       3. Weekly Availability Schedule
                     </span>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.625rem' }}>
-                    <span style={{ color: 'var(--color-primary)', display: 'inline-flex', marginTop: '0.125rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.625rem',
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: 'var(--color-primary)',
+                        display: 'inline-flex',
+                        marginTop: '0.125rem',
+                      }}
+                    >
                       <FileCheck size={16} strokeWidth={2.4} />
                     </span>
                     <div>
-                      <span style={{ fontSize: '0.875rem', fontWeight: 700, color: 'var(--fg-main)' }}>
+                      <span
+                        style={{
+                          fontSize: '0.875rem',
+                          fontWeight: 700,
+                          color: 'var(--fg-main)',
+                        }}
+                      >
                         4. Verification Documents Upload
                       </span>
-                      <span style={{ fontSize: '0.8125rem', color: '#6b7280', marginLeft: '0.375rem' }}>
-                        (Degree / Transcript, CV, Supporting Documents, and Subject-Specific Proofs)
+                      <span
+                        style={{
+                          fontSize: '0.8125rem',
+                          color: '#6b7280',
+                          marginLeft: '0.375rem',
+                        }}
+                      >
+                        (Degree / Transcript, CV, Supporting Documents, and
+                        Subject-Specific Proofs)
                       </span>
                     </div>
                   </div>
@@ -224,7 +370,15 @@ export const TutorProfilePage: React.FC = () => {
           {/* Step 2 Item */}
           <div style={{ display: 'flex', gap: '1.25rem' }}>
             {/* Left Track (Node 2 + Spine) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '3rem', flexShrink: 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                width: '3rem',
+                flexShrink: 0,
+              }}
+            >
               <span
                 style={{
                   width: '3rem',
@@ -264,8 +418,23 @@ export const TutorProfilePage: React.FC = () => {
                   gap: '0.875rem',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 800,
+                      color: 'var(--fg-main)',
+                      margin: 0,
+                    }}
+                  >
                     Administrator Review & Verification
                   </h2>
                   <span
@@ -283,18 +452,45 @@ export const TutorProfilePage: React.FC = () => {
                   </span>
                 </div>
 
-                <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}>
-                  Our administration team reviews your uploaded academic transcripts and certificates to verify your identity and qualifications.
+                <p
+                  style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}
+                >
+                  Our administration team reviews your uploaded academic
+                  transcripts and certificates to verify your identity and
+                  qualifications.
                 </p>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', fontSize: '0.8125rem', color: '#4b5563', paddingTop: '0.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '1.25rem',
+                    fontSize: '0.8125rem',
+                    color: '#4b5563',
+                    paddingTop: '0.25rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
                     <Lock size={15} color="var(--color-accent)" />
                     <span>Documents remain strictly confidential & secure</span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
                     <Bell size={15} color="var(--color-accent)" />
-                    <span>Instant alerts via email & dashboard once approved</span>
+                    <span>
+                      Instant alerts via email & dashboard once approved
+                    </span>
                   </div>
                 </div>
               </Card>
@@ -304,7 +500,15 @@ export const TutorProfilePage: React.FC = () => {
           {/* Step 3 Item (Terminal Node) */}
           <div style={{ display: 'flex', gap: '1.25rem' }}>
             {/* Left Track (Node 3 without spine below) */}
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', width: '3rem', flexShrink: 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                width: '3rem',
+                flexShrink: 0,
+              }}
+            >
               <span
                 style={{
                   width: '3rem',
@@ -337,8 +541,23 @@ export const TutorProfilePage: React.FC = () => {
                   gap: '0.875rem',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                  <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <h2
+                    style={{
+                      fontSize: '1.25rem',
+                      fontWeight: 800,
+                      color: 'var(--fg-main)',
+                      margin: 0,
+                    }}
+                  >
                     Match with Students & Start Teaching
                   </h2>
                   <span
@@ -356,16 +575,43 @@ export const TutorProfilePage: React.FC = () => {
                   </span>
                 </div>
 
-                <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}>
-                  Your verified profile goes live! Students find you via intelligent matchmaking and book lessons directly into your schedule.
+                <p
+                  style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}
+                >
+                  Your verified profile goes live! Students find you via
+                  intelligent matchmaking and book lessons directly into your
+                  schedule.
                 </p>
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1.25rem', fontSize: '0.8125rem', color: '#4b5563', paddingTop: '0.25rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '1.25rem',
+                    fontSize: '0.8125rem',
+                    color: '#4b5563',
+                    paddingTop: '0.25rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
                     <Target size={15} color="var(--color-secondary)" />
-                    <span>Algorithmic matching based on style & subject fit</span>
+                    <span>
+                      Algorithmic matching based on style & subject fit
+                    </span>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                    }}
+                  >
                     <CheckCircle2 size={15} color="var(--color-secondary)" />
                     <span>Students view your profile, CV, and contact you</span>
                   </div>
@@ -390,7 +636,14 @@ export const TutorProfilePage: React.FC = () => {
           }}
         >
           <div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', marginBottom: '0.25rem' }}>
+            <h3
+              style={{
+                fontSize: '1.25rem',
+                fontWeight: 800,
+                color: 'var(--fg-main)',
+                marginBottom: '0.25rem',
+              }}
+            >
               Ready to start your tutor journey?
             </h3>
             <p style={{ fontSize: '0.875rem', color: '#6b7280' }}>
@@ -420,7 +673,8 @@ export const TutorProfilePage: React.FC = () => {
     );
   }
 
-  const status = verification?.verification_status ?? VerificationStatus.PENDING;
+  const status =
+    verification?.verification_status ?? VerificationStatus.PENDING;
   const rejectionReason = verification?.rejection_reason;
   const docs = verification?.documents ?? [];
 
@@ -452,7 +706,15 @@ export const TutorProfilePage: React.FC = () => {
     const progressPercent = Math.round((completedCount / 4) * 100);
 
     return (
-      <div style={{ maxWidth: '920px', margin: '1rem auto 3rem auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div
+        style={{
+          maxWidth: '920px',
+          margin: '1rem auto 3rem auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2rem',
+        }}
+      >
         {/* Welcome Back & Hero Progress Card */}
         <div
           style={{
@@ -465,7 +727,15 @@ export const TutorProfilePage: React.FC = () => {
             gap: '1.25rem',
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+              flexWrap: 'wrap',
+              gap: '1rem',
+            }}
+          >
             <div>
               <div
                 style={{
@@ -486,15 +756,35 @@ export const TutorProfilePage: React.FC = () => {
                 <Clock size={14} strokeWidth={2.4} />
                 <span>Application In Progress</span>
               </div>
-              <h1 style={{ fontSize: '2rem', fontWeight: 800, color: 'var(--fg-main)', letterSpacing: '-0.02em', margin: 0 }}>
+              <h1
+                style={{
+                  fontSize: '2rem',
+                  fontWeight: 800,
+                  color: 'var(--fg-main)',
+                  letterSpacing: '-0.02em',
+                  margin: 0,
+                }}
+              >
                 Welcome back, {profile.first_name}!
               </h1>
-              <p style={{ color: '#4b5563', fontSize: '0.9375rem', marginTop: '0.375rem', maxWidth: '600px' }}>
-                You have completed <strong>{completedCount} of 4</strong> sections. Your previous entries are securely saved. Pick up where you left off or review your details below.
+              <p
+                style={{
+                  color: '#4b5563',
+                  fontSize: '0.9375rem',
+                  marginTop: '0.375rem',
+                  maxWidth: '600px',
+                }}
+              >
+                You have completed <strong>{completedCount} of 4</strong>{' '}
+                sections. Your previous entries are securely saved. Pick up
+                where you left off or review your details below.
               </p>
             </div>
 
-            <Link to={`/tutor/onboarding?step=${nextStep}`} style={{ textDecoration: 'none' }}>
+            <Link
+              to={`/tutor/onboarding?step=${nextStep}`}
+              style={{ textDecoration: 'none' }}
+            >
               <Button
                 variant="primary"
                 style={{
@@ -515,9 +805,21 @@ export const TutorProfilePage: React.FC = () => {
 
           {/* Progress Bar Container */}
           <div style={{ marginTop: '0.25rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem', fontSize: '0.8125rem', fontWeight: 700, color: 'var(--fg-main)' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '0.5rem',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                color: 'var(--fg-main)',
+              }}
+            >
               <span>Overall Application Progress</span>
-              <span style={{ color: 'var(--color-secondary)' }}>{progressPercent}% Complete</span>
+              <span style={{ color: 'var(--color-secondary)' }}>
+                {progressPercent}% Complete
+              </span>
             </div>
             <div
               style={{
@@ -543,8 +845,17 @@ export const TutorProfilePage: React.FC = () => {
         </div>
 
         {/* 4-Step Breakdown Checklist */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: '0.5rem 0 0.25rem 0' }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+        >
+          <h2
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: 800,
+              color: 'var(--fg-main)',
+              margin: '0.5rem 0 0.25rem 0',
+            }}
+          >
             Application Checklist
           </h2>
 
@@ -576,8 +887,21 @@ export const TutorProfilePage: React.FC = () => {
                 <CheckCircle2 size={18} strokeWidth={2.4} />
               </span>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 800,
+                      margin: 0,
+                      color: 'var(--fg-main)',
+                    }}
+                  >
                     1. Profile &amp; Style (Identity, Bio &amp; Teaching Style)
                   </h3>
                   <span
@@ -594,8 +918,16 @@ export const TutorProfilePage: React.FC = () => {
                     Completed
                   </span>
                 </div>
-                <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
-                  {profile.first_name} {profile.last_name} • {profile.phone_number} • {profile.tutor_type} • Style &amp; Personality Configured
+                <p
+                  style={{
+                    fontSize: '0.8125rem',
+                    color: '#6b7280',
+                    margin: '0.2rem 0 0 0',
+                  }}
+                >
+                  {profile.first_name} {profile.last_name} •{' '}
+                  {profile.phone_number} • {profile.tutor_type} • Style &amp;
+                  Personality Configured
                 </p>
               </div>
             </div>
@@ -621,7 +953,10 @@ export const TutorProfilePage: React.FC = () => {
               justifyContent: 'space-between',
               padding: '1.25rem 1.5rem',
               backgroundColor: 'var(--bg-canvas)',
-              border: nextStep === 2 ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
+              border:
+                nextStep === 2
+                  ? '2px solid var(--color-primary)'
+                  : '2px solid var(--color-border)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -630,7 +965,11 @@ export const TutorProfilePage: React.FC = () => {
                   width: '2.5rem',
                   height: '2.5rem',
                   borderRadius: 'var(--radius-full)',
-                  backgroundColor: step2Done ? 'var(--color-secondary)' : nextStep === 2 ? 'var(--color-primary)' : 'var(--color-border)',
+                  backgroundColor: step2Done
+                    ? 'var(--color-secondary)'
+                    : nextStep === 2
+                      ? 'var(--color-primary)'
+                      : 'var(--color-border)',
                   color: 'white',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -638,11 +977,28 @@ export const TutorProfilePage: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                {step2Done ? <CheckCircle2 size={18} strokeWidth={2.4} /> : <BookOpen size={18} strokeWidth={2.4} />}
+                {step2Done ? (
+                  <CheckCircle2 size={18} strokeWidth={2.4} />
+                ) : (
+                  <BookOpen size={18} strokeWidth={2.4} />
+                )}
               </span>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 800,
+                      margin: 0,
+                      color: 'var(--fg-main)',
+                    }}
+                  >
                     2. Teaching Subjects &amp; Rates
                   </h3>
                   <span
@@ -652,14 +1008,26 @@ export const TutorProfilePage: React.FC = () => {
                       textTransform: 'uppercase',
                       padding: '0.15rem 0.5rem',
                       borderRadius: 'var(--radius-full)',
-                      backgroundColor: step2Done ? 'var(--color-secondary-tint)' : 'var(--color-primary-tint)',
-                      color: step2Done ? 'var(--color-secondary)' : 'var(--color-primary)',
+                      backgroundColor: step2Done
+                        ? 'var(--color-secondary-tint)'
+                        : 'var(--color-primary-tint)',
+                      color: step2Done
+                        ? 'var(--color-secondary)'
+                        : 'var(--color-primary)',
                     }}
                   >
-                    {step2Done ? `${subjects.length} Subject(s) Saved` : 'Next Up'}
+                    {step2Done
+                      ? `${subjects.length} Subject(s) Saved`
+                      : 'Next Up'}
                   </span>
                 </div>
-                <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
+                <p
+                  style={{
+                    fontSize: '0.8125rem',
+                    color: '#6b7280',
+                    margin: '0.2rem 0 0 0',
+                  }}
+                >
                   {step2Done
                     ? subjects.map((s) => s.subject_name).join(', ')
                     : 'Target curriculum, grade levels (G1–G12), and hourly pricing.'}
@@ -672,7 +1040,9 @@ export const TutorProfilePage: React.FC = () => {
               style={{
                 fontSize: '0.875rem',
                 fontWeight: 700,
-                color: step2Done ? 'var(--color-secondary)' : 'var(--color-primary)',
+                color: step2Done
+                  ? 'var(--color-secondary)'
+                  : 'var(--color-primary)',
                 textDecoration: 'none',
               }}
             >
@@ -688,7 +1058,10 @@ export const TutorProfilePage: React.FC = () => {
               justifyContent: 'space-between',
               padding: '1.25rem 1.5rem',
               backgroundColor: 'var(--bg-canvas)',
-              border: nextStep === 3 ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
+              border:
+                nextStep === 3
+                  ? '2px solid var(--color-primary)'
+                  : '2px solid var(--color-border)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -697,7 +1070,11 @@ export const TutorProfilePage: React.FC = () => {
                   width: '2.5rem',
                   height: '2.5rem',
                   borderRadius: 'var(--radius-full)',
-                  backgroundColor: step3Done ? 'var(--color-secondary)' : nextStep === 3 ? 'var(--color-primary)' : 'var(--color-border)',
+                  backgroundColor: step3Done
+                    ? 'var(--color-secondary)'
+                    : nextStep === 3
+                      ? 'var(--color-primary)'
+                      : 'var(--color-border)',
                   color: 'white',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -705,11 +1082,30 @@ export const TutorProfilePage: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                {step3Done ? <CheckCircle2 size={18} strokeWidth={2.4} /> : nextStep === 3 ? <Calendar size={18} strokeWidth={2.4} /> : <Lock size={16} strokeWidth={2.4} />}
+                {step3Done ? (
+                  <CheckCircle2 size={18} strokeWidth={2.4} />
+                ) : nextStep === 3 ? (
+                  <Calendar size={18} strokeWidth={2.4} />
+                ) : (
+                  <Lock size={16} strokeWidth={2.4} />
+                )}
               </span>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 800,
+                      margin: 0,
+                      color: 'var(--fg-main)',
+                    }}
+                  >
                     3. Weekly Availability Schedule
                   </h3>
                   <span
@@ -731,10 +1127,20 @@ export const TutorProfilePage: React.FC = () => {
                           : '#6b7280',
                     }}
                   >
-                    {step3Done ? `${availability.length} Slots Saved` : nextStep === 3 ? 'Next Up' : 'Locked'}
+                    {step3Done
+                      ? `${availability.length} Slots Saved`
+                      : nextStep === 3
+                        ? 'Next Up'
+                        : 'Locked'}
                   </span>
                 </div>
-                <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
+                <p
+                  style={{
+                    fontSize: '0.8125rem',
+                    color: '#6b7280',
+                    margin: '0.2rem 0 0 0',
+                  }}
+                >
                   {step3Done
                     ? `${availability.length} active weekly teaching time slots configured`
                     : 'Interactive weekly grid to mark available teaching slots.'}
@@ -748,14 +1154,24 @@ export const TutorProfilePage: React.FC = () => {
                 style={{
                   fontSize: '0.875rem',
                   fontWeight: 700,
-                  color: step3Done ? 'var(--color-secondary)' : 'var(--color-primary)',
+                  color: step3Done
+                    ? 'var(--color-secondary)'
+                    : 'var(--color-primary)',
                   textDecoration: 'none',
                 }}
               >
                 {step3Done ? 'Review / Edit' : 'Set Hours →'}
               </Link>
             ) : (
-              <span style={{ fontSize: '0.8125rem', color: '#9ca3af', fontWeight: 600 }}>Follows Step 2</span>
+              <span
+                style={{
+                  fontSize: '0.8125rem',
+                  color: '#9ca3af',
+                  fontWeight: 600,
+                }}
+              >
+                Follows Step 2
+              </span>
             )}
           </Card>
 
@@ -767,7 +1183,10 @@ export const TutorProfilePage: React.FC = () => {
               justifyContent: 'space-between',
               padding: '1.25rem 1.5rem',
               backgroundColor: 'var(--bg-canvas)',
-              border: nextStep === 4 ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
+              border:
+                nextStep === 4
+                  ? '2px solid var(--color-primary)'
+                  : '2px solid var(--color-border)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
@@ -776,7 +1195,10 @@ export const TutorProfilePage: React.FC = () => {
                   width: '2.5rem',
                   height: '2.5rem',
                   borderRadius: 'var(--radius-full)',
-                  backgroundColor: nextStep === 4 ? 'var(--color-primary)' : 'var(--color-border)',
+                  backgroundColor:
+                    nextStep === 4
+                      ? 'var(--color-primary)'
+                      : 'var(--color-border)',
                   color: 'white',
                   display: 'inline-flex',
                   alignItems: 'center',
@@ -784,11 +1206,28 @@ export const TutorProfilePage: React.FC = () => {
                   flexShrink: 0,
                 }}
               >
-                {nextStep === 4 ? <FileCheck size={18} strokeWidth={2.4} /> : <Lock size={16} strokeWidth={2.4} />}
+                {nextStep === 4 ? (
+                  <FileCheck size={18} strokeWidth={2.4} />
+                ) : (
+                  <Lock size={16} strokeWidth={2.4} />
+                )}
               </span>
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <h3
+                    style={{
+                      fontSize: '1rem',
+                      fontWeight: 800,
+                      margin: 0,
+                      color: 'var(--fg-main)',
+                    }}
+                  >
                     4. Verification Documents Upload
                   </h3>
                   <span
@@ -798,15 +1237,26 @@ export const TutorProfilePage: React.FC = () => {
                       textTransform: 'uppercase',
                       padding: '0.15rem 0.5rem',
                       borderRadius: 'var(--radius-full)',
-                      backgroundColor: nextStep === 4 ? 'var(--color-primary-tint)' : 'var(--color-muted)',
-                      color: nextStep === 4 ? 'var(--color-primary)' : '#6b7280',
+                      backgroundColor:
+                        nextStep === 4
+                          ? 'var(--color-primary-tint)'
+                          : 'var(--color-muted)',
+                      color:
+                        nextStep === 4 ? 'var(--color-primary)' : '#6b7280',
                     }}
                   >
                     {nextStep === 4 ? 'Ready to Upload' : 'Final Step'}
                   </span>
                 </div>
-                <p style={{ fontSize: '0.8125rem', color: '#6b7280', margin: '0.2rem 0 0 0' }}>
-                  Degree transcript, CV / resume, and subject certificates for administrator review.
+                <p
+                  style={{
+                    fontSize: '0.8125rem',
+                    color: '#6b7280',
+                    margin: '0.2rem 0 0 0',
+                  }}
+                >
+                  Degree transcript, CV / resume, and subject certificates for
+                  administrator review.
                 </p>
               </div>
             </div>
@@ -824,7 +1274,15 @@ export const TutorProfilePage: React.FC = () => {
                 Upload &amp; Submit →
               </Link>
             ) : (
-              <span style={{ fontSize: '0.8125rem', color: '#9ca3af', fontWeight: 600 }}>Follows Step 3</span>
+              <span
+                style={{
+                  fontSize: '0.8125rem',
+                  color: '#9ca3af',
+                  fontWeight: 600,
+                }}
+              >
+                Follows Step 3
+              </span>
             )}
           </Card>
         </div>
@@ -838,11 +1296,26 @@ export const TutorProfilePage: React.FC = () => {
             padding: '1.5rem',
           }}
         >
-          <h3 style={{ fontSize: '1rem', fontWeight: 800, color: 'var(--fg-main)', margin: '0 0 0.5rem 0' }}>
+          <h3
+            style={{
+              fontSize: '1rem',
+              fontWeight: 800,
+              color: 'var(--fg-main)',
+              margin: '0 0 0.5rem 0',
+            }}
+          >
             What happens after you submit?
           </h3>
-          <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0, lineHeight: 1.5 }}>
-            Once you submit in Step 4, your application enters the <strong>Administrator Review Queue (24–48 hours)</strong>.
+          <p
+            style={{
+              fontSize: '0.875rem',
+              color: '#4b5563',
+              margin: 0,
+              lineHeight: 1.5,
+            }}
+          >
+            Once you submit in Step 4, your application enters the{' '}
+            <strong>Administrator Review Queue (24–48 hours)</strong>.
           </p>
         </Card>
       </div>
@@ -852,7 +1325,15 @@ export const TutorProfilePage: React.FC = () => {
   // View 1: My Profile & Application Management Hub (Tabs: Profile, Subjects, Availability, Documents)
   if (isProfileView) {
     return (
-      <div style={{ maxWidth: '1080px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+      <div
+        style={{
+          maxWidth: '1080px',
+          margin: '0 auto',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '2rem',
+        }}
+      >
         {/* Header */}
         <PageHeader
           title="My Profile & Teaching Hub"
@@ -895,7 +1376,9 @@ export const TutorProfilePage: React.FC = () => {
                   borderRadius: 'var(--radius-md)',
                   fontWeight: 700,
                   fontSize: '0.9375rem',
-                  backgroundColor: isActive ? 'var(--color-secondary)' : 'transparent',
+                  backgroundColor: isActive
+                    ? 'var(--color-secondary)'
+                    : 'transparent',
                   color: isActive ? 'var(--color-white)' : 'var(--fg-main)',
                   border: 'none',
                   cursor: 'pointer',
@@ -922,16 +1405,22 @@ export const TutorProfilePage: React.FC = () => {
           <AvailabilityGrid showSaveButton={true} />
         )}
 
-        {activeProfileTab === 'documents' && (
-          <VerificationSection />
-        )}
+        {activeProfileTab === 'documents' && <VerificationSection />}
       </div>
     );
   }
 
   // View 2: State-Based Dashboard Overview (Clean: Hero Banner + Quick Metrics + Matched Students)
   return (
-    <div style={{ maxWidth: '1080px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+    <div
+      style={{
+        maxWidth: '1080px',
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '2rem',
+      }}
+    >
       {/* Status Hero Card */}
       {status === VerificationStatus.PENDING && (
         <div
@@ -961,8 +1450,22 @@ export const TutorProfilePage: React.FC = () => {
             <Clock size={28} strokeWidth={2.4} />
           </span>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <h2 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: '1.375rem',
+                  fontWeight: 800,
+                  color: 'var(--fg-main)',
+                  margin: 0,
+                }}
+              >
                 Application Under Admin Review
               </h2>
               <span
@@ -979,8 +1482,19 @@ export const TutorProfilePage: React.FC = () => {
                 Status: Pending
               </span>
             </div>
-            <p style={{ fontSize: '0.9375rem', color: '#4b5563', marginTop: '0.5rem', lineHeight: 1.5, margin: 0 }}>
-              Your application and verification documents are queued for review (typically 24–48 hours). You will receive email and in-app notification once your application is approved or if any additional information is required.
+            <p
+              style={{
+                fontSize: '0.9375rem',
+                color: '#4b5563',
+                marginTop: '0.5rem',
+                lineHeight: 1.5,
+                margin: 0,
+              }}
+            >
+              Your application and verification documents are queued for review
+              (typically 24–48 hours). You will receive email and in-app
+              notification once your application is approved or if any
+              additional information is required.
             </p>
           </div>
         </div>
@@ -1014,7 +1528,14 @@ export const TutorProfilePage: React.FC = () => {
             <ShieldCheck size={28} strokeWidth={2.4} />
           </span>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}
+            >
               <h2 style={{ fontSize: '1.375rem', fontWeight: 800, margin: 0 }}>
                 Verified Tutor Profile
               </h2>
@@ -1031,7 +1552,14 @@ export const TutorProfilePage: React.FC = () => {
                 Status: Active
               </span>
             </div>
-            <p style={{ opacity: 0.95, fontSize: '0.9375rem', marginTop: '0.375rem', margin: 0 }}>
+            <p
+              style={{
+                opacity: 0.95,
+                fontSize: '0.9375rem',
+                marginTop: '0.375rem',
+                margin: 0,
+              }}
+            >
               Your profile is active in the student matchmaking algorithm!
             </p>
           </div>
@@ -1066,8 +1594,22 @@ export const TutorProfilePage: React.FC = () => {
             <XCircle size={28} strokeWidth={2.4} />
           </span>
           <div style={{ flex: 1 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-              <h2 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--color-danger)', margin: 0 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                flexWrap: 'wrap',
+              }}
+            >
+              <h2
+                style={{
+                  fontSize: '1.375rem',
+                  fontWeight: 800,
+                  color: 'var(--color-danger)',
+                  margin: 0,
+                }}
+              >
                 Verification Incomplete — Action Needed
               </h2>
               <span
@@ -1100,9 +1642,19 @@ export const TutorProfilePage: React.FC = () => {
                 <strong>Admin Feedback:</strong> {rejectionReason}
               </div>
             )}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginTop: '1rem',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
               <p style={{ fontSize: '0.875rem', color: '#4b5563', margin: 0 }}>
-                Please update your certificates or transcripts to satisfy verification requirements.
+                Please update your certificates or transcripts to satisfy
+                verification requirements.
               </p>
               <Button
                 variant="danger"
@@ -1125,13 +1677,34 @@ export const TutorProfilePage: React.FC = () => {
         }}
       >
         <Card style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>
-            Teaching Subjects
+          <div
+            style={{
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              color: '#6b7280',
+              textTransform: 'uppercase',
+            }}
+          >
+            Teaching Focus
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--fg-main)', marginTop: '0.25rem' }}>
+          <div
+            style={{
+              fontSize: '1.75rem',
+              fontWeight: 800,
+              color: 'var(--fg-main)',
+              marginTop: '0.25rem',
+            }}
+          >
             {subjects.length}
           </div>
-          <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '0.25rem', margin: 0 }}>
+          <p
+            style={{
+              fontSize: '0.8125rem',
+              color: '#6b7280',
+              marginTop: '0.25rem',
+              margin: 0,
+            }}
+          >
             {subjects.length > 0
               ? subjects.map((s) => s.subject_name).join(', ')
               : 'No subjects configured yet'}
@@ -1139,30 +1712,73 @@ export const TutorProfilePage: React.FC = () => {
         </Card>
 
         <Card style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>
+          <div
+            style={{
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              color: '#6b7280',
+              textTransform: 'uppercase',
+            }}
+          >
             Weekly Availability
           </div>
-          <div style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--fg-main)', marginTop: '0.25rem' }}>
+          <div
+            style={{
+              fontSize: '1.75rem',
+              fontWeight: 800,
+              color: 'var(--fg-main)',
+              marginTop: '0.25rem',
+            }}
+          >
             {availability.length} Slots
           </div>
-          <p style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '0.25rem', margin: 0 }}>
+          <p
+            style={{
+              fontSize: '0.8125rem',
+              color: '#6b7280',
+              marginTop: '0.25rem',
+              margin: 0,
+            }}
+          >
             Available teaching time slots per week
           </p>
         </Card>
 
         <Card style={{ padding: '1.25rem' }}>
-          <div style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase' }}>
+          <div
+            style={{
+              fontSize: '0.8125rem',
+              fontWeight: 700,
+              color: '#6b7280',
+              textTransform: 'uppercase',
+            }}
+          >
             Your Contact Info
           </div>
-          <div style={{ fontSize: '0.9375rem', fontWeight: 700, color: 'var(--fg-main)', marginTop: '0.5rem', display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div
+            style={{
+              fontSize: '0.9375rem',
+              fontWeight: 700,
+              color: 'var(--fg-main)',
+              marginTop: '0.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '0.375rem',
+            }}
+          >
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
               <Phone size={15} color="var(--color-primary)" />
               <span>{profile.phone_number}</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
               <MessageSquare size={15} color="var(--color-secondary)" />
               <span>
-                LINE ID: <strong>{profile.line_id ? profile.line_id : 'Not set'}</strong>
+                LINE ID:{' '}
+                <strong>{profile.line_id ? profile.line_id : 'Not set'}</strong>
               </span>
             </div>
           </div>
@@ -1171,14 +1787,43 @@ export const TutorProfilePage: React.FC = () => {
 
       {/* Matched Students Section (For APPROVED status) */}
       {status === VerificationStatus.APPROVED && (
-        <Card style={{ padding: '1.75rem', display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <Card
+          style={{
+            padding: '1.75rem',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '1.25rem',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
             <div>
-              <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
+              <h3
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  color: 'var(--fg-main)',
+                  margin: 0,
+                }}
+              >
                 Matched Students &amp; Confirmed Bookings
               </h3>
-              <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: '0.25rem 0 0 0' }}>
-                Students who selected you as their confirmed tutor through algorithmic matching.
+              <p
+                style={{
+                  fontSize: '0.875rem',
+                  color: '#6b7280',
+                  margin: '0.25rem 0 0 0',
+                }}
+              >
+                Students who selected you as their confirmed tutor through
+                algorithmic matching.
               </p>
             </div>
             <span
@@ -1191,13 +1836,18 @@ export const TutorProfilePage: React.FC = () => {
                 fontWeight: 800,
               }}
             >
-              {matchedStudents.length} Confirmed {matchedStudents.length === 1 ? 'Student' : 'Students'}
+              {matchedStudents.length} Confirmed{' '}
+              {matchedStudents.length === 1 ? 'Student' : 'Students'}
             </span>
           </div>
 
           {loadingMatched ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}>
-              <p style={{ fontWeight: 700 }}>Loading your confirmed student bookings...</p>
+            <div
+              style={{ padding: '2rem', textAlign: 'center', color: '#6b7280' }}
+            >
+              <p style={{ fontWeight: 700 }}>
+                Loading your confirmed student bookings...
+              </p>
             </div>
           ) : matchedStudents.length === 0 ? (
             <div
@@ -1227,33 +1877,63 @@ export const TutorProfilePage: React.FC = () => {
               >
                 <Sparkles size={22} strokeWidth={2.4} />
               </div>
-              <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1rem', color: 'var(--fg-main)' }}>
+              <h4
+                style={{
+                  margin: 0,
+                  fontWeight: 800,
+                  fontSize: '1rem',
+                  color: 'var(--fg-main)',
+                }}
+              >
                 No Confirmed Student Bookings Yet
               </h4>
-              <p style={{ margin: 0, color: '#6b7280', fontSize: '0.875rem', maxWidth: '480px' }}>
-                When students are matched and confirm you as their tutor, their student card, direct contact information, and learning preferences will appear here and in your bell notifications.
+              <p
+                style={{
+                  margin: 0,
+                  color: '#6b7280',
+                  fontSize: '0.875rem',
+                  maxWidth: '480px',
+                }}
+              >
+                When students are matched and confirm you as their tutor, their
+                student card, direct contact information, and learning
+                preferences will appear here and in your bell notifications.
               </p>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '0.875rem',
+              }}
+            >
               {matchedStudents.map((st) => {
-                const initials = `${st.first_name?.[0] || ''}${st.last_name?.[0] || ''}`.toUpperCase();
+                const initials =
+                  `${st.first_name?.[0] || ''}${st.last_name?.[0] || ''}`.toUpperCase();
                 return (
                   <div
                     key={st.match_request_id}
                     style={{
                       border: '2px solid var(--color-border)',
                       borderRadius: 'var(--radius-md)',
-                      padding: '1.25rem',
+                      padding: '1.25rem 1.5rem',
                       backgroundColor: 'var(--bg-canvas)',
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      flexWrap: 'wrap',
-                      gap: '1rem',
+                      gap: '1.25rem',
                     }}
                   >
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '1rem',
+                        alignItems: 'center',
+                        flex: 1,
+                        minWidth: 0,
+                      }}
+                    >
                       <div
                         style={{
                           width: '3rem',
@@ -1271,9 +1951,23 @@ export const TutorProfilePage: React.FC = () => {
                       >
                         {initials || 'ST'}
                       </div>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem', flexWrap: 'wrap' }}>
-                          <h4 style={{ fontSize: '1.0625rem', fontWeight: 800, margin: 0, color: 'var(--fg-main)' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.625rem',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <h4
+                            style={{
+                              fontSize: '1.0625rem',
+                              fontWeight: 800,
+                              margin: 0,
+                              color: 'var(--fg-main)',
+                            }}
+                          >
                             {st.student_name}
                           </h4>
                           <span
@@ -1301,24 +1995,58 @@ export const TutorProfilePage: React.FC = () => {
                               gap: '0.25rem',
                             }}
                           >
-                            <CheckCircle2 size={12} strokeWidth={2.8} /> Confirmed Match
+                            <CheckCircle2 size={12} strokeWidth={2.8} />{' '}
+                            Confirmed Match
                           </span>
                         </div>
 
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', marginTop: '0.5rem', flexWrap: 'wrap', fontSize: '0.875rem' }}>
-                          <span style={{ color: 'var(--fg-main)', fontWeight: 600 }}>
-                            Subject: <strong>{st.subject_name}</strong> ({st.variant_name}) • <strong>฿{st.hourly_rate}/hr</strong>
-                          </span>
-                          <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#4b5563' }}>
-                            <Phone size={14} color="var(--color-primary)" />
-                            {st.phone_number}
-                          </span>
-                          {st.line_id && (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', color: '#4b5563' }}>
-                              <MessageSquare size={14} color="var(--color-secondary)" />
-                              LINE: <strong>@{st.line_id.replace(/^@/, '')}</strong>
+                        {/* 3-Row Clean Info Stack */}
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.3rem',
+                            marginTop: '0.4rem',
+                            fontSize: '0.875rem',
+                          }}
+                        >
+                          {/* Row 1: Subject & Variant */}
+                          <div style={{ color: 'var(--fg-main)' }}>
+                            <span style={{ color: '#6b7280', fontWeight: 600 }}>Subject: </span>
+                            <strong>{st.subject_name}</strong>{' '}
+                            <span style={{ color: '#4b5563' }}>({st.variant_name})</span>
+                          </div>
+
+                          {/* Row 2: Student Budget */}
+                          <div>
+                            <span style={{ color: '#6b7280', fontWeight: 600 }}>Student Budget: </span>
+                            <span style={{ fontWeight: 800, color: 'var(--color-primary)' }}>
+                              ฿{st.hourly_rate}/hr
                             </span>
-                          )}
+                          </div>
+
+                          {/* Row 3: Direct Contact Details */}
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '1.25rem',
+                              flexWrap: 'wrap',
+                              color: '#4b5563',
+                              paddingTop: '0.15rem',
+                            }}
+                          >
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                              <Phone size={14} color="var(--color-primary)" />
+                              <strong>{st.phone_number}</strong>
+                            </span>
+                            {st.line_id && (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                                <MessageSquare size={14} color="var(--color-secondary)" />
+                                LINE: <strong>@{st.line_id.replace(/^@/, '')}</strong>
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1335,6 +2063,8 @@ export const TutorProfilePage: React.FC = () => {
                         alignItems: 'center',
                         gap: '0.375rem',
                         fontWeight: 800,
+                        flexShrink: 0,
+                        whiteSpace: 'nowrap',
                       }}
                     >
                       <Eye size={15} strokeWidth={2.4} />
@@ -1345,6 +2075,69 @@ export const TutorProfilePage: React.FC = () => {
               })}
             </div>
           )}
+        </Card>
+      )}
+
+      {/* Student Reviews & Ratings Breakdown */}
+      {status === VerificationStatus.APPROVED && profile?.user_id && (
+        <Card
+          id="reviews"
+          style={{
+            backgroundColor: 'var(--bg-canvas)',
+            border: '2px solid var(--color-border)',
+            borderRadius: 'var(--radius-lg)',
+            padding: '2rem',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              marginBottom: '1.5rem',
+              borderBottom: '2px solid var(--color-border)',
+              paddingBottom: '1rem',
+            }}
+          >
+            <span
+              style={{
+                width: '2.5rem',
+                height: '2.5rem',
+                borderRadius: 'var(--radius-md)',
+                backgroundColor: 'var(--color-primary-tint)',
+                color: 'var(--color-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Sparkles size={20} strokeWidth={2.4} />
+            </span>
+            <div>
+              <h2
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 800,
+                  color: 'var(--fg-main)',
+                  margin: 0,
+                }}
+              >
+                Student Reviews & Ratings
+              </h2>
+              <p
+                style={{
+                  fontSize: '0.8125rem',
+                  color: '#6b7280',
+                  margin: '0.25rem 0 0 0',
+                }}
+              >
+                4-category ratings and verified feedback submitted by students
+                who confirmed lessons with you.
+              </p>
+            </div>
+          </div>
+
+          <TutorReviewsSection tutorId={profile.user_id} />
         </Card>
       )}
 

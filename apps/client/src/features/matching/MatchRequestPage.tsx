@@ -325,8 +325,8 @@ export const MatchRequestPage: React.FC = () => {
                   key={rec.recommendation_id}
                   style={{
                     padding: '2rem',
-                    backgroundColor: isTop ? 'var(--color-primary-tint)' : 'var(--bg-canvas)',
-                    border: isTop ? '2px solid var(--color-primary)' : '2px solid var(--color-border)',
+                    backgroundColor: 'var(--bg-canvas)',
+                    border: '2px solid var(--color-border)',
                     display: 'flex',
                     flexDirection: 'column',
                     gap: '1.25rem',
@@ -342,7 +342,7 @@ export const MatchRequestPage: React.FC = () => {
                           gap: '0.375rem',
                           padding: '0.375rem 0.875rem',
                           borderRadius: 'var(--radius-md)',
-                          backgroundColor: isTop ? 'var(--color-primary)' : 'var(--color-dark)',
+                          backgroundColor: 'var(--color-dark)',
                           color: '#ffffff',
                           fontWeight: 900,
                           fontSize: '0.8125rem',
@@ -385,7 +385,7 @@ export const MatchRequestPage: React.FC = () => {
                         width: '3.75rem',
                         height: '3.75rem',
                         borderRadius: 'var(--radius-md)',
-                        backgroundColor: isTop ? 'var(--color-primary)' : 'var(--color-dark)',
+                        backgroundColor: 'var(--color-dark)',
                         color: '#ffffff',
                         display: 'flex',
                         alignItems: 'center',
@@ -566,9 +566,9 @@ export const MatchRequestPage: React.FC = () => {
                         </div>
                         <div>
                           <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280' }}>PHONE NUMBER</div>
-                          <a href={`tel:${confirmedSuccessData.phone}`} style={{ fontSize: '1.125rem', fontWeight: 900, color: 'var(--fg-main)', textDecoration: 'none' }}>
+                          <span style={{ fontSize: '1.125rem', fontWeight: 900, color: 'var(--fg-main)' }}>
                             {confirmedSuccessData.phone}
-                          </a>
+                          </span>
                         </div>
                       </div>
                     )}
@@ -594,9 +594,9 @@ export const MatchRequestPage: React.FC = () => {
                         </div>
                         <div>
                           <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280' }}>EMAIL ADDRESS</div>
-                          <a href={`mailto:${confirmedSuccessData.email}`} style={{ fontSize: '1.0625rem', fontWeight: 900, color: 'var(--fg-main)', textDecoration: 'none' }}>
+                          <span style={{ fontSize: '1.0625rem', fontWeight: 900, color: 'var(--fg-main)' }}>
                             {confirmedSuccessData.email}
-                          </a>
+                          </span>
                         </div>
                       </div>
                     )}

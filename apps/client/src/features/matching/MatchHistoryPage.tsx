@@ -1,26 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Card, Button, Modal } from '../../components/ui';
-import { useMatchHistory, useConfirmTutor } from './hooks/useMatching';
-import { TutorDetailModal } from '../tutors/components/TutorDetailModal';
 import {
   MatchRequestStatus,
   type MatchRecommendationDto,
 } from '@tutorpair/shared';
 import {
   ArrowLeft,
+  BookOpen,
+  Check,
   CheckCircle2,
   Clock,
-  Phone,
-  MessageCircle,
-  Mail,
-  Star,
-  BookOpen,
-  PlusCircle,
   Copy,
-  Check,
+  Mail,
+  MessageCircle,
+  Phone,
+  PlusCircle,
   Sparkles,
+  Star,
 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Button, Card, Modal } from '../../components/ui';
+import { TutorDetailModal } from '../tutors/components/TutorDetailModal';
+import { useConfirmTutor, useMatchHistory } from './hooks/useMatching';
 
 export const MatchHistoryPage: React.FC = () => {
   const { data: history, isLoading, isError, refetch } = useMatchHistory();
@@ -28,12 +28,19 @@ export const MatchHistoryPage: React.FC = () => {
   const [searchParams] = useSearchParams();
 
   // Active filter tab with query param support (e.g. ?tab=CONFIRMED)
-  const initialTab = searchParams.get('tab') === 'CONFIRMED' ? 'CONFIRMED' : 'ALL';
-  const [activeTab, setActiveTab] = useState<'ALL' | 'CONFIRMED' | 'PENDING'>(initialTab);
+  const initialTab =
+    searchParams.get('tab') === 'CONFIRMED' ? 'CONFIRMED' : 'ALL';
+  const [activeTab, setActiveTab] = useState<'ALL' | 'CONFIRMED' | 'PENDING'>(
+    initialTab,
+  );
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'CONFIRMED' || tabParam === 'PENDING' || tabParam === 'ALL') {
+    if (
+      tabParam === 'CONFIRMED' ||
+      tabParam === 'PENDING' ||
+      tabParam === 'ALL'
+    ) {
       setActiveTab(tabParam);
     }
   }, [searchParams]);
@@ -69,15 +76,19 @@ export const MatchHistoryPage: React.FC = () => {
           setConfirmingRec(null);
           refetch();
         },
-      }
+      },
     );
   };
 
   if (isLoading) {
     return (
-      <div style={{ maxWidth: '960px', margin: '3rem auto', textAlign: 'center' }}>
+      <div
+        style={{ maxWidth: '960px', margin: '3rem auto', textAlign: 'center' }}
+      >
         <Card style={{ padding: '3.5rem' }}>
-          <p style={{ fontWeight: 700, color: '#6b7280' }}>Loading your matching history...</p>
+          <p style={{ fontWeight: 700, color: '#6b7280' }}>
+            Loading your matching history...
+          </p>
         </Card>
       </div>
     );
@@ -85,10 +96,18 @@ export const MatchHistoryPage: React.FC = () => {
 
   if (isError || !history) {
     return (
-      <div style={{ maxWidth: '960px', margin: '3rem auto', textAlign: 'center' }}>
+      <div
+        style={{ maxWidth: '960px', margin: '3rem auto', textAlign: 'center' }}
+      >
         <Card style={{ padding: '3rem', border: '2px solid #ef4444' }}>
-          <p style={{ fontWeight: 800, color: '#b91c1c' }}>Failed to load matching history.</p>
-          <Button variant="outline" onClick={() => refetch()} style={{ marginTop: '1rem' }}>
+          <p style={{ fontWeight: 800, color: '#b91c1c' }}>
+            Failed to load matching history.
+          </p>
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            style={{ marginTop: '1rem' }}
+          >
             Try Again
           </Button>
         </Card>
@@ -96,17 +115,31 @@ export const MatchHistoryPage: React.FC = () => {
     );
   }
 
-  const confirmedCount = history.filter((h) => h.status === MatchRequestStatus.CONFIRMED).length;
-  const pendingCount = history.filter((h) => h.status === MatchRequestStatus.PENDING).length;
+  const confirmedCount = history.filter(
+    (h) => h.status === MatchRequestStatus.CONFIRMED,
+  ).length;
+  const pendingCount = history.filter(
+    (h) => h.status === MatchRequestStatus.PENDING,
+  ).length;
 
   const filteredHistory = history.filter((item) => {
-    if (activeTab === 'CONFIRMED') return item.status === MatchRequestStatus.CONFIRMED;
-    if (activeTab === 'PENDING') return item.status === MatchRequestStatus.PENDING;
+    if (activeTab === 'CONFIRMED')
+      return item.status === MatchRequestStatus.CONFIRMED;
+    if (activeTab === 'PENDING')
+      return item.status === MatchRequestStatus.PENDING;
     return true;
   });
 
   return (
-    <div style={{ maxWidth: '980px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
+    <div
+      style={{
+        maxWidth: '980px',
+        margin: '0 auto',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1.75rem',
+      }}
+    >
       {/* Back to Matching Hub Button */}
       <div>
         <Link
@@ -131,33 +164,64 @@ export const MatchHistoryPage: React.FC = () => {
       </div>
 
       {/* Header with New Request CTA */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'flex-start',
+          flexWrap: 'wrap',
+          gap: '1rem',
+        }}
+      >
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--fg-main)', margin: '0 0 0.375rem 0' }}>
+          <h1
+            style={{
+              fontSize: '2rem',
+              fontWeight: 900,
+              color: 'var(--fg-main)',
+              margin: '0 0 0.375rem 0',
+            }}
+          >
             Matching History & Confirmed Lessons
           </h1>
           <p style={{ fontSize: '0.9375rem', color: '#6b7280', margin: 0 }}>
-            Manage your tutor recommendations, access unlocked direct contact channels, and submit verified reviews.
+            Manage your tutor recommendations, access unlocked direct contact
+            channels, and submit verified reviews.
           </p>
         </div>
 
         <Link to="/student/matching/request" style={{ textDecoration: 'none' }}>
           <Button variant="primary">
-            <PlusCircle size={18} strokeWidth={2.4} style={{ marginRight: '0.375rem' }} />
+            <PlusCircle
+              size={18}
+              strokeWidth={2.4}
+              style={{ marginRight: '0.375rem' }}
+            />
             New Tutor Match Request
           </Button>
         </Link>
       </div>
 
       {/* Filter Tabs */}
-      <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '2px solid var(--color-border)', paddingBottom: '0.75rem', flexWrap: 'wrap' }}>
+      <div
+        style={{
+          display: 'flex',
+          gap: '0.5rem',
+          borderBottom: '2px solid var(--color-border)',
+          paddingBottom: '0.75rem',
+          flexWrap: 'wrap',
+        }}
+      >
         <button
           onClick={() => setActiveTab('ALL')}
           style={{
             padding: '0.5rem 1rem',
             borderRadius: 'var(--radius-md)',
             border: 'none',
-            backgroundColor: activeTab === 'ALL' ? 'var(--color-primary)' : 'var(--color-muted)',
+            backgroundColor:
+              activeTab === 'ALL'
+                ? 'var(--color-primary)'
+                : 'var(--color-muted)',
             color: activeTab === 'ALL' ? '#ffffff' : 'var(--fg-main)',
             fontWeight: 800,
             fontSize: '0.875rem',
@@ -173,7 +237,10 @@ export const MatchHistoryPage: React.FC = () => {
             padding: '0.5rem 1rem',
             borderRadius: 'var(--radius-md)',
             border: 'none',
-            backgroundColor: activeTab === 'CONFIRMED' ? 'var(--color-secondary)' : 'var(--color-muted)',
+            backgroundColor:
+              activeTab === 'CONFIRMED'
+                ? 'var(--color-secondary)'
+                : 'var(--color-muted)',
             color: activeTab === 'CONFIRMED' ? '#ffffff' : 'var(--fg-main)',
             fontWeight: 800,
             fontSize: '0.875rem',
@@ -189,7 +256,8 @@ export const MatchHistoryPage: React.FC = () => {
             padding: '0.5rem 1rem',
             borderRadius: 'var(--radius-md)',
             border: 'none',
-            backgroundColor: activeTab === 'PENDING' ? '#F59E0B' : 'var(--color-muted)',
+            backgroundColor:
+              activeTab === 'PENDING' ? '#F59E0B' : 'var(--color-muted)',
             color: activeTab === 'PENDING' ? '#ffffff' : 'var(--fg-main)',
             fontWeight: 800,
             fontSize: '0.875rem',
@@ -203,7 +271,13 @@ export const MatchHistoryPage: React.FC = () => {
 
       {/* Empty State */}
       {filteredHistory.length === 0 ? (
-        <Card style={{ padding: '4rem 2rem', textAlign: 'center', backgroundColor: 'var(--color-muted)' }}>
+        <Card
+          style={{
+            padding: '4rem 2rem',
+            textAlign: 'center',
+            backgroundColor: 'var(--color-muted)',
+          }}
+        >
           <div
             style={{
               width: '4rem',
@@ -219,21 +293,41 @@ export const MatchHistoryPage: React.FC = () => {
           >
             <BookOpen size={32} />
           </div>
-          <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)', margin: '0 0 0.5rem 0' }}>
+          <h3
+            style={{
+              fontSize: '1.25rem',
+              fontWeight: 800,
+              color: 'var(--fg-main)',
+              margin: '0 0 0.5rem 0',
+            }}
+          >
             No Matching Requests Found
           </h3>
-          <p style={{ fontSize: '0.9375rem', color: '#6b7280', margin: '0 auto 1.5rem auto', maxWidth: '440px', lineHeight: 1.5 }}>
+          <p
+            style={{
+              fontSize: '0.9375rem',
+              color: '#6b7280',
+              margin: '0 auto 1.5rem auto',
+              maxWidth: '440px',
+              lineHeight: 1.5,
+            }}
+          >
             {activeTab === 'CONFIRMED'
               ? 'You have not confirmed any tutors yet. Submit a match request to find your top tutors!'
               : 'You have not submitted any tutor match requests yet.'}
           </p>
-          <Link to="/student/matching/request" style={{ textDecoration: 'none' }}>
+          <Link
+            to="/student/matching/request"
+            style={{ textDecoration: 'none' }}
+          >
             <Button variant="primary">Find My First Tutor</Button>
           </Link>
         </Card>
       ) : (
         /* History Item Cards */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+        <div
+          style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}
+        >
           {filteredHistory.map((item) => {
             const isConfirmed = item.status === MatchRequestStatus.CONFIRMED;
             const selected = item.selected;
@@ -243,17 +337,37 @@ export const MatchHistoryPage: React.FC = () => {
                 key={item.match_request_id}
                 style={{
                   padding: '2rem',
-                  backgroundColor: isConfirmed ? 'var(--bg-canvas)' : 'var(--bg-canvas)',
-                  border: isConfirmed ? '2px solid var(--color-secondary)' : '2px solid var(--color-border)',
+                  backgroundColor: isConfirmed
+                    ? 'var(--bg-canvas)'
+                    : 'var(--bg-canvas)',
+                  border: isConfirmed
+                    ? '2px solid var(--color-secondary)'
+                    : '2px solid var(--color-border)',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '1.25rem',
                 }}
               >
                 {/* Header row: Subject tags & status badge */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    flexWrap: 'wrap',
+                    gap: '0.75rem',
+                  }}
+                >
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        flexWrap: 'wrap',
+                        marginBottom: '0.25rem',
+                      }}
+                    >
                       <span
                         style={{
                           fontSize: '0.75rem',
@@ -266,12 +380,20 @@ export const MatchHistoryPage: React.FC = () => {
                       >
                         {item.category.replace('_', ' ')}
                       </span>
-                      <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 900, color: 'var(--fg-main)' }}>
+                      <h3
+                        style={{
+                          margin: 0,
+                          fontSize: '1.25rem',
+                          fontWeight: 900,
+                          color: 'var(--fg-main)',
+                        }}
+                      >
                         {item.subject_name} — {item.variant_name}
                       </h3>
                     </div>
                     <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                      Requested on {new Date(item.created_at).toLocaleDateString(undefined, {
+                      Requested on{' '}
+                      {new Date(item.created_at).toLocaleDateString(undefined, {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
@@ -334,8 +456,22 @@ export const MatchHistoryPage: React.FC = () => {
                       }}
                     >
                       {/* Tutor info banner */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          flexWrap: 'wrap',
+                          gap: '1rem',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '1rem',
+                          }}
+                        >
                           <div
                             style={{
                               width: '3.25rem',
@@ -353,24 +489,80 @@ export const MatchHistoryPage: React.FC = () => {
                             {selected.first_name.charAt(0)}
                           </div>
                           <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                              <h4 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 900, color: 'var(--fg-main)' }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                flexWrap: 'wrap',
+                              }}
+                            >
+                              <h4
+                                style={{
+                                  margin: 0,
+                                  fontSize: '1.125rem',
+                                  fontWeight: 900,
+                                  color: 'var(--fg-main)',
+                                }}
+                              >
                                 {selected.first_name} {selected.last_name}
                               </h4>
-                              <span style={{ fontSize: '0.6875rem', fontWeight: 800, backgroundColor: '#ffffff', padding: '0.125rem 0.5rem', borderRadius: '999px', color: '#374151', textTransform: 'uppercase' }}>
+                              <span
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 800,
+                                  backgroundColor: '#ffffff',
+                                  padding: '0.125rem 0.5rem',
+                                  borderRadius: '999px',
+                                  color: '#374151',
+                                  textTransform: 'uppercase',
+                                }}
+                              >
                                 {selected.tutor_type.replace('_', ' ')}
                               </span>
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.2rem' }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.375rem',
+                                marginTop: '0.2rem',
+                              }}
+                            >
                               <Star size={14} fill="#F59E0B" color="#F59E0B" />
-                              <span style={{ fontWeight: 800, fontSize: '0.875rem', color: 'var(--fg-main)' }}>
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  fontSize: '0.875rem',
+                                  color: 'var(--fg-main)',
+                                }}
+                              >
                                 {selected.average_rating.toFixed(1)}
                               </span>
-                              <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
-                                ({selected.review_count} review{selected.review_count === 1 ? '' : 's'})
+                              <span
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: '#6b7280',
+                                }}
+                              >
+                                ({selected.review_count} review
+                                {selected.review_count === 1 ? '' : 's'})
                               </span>
-                              <span style={{ margin: '0 0.375rem', color: '#9ca3af' }}>•</span>
-                              <span style={{ fontWeight: 800, color: 'var(--color-primary)', fontSize: '0.875rem' }}>
+                              <span
+                                style={{
+                                  margin: '0 0.375rem',
+                                  color: '#9ca3af',
+                                }}
+                              >
+                                •
+                              </span>
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  color: 'var(--color-primary)',
+                                  fontSize: '0.875rem',
+                                }}
+                              >
                                 ฿{selected.hourly_rate}/hr
                               </span>
                             </div>
@@ -403,7 +595,11 @@ export const MatchHistoryPage: React.FC = () => {
                               style={{ textDecoration: 'none' }}
                             >
                               <Button variant="primary">
-                                <Star size={16} fill="#ffffff" style={{ marginRight: '0.375rem' }} />
+                                <Star
+                                  size={16}
+                                  fill="#ffffff"
+                                  style={{ marginRight: '0.375rem' }}
+                                />
                                 Write 4-Category Review
                               </Button>
                             </Link>
@@ -418,48 +614,127 @@ export const MatchHistoryPage: React.FC = () => {
                           borderRadius: 'var(--radius-md)',
                           padding: '1rem 1.25rem',
                           display: 'grid',
-                          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                          gridTemplateColumns:
+                            'repeat(auto-fit, minmax(200px, 1fr))',
                           gap: '1rem',
                           border: '1px solid #d1fae5',
                         }}
                       >
                         {selected.phone_number && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                            <div style={{ width: '2rem', height: '2rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-secondary-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.625rem',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '2rem',
+                                height: '2rem',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'var(--color-secondary-tint)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
                               <Phone size={15} color="var(--color-secondary)" />
                             </div>
                             <div>
-                              <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280' }}>PHONE NUMBER</div>
-                              <a href={`tel:${selected.phone_number}`} style={{ fontWeight: 800, color: 'var(--fg-main)', textDecoration: 'none', fontSize: '0.9375rem' }}>
+                              <div
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 800,
+                                  color: '#6b7280',
+                                }}
+                              >
+                                PHONE NUMBER
+                              </div>
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  color: 'var(--fg-main)',
+                                  fontSize: '0.9375rem',
+                                }}
+                              >
                                 {selected.phone_number}
-                              </a>
+                              </span>
                             </div>
                           </div>
                         )}
 
                         {selected.line_id && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                            <div style={{ width: '2rem', height: '2rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-secondary-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              <MessageCircle size={15} color="var(--color-secondary)" />
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.625rem',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '2rem',
+                                height: '2rem',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'var(--color-secondary-tint)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
+                              <MessageCircle
+                                size={15}
+                                color="var(--color-secondary)"
+                              />
                             </div>
                             <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280' }}>LINE ID</div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <span style={{ fontWeight: 800, color: 'var(--fg-main)', fontSize: '0.9375rem' }}>
+                              <div
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 800,
+                                  color: '#6b7280',
+                                }}
+                              >
+                                LINE ID
+                              </div>
+                              <div
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                }}
+                              >
+                                <span
+                                  style={{
+                                    fontWeight: 800,
+                                    color: 'var(--fg-main)',
+                                    fontSize: '0.9375rem',
+                                  }}
+                                >
                                   @{selected.line_id.replace(/^@/, '')}
                                 </span>
                                 <button
-                                  onClick={() => handleCopyLineId(selected.line_id!)}
+                                  onClick={() =>
+                                    handleCopyLineId(selected.line_id!)
+                                  }
                                   title="Copy LINE ID"
                                   style={{
                                     background: 'none',
                                     border: 'none',
                                     cursor: 'pointer',
                                     padding: '2px',
-                                    color: copiedLineId === selected.line_id ? 'var(--color-secondary)' : '#6b7280',
+                                    color:
+                                      copiedLineId === selected.line_id
+                                        ? 'var(--color-secondary)'
+                                        : '#6b7280',
                                   }}
                                 >
-                                  {copiedLineId === selected.line_id ? <Check size={14} /> : <Copy size={14} />}
+                                  {copiedLineId === selected.line_id ? (
+                                    <Check size={14} />
+                                  ) : (
+                                    <Copy size={14} />
+                                  )}
                                 </button>
                               </div>
                             </div>
@@ -467,13 +742,43 @@ export const MatchHistoryPage: React.FC = () => {
                         )}
 
                         {selected.email && (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.625rem' }}>
-                            <div style={{ width: '2rem', height: '2rem', borderRadius: 'var(--radius-sm)', backgroundColor: 'var(--color-secondary-tint)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.625rem',
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: '2rem',
+                                height: '2rem',
+                                borderRadius: 'var(--radius-sm)',
+                                backgroundColor: 'var(--color-secondary-tint)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}
+                            >
                               <Mail size={15} color="var(--color-secondary)" />
                             </div>
                             <div>
-                              <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280' }}>EMAIL</div>
-                              <span style={{ fontWeight: 800, color: 'var(--fg-main)', fontSize: '0.875rem' }}>
+                              <div
+                                style={{
+                                  fontSize: '0.6875rem',
+                                  fontWeight: 800,
+                                  color: '#6b7280',
+                                }}
+                              >
+                                EMAIL
+                              </div>
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  color: 'var(--fg-main)',
+                                  fontSize: '0.875rem',
+                                }}
+                              >
                                 {selected.email}
                               </span>
                             </div>
@@ -481,10 +786,16 @@ export const MatchHistoryPage: React.FC = () => {
                         )}
                       </div>
 
-                      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                      <div
+                        style={{ display: 'flex', justifyContent: 'flex-end' }}
+                      >
                         <Button
                           variant="outline"
-                          style={{ fontSize: '0.8125rem', padding: '0.375rem 0.75rem', height: 'auto', backgroundColor: '#ffffff' }}
+                          style={{
+                            fontSize: '0.8125rem',
+                            padding: '0.375rem 0.75rem',
+                            height: 'auto',
+                          }}
                           onClick={() => setInspectTutorId(selected.tutor_id)}
                         >
                           Inspect Full Profile & All Reviews
@@ -493,140 +804,284 @@ export const MatchHistoryPage: React.FC = () => {
                     </div>
 
                     {/* All Top Matched Tutors (TP-34 / Student Revisit Feature) */}
-                    {item.recommendations && item.recommendations.length > 0 && (
-                      <div
-                        style={{
-                          padding: '1.25rem',
-                          backgroundColor: '#ffffff',
-                          borderRadius: 'var(--radius-lg)',
-                          border: '1px solid var(--color-border)',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.875rem',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
-                          <div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginBottom: '0.2rem' }}>
-                              <Sparkles size={15} color="var(--color-primary)" />
-                              <h4 style={{ margin: 0, fontSize: '0.9375rem', fontWeight: 800, color: 'var(--fg-main)' }}>
-                                All Top Matched Recommendations for this Request ({item.recommendations.length})
-                              </h4>
-                            </div>
-                            <p style={{ margin: 0, fontSize: '0.8125rem', color: '#6b7280' }}>
-                              All tutors recommended based on your study style and budget. You can inspect any candidate's full profile below:
-                            </p>
-                          </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.875rem' }}>
-                          {item.recommendations.map((rec) => {
-                            const isChosen = rec.tutor.tutor_id === selected.tutor_id;
-
-                            return (
+                    {item.recommendations &&
+                      item.recommendations.length > 0 && (
+                        <div
+                          style={{
+                            padding: '1.25rem',
+                            backgroundColor: '#ffffff',
+                            borderRadius: 'var(--radius-lg)',
+                            border: '1px solid var(--color-border)',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.875rem',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              flexWrap: 'wrap',
+                              gap: '0.5rem',
+                            }}
+                          >
+                            <div>
                               <div
-                                key={rec.recommendation_id}
                                 style={{
-                                  padding: '1rem',
-                                  backgroundColor: isChosen ? 'var(--color-secondary-tint)' : 'var(--color-muted)',
-                                  borderRadius: 'var(--radius-md)',
-                                  border: isChosen ? '2px solid var(--color-secondary)' : '1px solid var(--color-border)',
                                   display: 'flex',
-                                  flexDirection: 'column',
-                                  gap: '0.625rem',
+                                  alignItems: 'center',
+                                  gap: '0.375rem',
+                                  marginBottom: '0.2rem',
                                 }}
                               >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                                    <span
+                                <Sparkles
+                                  size={15}
+                                  color="var(--color-primary)"
+                                />
+                                <h4
+                                  style={{
+                                    margin: 0,
+                                    fontSize: '0.9375rem',
+                                    fontWeight: 800,
+                                    color: 'var(--fg-main)',
+                                  }}
+                                >
+                                  All Top Matched Recommendations for this
+                                  Request ({item.recommendations.length})
+                                </h4>
+                              </div>
+                              <p
+                                style={{
+                                  margin: 0,
+                                  fontSize: '0.8125rem',
+                                  color: '#6b7280',
+                                }}
+                              >
+                                All tutors recommended based on your study style
+                                and budget. You can inspect any candidate's full
+                                profile below:
+                              </p>
+                            </div>
+                          </div>
+
+                          <div
+                            style={{
+                              display: 'grid',
+                              gridTemplateColumns:
+                                'repeat(auto-fit, minmax(260px, 1fr))',
+                              gap: '0.875rem',
+                            }}
+                          >
+                            {item.recommendations.map((rec) => {
+                              const isChosen =
+                                rec.tutor.tutor_id === selected.tutor_id;
+
+                              return (
+                                <div
+                                  key={rec.recommendation_id}
+                                  style={{
+                                    padding: '1rem',
+                                    backgroundColor: isChosen
+                                      ? 'var(--color-secondary-tint)'
+                                      : 'var(--color-muted)',
+                                    borderRadius: 'var(--radius-md)',
+                                    border: isChosen
+                                      ? '2px solid var(--color-secondary)'
+                                      : '1px solid var(--color-border)',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.625rem',
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                    }}
+                                  >
+                                    <div
                                       style={{
-                                        fontSize: '0.6875rem',
-                                        fontWeight: 900,
-                                        backgroundColor: isChosen ? 'var(--color-secondary)' : 'var(--color-dark)',
-                                        color: '#ffffff',
-                                        padding: '0.15rem 0.45rem',
-                                        borderRadius: '4px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.375rem',
                                       }}
                                     >
-                                      Rank #{rec.rank}
-                                    </span>
-                                    {isChosen && (
                                       <span
                                         style={{
                                           fontSize: '0.6875rem',
-                                          fontWeight: 800,
-                                          backgroundColor: '#ffffff',
-                                          color: 'var(--color-secondary)',
+                                          fontWeight: 900,
+                                          backgroundColor: isChosen
+                                            ? 'var(--color-secondary)'
+                                            : 'var(--color-dark)',
+                                          color: '#ffffff',
                                           padding: '0.15rem 0.45rem',
                                           borderRadius: '4px',
-                                          border: '1px solid var(--color-secondary)',
                                         }}
                                       >
-                                        ✓ Chosen Tutor
+                                        Rank #{rec.rank}
                                       </span>
-                                    )}
+                                      {isChosen && (
+                                        <span
+                                          style={{
+                                            fontSize: '0.6875rem',
+                                            fontWeight: 800,
+                                            backgroundColor: '#ffffff',
+                                            color: 'var(--color-secondary)',
+                                            padding: '0.15rem 0.45rem',
+                                            borderRadius: '4px',
+                                            border:
+                                              '1px solid var(--color-secondary)',
+                                          }}
+                                        >
+                                          ✓ Chosen Tutor
+                                        </span>
+                                      )}
+                                    </div>
+
+                                    <span
+                                      style={{
+                                        fontSize: '0.75rem',
+                                        fontWeight: 800,
+                                        color: 'var(--color-primary)',
+                                      }}
+                                    >
+                                      {rec.score.toFixed(1)}% Match
+                                    </span>
                                   </div>
 
-                                  <span style={{ fontSize: '0.75rem', fontWeight: 800, color: 'var(--color-primary)' }}>
-                                    {rec.score.toFixed(1)}% Match
-                                  </span>
-                                </div>
-
-                                <div>
-                                  <h5 style={{ margin: '0 0 0.25rem 0', fontWeight: 800, fontSize: '0.9375rem', color: 'var(--fg-main)' }}>
-                                    {rec.tutor.first_name} {rec.tutor.last_name}
-                                  </h5>
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
-                                    <Star size={13} fill="#F59E0B" color="#F59E0B" />
-                                    <span style={{ fontWeight: 800, fontSize: '0.75rem' }}>
-                                      {rec.tutor.average_rating.toFixed(1)}
-                                    </span>
-                                    <span style={{ fontSize: '0.6875rem', color: '#6b7280' }}>
-                                      ({rec.tutor.review_count})
-                                    </span>
-                                    <span style={{ margin: '0 0.2rem', color: '#9ca3af' }}>•</span>
-                                    <span style={{ fontWeight: 800, color: 'var(--color-primary)', fontSize: '0.75rem' }}>
-                                      ฿{rec.tutor.hourly_rate}/hr
-                                    </span>
+                                  <div>
+                                    <h5
+                                      style={{
+                                        margin: '0 0 0.25rem 0',
+                                        fontWeight: 800,
+                                        fontSize: '0.9375rem',
+                                        color: 'var(--fg-main)',
+                                      }}
+                                    >
+                                      {rec.tutor.first_name}{' '}
+                                      {rec.tutor.last_name}
+                                    </h5>
+                                    <div
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.375rem',
+                                      }}
+                                    >
+                                      <Star
+                                        size={13}
+                                        fill="#F59E0B"
+                                        color="#F59E0B"
+                                      />
+                                      <span
+                                        style={{
+                                          fontWeight: 800,
+                                          fontSize: '0.75rem',
+                                        }}
+                                      >
+                                        {rec.tutor.average_rating.toFixed(1)}
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontSize: '0.6875rem',
+                                          color: '#6b7280',
+                                        }}
+                                      >
+                                        ({rec.tutor.review_count})
+                                      </span>
+                                      <span
+                                        style={{
+                                          margin: '0 0.2rem',
+                                          color: '#9ca3af',
+                                        }}
+                                      >
+                                        •
+                                      </span>
+                                      <span
+                                        style={{
+                                          fontWeight: 800,
+                                          color: 'var(--color-primary)',
+                                          fontSize: '0.75rem',
+                                        }}
+                                      >
+                                        ฿{rec.tutor.hourly_rate}/hr
+                                      </span>
+                                    </div>
                                   </div>
-                                </div>
 
-                                {rec.tutor.teaching_focus && (
-                                  <span style={{ fontSize: '0.6875rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                                    Focus: {rec.tutor.teaching_focus}
-                                  </span>
-                                )}
+                                  {rec.tutor.teaching_focus && (
+                                    <span
+                                      style={{
+                                        fontSize: '0.6875rem',
+                                        color: '#6b7280',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                      }}
+                                    >
+                                      Focus: {rec.tutor.teaching_focus}
+                                    </span>
+                                  )}
 
-                                <div style={{ marginTop: 'auto', paddingTop: '0.375rem' }}>
-                                  <Button
-                                    variant="outline"
+                                  <div
                                     style={{
-                                      width: '100%',
-                                      fontSize: '0.75rem',
-                                      padding: '0.35rem 0.5rem',
-                                      height: 'auto',
-                                      backgroundColor: '#ffffff',
+                                      marginTop: 'auto',
+                                      paddingTop: '0.375rem',
                                     }}
-                                    onClick={() => setInspectTutorId(rec.tutor.tutor_id)}
                                   >
-                                    View Full Profile
-                                  </Button>
+                                    <Button
+                                      variant="outline"
+                                      style={{
+                                        width: '100%',
+                                        fontSize: '0.75rem',
+                                        padding: '0.35rem 0.5rem',
+                                        height: 'auto',
+                                      }}
+                                      onClick={() =>
+                                        setInspectTutorId(rec.tutor.tutor_id)
+                                      }
+                                    >
+                                      View Full Profile
+                                    </Button>
+                                  </div>
                                 </div>
-                              </div>
-                            );
-                          })}
+                              );
+                            })}
+                          </div>
                         </div>
-                      </div>
-                    )}
+                      )}
                   </>
                 ) : (
                   /* CASE B: PENDING LESSON VIEW (TOP 3 READY TO CONFIRM) */
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.875rem' }}>
-                    <p style={{ margin: 0, fontSize: '0.875rem', fontWeight: 600, color: '#4b5563' }}>
-                      Top 3 recommendations generated. Please review and confirm 1 tutor to unlock their contact information:
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.875rem',
+                    }}
+                  >
+                    <p
+                      style={{
+                        margin: 0,
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: '#4b5563',
+                      }}
+                    >
+                      Top 3 recommendations generated. Please review and confirm
+                      1 tutor to unlock their contact information:
                     </p>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                    <div
+                      style={{
+                        display: 'grid',
+                        gridTemplateColumns:
+                          'repeat(auto-fit, minmax(280px, 1fr))',
+                        gap: '1rem',
+                      }}
+                    >
                       {item.recommendations.map((rec) => (
                         <div
                           key={rec.recommendation_id}
@@ -640,46 +1095,127 @@ export const MatchHistoryPage: React.FC = () => {
                             gap: '0.75rem',
                           }}
                         >
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                            <span style={{ fontSize: '0.75rem', fontWeight: 900, backgroundColor: 'var(--color-dark)', color: '#ffffff', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                fontWeight: 900,
+                                backgroundColor: 'var(--color-dark)',
+                                color: '#ffffff',
+                                padding: '0.2rem 0.5rem',
+                                borderRadius: '4px',
+                              }}
+                            >
                               Rank #{rec.rank}
                             </span>
-                            <span style={{ fontSize: '0.8125rem', fontWeight: 800, color: 'var(--color-primary)' }}>
+                            <span
+                              style={{
+                                fontSize: '0.8125rem',
+                                fontWeight: 800,
+                                color: 'var(--color-primary)',
+                              }}
+                            >
                               {rec.score.toFixed(1)}% Match
                             </span>
                           </div>
 
                           <div>
-                            <h4 style={{ margin: '0 0 0.25rem 0', fontWeight: 800, fontSize: '1rem', color: 'var(--fg-main)' }}>
+                            <h4
+                              style={{
+                                margin: '0 0 0.25rem 0',
+                                fontWeight: 800,
+                                fontSize: '1rem',
+                                color: 'var(--fg-main)',
+                              }}
+                            >
                               {rec.tutor.first_name} {rec.tutor.last_name}
                             </h4>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
+                            <div
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.375rem',
+                              }}
+                            >
                               <Star size={14} fill="#F59E0B" color="#F59E0B" />
-                              <span style={{ fontWeight: 800, fontSize: '0.8125rem' }}>
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  fontSize: '0.8125rem',
+                                }}
+                              >
                                 {rec.tutor.average_rating.toFixed(1)}
                               </span>
-                              <span style={{ fontSize: '0.75rem', color: '#6b7280' }}>
+                              <span
+                                style={{
+                                  fontSize: '0.75rem',
+                                  color: '#6b7280',
+                                }}
+                              >
                                 ({rec.tutor.review_count})
                               </span>
-                              <span style={{ margin: '0 0.25rem', color: '#9ca3af' }}>•</span>
-                              <span style={{ fontWeight: 800, color: 'var(--color-primary)', fontSize: '0.8125rem' }}>
+                              <span
+                                style={{
+                                  margin: '0 0.25rem',
+                                  color: '#9ca3af',
+                                }}
+                              >
+                                •
+                              </span>
+                              <span
+                                style={{
+                                  fontWeight: 800,
+                                  color: 'var(--color-primary)',
+                                  fontSize: '0.8125rem',
+                                }}
+                              >
                                 ฿{rec.tutor.hourly_rate}/hr
                               </span>
                             </div>
                           </div>
 
-                          <div style={{ display: 'flex', gap: '0.5rem', marginTop: 'auto', paddingTop: '0.5rem' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              gap: '0.5rem',
+                              marginTop: 'auto',
+                              paddingTop: '0.5rem',
+                            }}
+                          >
                             <Button
                               variant="outline"
-                              style={{ flex: 1, fontSize: '0.75rem', padding: '0.375rem 0.5rem', height: 'auto', backgroundColor: '#ffffff' }}
-                              onClick={() => setInspectTutorId(rec.tutor.tutor_id)}
+                              style={{
+                                flex: 1,
+                                fontSize: '0.75rem',
+                                padding: '0.375rem 0.5rem',
+                                height: 'auto',
+                              }}
+                              onClick={() =>
+                                setInspectTutorId(rec.tutor.tutor_id)
+                              }
                             >
                               Profile
                             </Button>
                             <Button
                               variant="primary"
-                              style={{ flex: 1.4, fontSize: '0.75rem', padding: '0.375rem 0.5rem', height: 'auto' }}
-                              onClick={() => setConfirmingRec({ matchRequestId: item.match_request_id, rec })}
+                              style={{
+                                flex: 1.4,
+                                fontSize: '0.75rem',
+                                padding: '0.375rem 0.5rem',
+                                height: 'auto',
+                              }}
+                              onClick={() =>
+                                setConfirmingRec({
+                                  matchRequestId: item.match_request_id,
+                                  rec,
+                                })
+                              }
                             >
                               Confirm
                             </Button>
@@ -710,7 +1246,14 @@ export const MatchHistoryPage: React.FC = () => {
         subtitle="Confirm your choice to unlock direct contact info"
         maxWidth="500px"
         footerActions={
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', width: '100%' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: '0.75rem',
+              width: '100%',
+            }}
+          >
             <Button variant="outline" onClick={() => setConfirmingRec(null)}>
               Cancel
             </Button>
@@ -719,15 +1262,29 @@ export const MatchHistoryPage: React.FC = () => {
               onClick={handleConfirmAction}
               disabled={confirmTutorMutation.isPending}
             >
-              {confirmTutorMutation.isPending ? 'Confirming...' : 'Yes, Confirm Tutor'}
+              {confirmTutorMutation.isPending
+                ? 'Confirming...'
+                : 'Yes, Confirm Tutor'}
             </Button>
           </div>
         }
       >
         {confirmingRec && (
-          <p style={{ margin: 0, fontSize: '0.9375rem', color: '#374151', lineHeight: 1.5 }}>
-            Are you sure you want to select <strong>{confirmingRec.rec.tutor.first_name} {confirmingRec.rec.tutor.last_name}</strong>?
-            This will confirm this lesson and unlock their Phone Number and LINE ID.
+          <p
+            style={{
+              margin: 0,
+              fontSize: '0.9375rem',
+              color: '#374151',
+              lineHeight: 1.5,
+            }}
+          >
+            Are you sure you want to select{' '}
+            <strong>
+              {confirmingRec.rec.tutor.first_name}{' '}
+              {confirmingRec.rec.tutor.last_name}
+            </strong>
+            ? This will confirm this lesson and unlock their Phone Number and
+            LINE ID.
           </p>
         )}
       </Modal>

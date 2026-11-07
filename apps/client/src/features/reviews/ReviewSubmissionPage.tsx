@@ -13,7 +13,6 @@ import {
 interface MetricConfig {
   key: 'rating_knowledge' | 'rating_preparation' | 'rating_clarity' | 'rating_punctuality';
   title: string;
-  thai: string;
   desc: string;
 }
 
@@ -21,25 +20,21 @@ const METRICS: MetricConfig[] = [
   {
     key: 'rating_knowledge',
     title: 'Knowledge & Mastery',
-    thai: 'ความรู้และความเชี่ยวชาญในวิชาที่สอน',
     desc: 'Accuracy, depth of subject understanding, and ability to solve difficult problems.',
   },
   {
     key: 'rating_preparation',
     title: 'Lesson Preparation & Materials',
-    thai: 'การเตรียมการสอนและเอกสารประกอบ',
     desc: 'Structured syllabus, curated practice sheets, and organized lesson pace.',
   },
   {
     key: 'rating_clarity',
     title: 'Clarity & Delivery',
-    thai: 'ความชัดเจนและการถ่ายทอดความรู้',
     desc: 'Ability to explain complex concepts simply, engaging communication, and addressing questions.',
   },
   {
     key: 'rating_punctuality',
     title: 'Punctuality & Reliability',
-    thai: 'การตรงต่อเวลาและระเบียบวินัย',
     desc: 'Starting and concluding sessions on time, consistency, and professional reliability.',
   },
 ];
@@ -328,7 +323,7 @@ export const ReviewSubmissionPage: React.FC = () => {
                       </h3>
                     </div>
                     <p style={{ margin: '0.25rem 0 0 2rem', fontSize: '0.8125rem', color: '#6b7280' }}>
-                      {metric.thai} — {metric.desc}
+                      {metric.desc}
                     </p>
                   </div>
 

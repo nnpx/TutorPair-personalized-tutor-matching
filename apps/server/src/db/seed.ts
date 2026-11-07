@@ -519,6 +519,7 @@ async function seed() {
           },
         ],
         slots: [
+          { day: DayOfWeek.MONDAY, start: '17:00', end: '20:00' },
           { day: DayOfWeek.TUESDAY, start: '16:00', end: '20:00' },
           { day: DayOfWeek.THURSDAY, start: '16:00', end: '20:00' },
           { day: DayOfWeek.SATURDAY, start: '10:00', end: '19:00' },
@@ -607,7 +608,7 @@ async function seed() {
           {
             variantId: mathSchool.id,
             hourlyRate: '350.00',
-            gradeLevels: ['G9', 'G10', 'G11', 'G12'],
+            gradeLevels: ['G7', 'G8', 'G9', 'G10', 'G11', 'G12'],
             teachingFocus: 'Exam Shortcuts and Speed Problem Solving',
           },
           {
@@ -618,7 +619,7 @@ async function seed() {
           },
         ],
         slots: [
-          { day: DayOfWeek.MONDAY, start: '18:00', end: '22:00' },
+          { day: DayOfWeek.MONDAY, start: '17:00', end: '22:00' },
           { day: DayOfWeek.FRIDAY, start: '17:00', end: '21:00' },
           { day: DayOfWeek.SATURDAY, start: '13:00', end: '20:00' },
           { day: DayOfWeek.SUNDAY, start: '13:00', end: '20:00' },

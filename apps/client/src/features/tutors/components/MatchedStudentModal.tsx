@@ -1,20 +1,22 @@
-import React, { useState } from 'react';
 import type { MatchedStudentDto } from '@tutorpair/shared';
-import { Modal, Button } from '../../../components/ui';
 import {
   BookOpen,
-  Phone,
-  MessageCircle,
-  Mail,
+  Calendar,
+  Check,
   CheckCircle2,
   Copy,
-  Check,
-  Calendar,
-  Sparkles,
+  Mail,
+  MessageCircle,
+  Phone,
   Sliders,
-  ExternalLink,
+  Sparkles,
 } from 'lucide-react';
-import { LEARNING_STYLE_QUESTIONS, PERSONALITY_PREF_QUESTIONS } from '../../students/components/StudentSliders';
+import React, { useState } from 'react';
+import { Button, Modal } from '../../../components/ui';
+import {
+  LEARNING_STYLE_QUESTIONS,
+  PERSONALITY_PREF_QUESTIONS,
+} from '../../students/components/StudentSliders';
 
 interface MatchedStudentModalProps {
   student: MatchedStudentDto | null;
@@ -37,15 +39,19 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
     setTimeout(() => setCopiedField(null), 2000);
   };
 
-  const formattedDate = new Date(student.confirmed_at).toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  const formattedDate = new Date(student.confirmed_at).toLocaleDateString(
+    'en-US',
+    {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    },
+  );
 
-  const studentInitials = `${student.first_name?.[0] || ''}${student.last_name?.[0] || ''}`.toUpperCase();
+  const studentInitials =
+    `${student.first_name?.[0] || ''}${student.last_name?.[0] || ''}`.toUpperCase();
 
   return (
     <Modal
@@ -53,9 +59,16 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
       onClose={onClose}
       title="Matched Student Details"
       subtitle="Confirmed student booking details & learning preferences"
-      maxWidth="680px"
+      maxWidth="1100px"
       footerActions={
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', width: '100%' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            gap: '0.75rem',
+            width: '100%',
+          }}
+        >
           <Button variant="outline" onClick={onClose}>
             Close
           </Button>
@@ -97,8 +110,22 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
               {studentInitials || 'ST'}
             </div>
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 800, color: 'var(--fg-main)' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  flexWrap: 'wrap',
+                }}
+              >
+                <h3
+                  style={{
+                    margin: 0,
+                    fontSize: '1.25rem',
+                    fontWeight: 800,
+                    color: 'var(--fg-main)',
+                  }}
+                >
                   {student.student_name}
                 </h3>
                 <span
@@ -130,9 +157,20 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                   <CheckCircle2 size={12} strokeWidth={2.8} /> Confirmed Match
                 </span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', marginTop: '0.35rem', color: '#4b5563', fontSize: '0.8125rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.375rem',
+                  marginTop: '0.35rem',
+                  color: '#4b5563',
+                  fontSize: '0.8125rem',
+                }}
+              >
                 <Calendar size={14} color="var(--color-secondary)" />
-                <span>Confirmed on <strong>{formattedDate}</strong></span>
+                <span>
+                  Confirmed on <strong>{formattedDate}</strong>
+                </span>
               </div>
             </div>
           </div>
@@ -147,9 +185,27 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
             padding: '1.25rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
-            <BookOpen size={18} color="var(--color-primary)" strokeWidth={2.4} />
-            <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1rem', color: 'var(--fg-main)' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              marginBottom: '0.875rem',
+            }}
+          >
+            <BookOpen
+              size={18}
+              color="var(--color-primary)"
+              strokeWidth={2.4}
+            />
+            <h4
+              style={{
+                margin: 0,
+                fontWeight: 800,
+                fontSize: '1rem',
+                color: 'var(--fg-main)',
+              }}
+            >
               Matched Course &amp; Teaching Rate
             </h4>
           </div>
@@ -165,10 +221,24 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
             }}
           >
             <div>
-              <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
+              <div
+                style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 800,
+                  color: '#6b7280',
+                  textTransform: 'uppercase',
+                }}
+              >
                 SUBJECT &amp; CATEGORY
               </div>
-              <div style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--fg-main)', marginTop: '0.2rem' }}>
+              <div
+                style={{
+                  fontSize: '1.0625rem',
+                  fontWeight: 800,
+                  color: 'var(--fg-main)',
+                  marginTop: '0.2rem',
+                }}
+              >
                 {student.subject_name}
               </div>
               <span
@@ -189,54 +259,128 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
             </div>
 
             <div>
-              <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
-                ENROLLED CURRICULUM VARIANT
+              <div
+                style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 800,
+                  color: '#6b7280',
+                  textTransform: 'uppercase',
+                }}
+              >
+                ENROLLED CURRICULUM
               </div>
-              <div style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--color-primary)', marginTop: '0.2rem' }}>
+              <div
+                style={{
+                  fontSize: '1.0625rem',
+                  fontWeight: 800,
+                  color: 'var(--color-primary)',
+                  marginTop: '0.2rem',
+                }}
+              >
                 {student.variant_name}
               </div>
-              <div style={{ fontSize: '0.8125rem', color: '#6b7280', marginTop: '0.25rem' }}>
+              <div
+                style={{
+                  fontSize: '0.8125rem',
+                  color: '#6b7280',
+                  marginTop: '0.25rem',
+                }}
+              >
                 Grade Level: {student.grade_level}
               </div>
             </div>
 
             <div>
-              <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
-                LESSON RATE
+              <div
+                style={{
+                  fontSize: '0.6875rem',
+                  fontWeight: 800,
+                  color: '#6b7280',
+                  textTransform: 'uppercase',
+                }}
+              >
+                STUDENT'S MAXIMUM LESSON RATE
               </div>
-              <div style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--color-secondary)', marginTop: '0.2rem' }}>
+              <div
+                style={{
+                  fontSize: '1.25rem',
+                  fontWeight: 900,
+                  color: 'var(--color-secondary)',
+                  marginTop: '0.2rem',
+                }}
+              >
                 ฿{student.hourly_rate}
-                <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: '#6b7280' }}> / hr</span>
+                <span
+                  style={{
+                    fontSize: '0.8125rem',
+                    fontWeight: 600,
+                    color: '#6b7280',
+                  }}
+                >
+                  {' '}
+                  / hr
+                </span>
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 700, marginTop: '0.15rem' }}>
+              {/* <div
+                style={{
+                  fontSize: '0.75rem',
+                  color: '#16a34a',
+                  fontWeight: 700,
+                  marginTop: '0.15rem',
+                }}
+              >
                 Direct Tutor Booking
-              </div>
+              </div> */}
             </div>
           </div>
         </div>
 
         {/* Unlocked Direct Student Contact Details */}
+
         <div
           style={{
             backgroundColor: 'var(--bg-canvas)',
-            border: '2px solid var(--color-secondary)',
+            border: '2px solid var(--color-border)',
             borderRadius: 'var(--radius-lg)',
             padding: '1.25rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.875rem' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Sparkles size={18} color="var(--color-secondary)" strokeWidth={2.4} />
-              <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1rem', color: 'var(--color-secondary)' }}>
-                Direct Student Contact Channels (Unlocked)
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '0.875rem',
+            }}
+          >
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+            >
+              <Sparkles
+                size={18}
+                color="var(--color-primary)"
+                strokeWidth={2.4}
+              />
+              <h4
+                style={{
+                  margin: 0,
+                  fontWeight: 800,
+                  fontSize: '1rem',
+                  color: 'var(--fg-main)',
+                }}
+              >
+                Direct Student Contact Channels
               </h4>
             </div>
-            <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280' }}>
-              Click to call or chat
-            </span>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.875rem' }}>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+              gap: '0.875rem',
+            }}
+          >
             {/* Phone */}
             <div
               style={{
@@ -249,7 +393,13 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                 border: '1px solid var(--color-border)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                }}
+              >
                 <div
                   style={{
                     width: '2.25rem',
@@ -265,20 +415,25 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                   <Phone size={16} strokeWidth={2.4} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
+                  <div
+                    style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 800,
+                      color: '#6b7280',
+                      textTransform: 'uppercase',
+                    }}
+                  >
                     PHONE
                   </div>
-                  <a
-                    href={`tel:${student.phone_number}`}
+                  <span
                     style={{
                       fontSize: '0.9375rem',
                       fontWeight: 800,
                       color: 'var(--fg-main)',
-                      textDecoration: 'none',
                     }}
                   >
                     {student.phone_number}
-                  </a>
+                  </span>
                 </div>
               </div>
               <button
@@ -289,11 +444,18 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                   border: 'none',
                   background: 'transparent',
                   cursor: 'pointer',
-                  color: copiedField === 'phone' ? 'var(--color-secondary)' : '#6b7280',
+                  color:
+                    copiedField === 'phone'
+                      ? 'var(--color-secondary)'
+                      : '#6b7280',
                   padding: '0.35rem',
                 }}
               >
-                {copiedField === 'phone' ? <Check size={16} strokeWidth={2.6} /> : <Copy size={16} />}
+                {copiedField === 'phone' ? (
+                  <Check size={16} strokeWidth={2.6} />
+                ) : (
+                  <Copy size={16} />
+                )}
               </button>
             </div>
 
@@ -310,7 +472,13 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                   border: '1px solid var(--color-border)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                  }}
+                >
                   <div
                     style={{
                       width: '2.25rem',
@@ -326,26 +494,25 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                     <MessageCircle size={16} strokeWidth={2.4} />
                   </div>
                   <div>
-                    <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
+                    <div
+                      style={{
+                        fontSize: '0.6875rem',
+                        fontWeight: 800,
+                        color: '#6b7280',
+                        textTransform: 'uppercase',
+                      }}
+                    >
                       LINE ID
                     </div>
-                    <a
-                      href={`https://line.me/R/ti/p/~${student.line_id.replace(/^@/, '')}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <span
                       style={{
                         fontSize: '0.9375rem',
                         fontWeight: 800,
                         color: 'var(--fg-main)',
-                        textDecoration: 'none',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.25rem',
                       }}
                     >
                       @{student.line_id.replace(/^@/, '')}
-                      <ExternalLink size={12} strokeWidth={2.2} />
-                    </a>
+                    </span>
                   </div>
                 </div>
                 <button
@@ -356,11 +523,18 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                     border: 'none',
                     background: 'transparent',
                     cursor: 'pointer',
-                    color: copiedField === 'line' ? 'var(--color-secondary)' : '#6b7280',
+                    color:
+                      copiedField === 'line'
+                        ? 'var(--color-secondary)'
+                        : '#6b7280',
                     padding: '0.35rem',
                   }}
                 >
-                  {copiedField === 'line' ? <Check size={16} strokeWidth={2.6} /> : <Copy size={16} />}
+                  {copiedField === 'line' ? (
+                    <Check size={16} strokeWidth={2.6} />
+                  ) : (
+                    <Copy size={16} />
+                  )}
                 </button>
               </div>
             )}
@@ -377,7 +551,13 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                 border: '1px solid var(--color-border)',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                }}
+              >
                 <div
                   style={{
                     width: '2.25rem',
@@ -393,20 +573,25 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                   <Mail size={16} strokeWidth={2.4} />
                 </div>
                 <div>
-                  <div style={{ fontSize: '0.6875rem', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase' }}>
+                  <div
+                    style={{
+                      fontSize: '0.6875rem',
+                      fontWeight: 800,
+                      color: '#6b7280',
+                      textTransform: 'uppercase',
+                    }}
+                  >
                     EMAIL ADDRESS
                   </div>
-                  <a
-                    href={`mailto:${student.email}`}
+                  <span
                     style={{
                       fontSize: '0.875rem',
                       fontWeight: 800,
                       color: 'var(--fg-main)',
-                      textDecoration: 'none',
                     }}
                   >
                     {student.email}
-                  </a>
+                  </span>
                 </div>
               </div>
               <button
@@ -417,11 +602,18 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                   border: 'none',
                   background: 'transparent',
                   cursor: 'pointer',
-                  color: copiedField === 'email' ? 'var(--color-secondary)' : '#6b7280',
+                  color:
+                    copiedField === 'email'
+                      ? 'var(--color-secondary)'
+                      : '#6b7280',
                   padding: '0.35rem',
                 }}
               >
-                {copiedField === 'email' ? <Check size={16} strokeWidth={2.6} /> : <Copy size={16} />}
+                {copiedField === 'email' ? (
+                  <Check size={16} strokeWidth={2.6} />
+                ) : (
+                  <Copy size={16} />
+                )}
               </button>
             </div>
           </div>
@@ -437,19 +629,51 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
               padding: '1.25rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.875rem' }}>
-              <Sliders size={18} color="var(--color-primary)" strokeWidth={2.4} />
-              <h4 style={{ margin: 0, fontWeight: 800, fontSize: '1rem', color: 'var(--fg-main)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '0.875rem',
+              }}
+            >
+              <Sliders
+                size={18}
+                color="var(--color-primary)"
+                strokeWidth={2.4}
+              />
+              <h4
+                style={{
+                  margin: 0,
+                  fontWeight: 800,
+                  fontSize: '1rem',
+                  color: 'var(--fg-main)',
+                }}
+              >
                 Student Learning Compatibility Profile
               </h4>
             </div>
 
             {student.style_profile && student.style_profile.length === 5 && (
               <div style={{ marginBottom: '1.25rem' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
+                <div
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: 800,
+                    color: '#6b7280',
+                    textTransform: 'uppercase',
+                    marginBottom: '0.5rem',
+                  }}
+                >
                   Learning Style Breakdown (1–5)
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.625rem',
+                  }}
+                >
                   {LEARNING_STYLE_QUESTIONS.map((q, idx) => {
                     const score = student.style_profile![idx] ?? 3;
                     return (
@@ -461,18 +685,47 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
                           borderRadius: 'var(--radius-md)',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, color: 'var(--fg-main)', marginBottom: '0.25rem' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
+                            color: 'var(--fg-main)',
+                            marginBottom: '0.25rem',
+                          }}
+                        >
                           <span>{q.title}</span>
-                          <span style={{ fontWeight: 800, color: 'var(--color-primary)' }}>
+                          <span
+                            style={{
+                              fontWeight: 800,
+                              color: 'var(--color-primary)',
+                            }}
+                          >
                             Rating: {score}/5
                           </span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            fontSize: '0.6875rem',
+                            color: '#6b7280',
+                            marginBottom: '0.25rem',
+                          }}
+                        >
                           <span>1: {q.left}</span>
                           <span>5: {q.right}</span>
                         </div>
                         {/* Visual Track */}
-                        <div style={{ height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', position: 'relative' }}>
+                        <div
+                          style={{
+                            height: '6px',
+                            backgroundColor: 'var(--color-border)',
+                            borderRadius: '3px',
+                            position: 'relative',
+                          }}
+                        >
                           <div
                             style={{
                               position: 'absolute',
@@ -493,54 +746,98 @@ export const MatchedStudentModal: React.FC<MatchedStudentModalProps> = ({
               </div>
             )}
 
-            {student.personality_profile && student.personality_profile.length === 4 && (
-              <div>
-                <div style={{ fontSize: '0.75rem', fontWeight: 800, color: '#6b7280', textTransform: 'uppercase', marginBottom: '0.5rem' }}>
-                  Personality &amp; Communication Preferences (1–5)
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.625rem' }}>
-                  {PERSONALITY_PREF_QUESTIONS.map((q, idx) => {
-                    const score = student.personality_profile![idx] ?? 3;
-                    return (
-                      <div
-                        key={idx}
-                        style={{
-                          backgroundColor: 'var(--color-muted)',
-                          padding: '0.625rem 0.875rem',
-                          borderRadius: 'var(--radius-md)',
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 700, color: 'var(--fg-main)', marginBottom: '0.25rem' }}>
-                          <span>{q.title}</span>
-                          <span style={{ fontWeight: 800, color: 'var(--color-secondary)' }}>
-                            Rating: {score}/5
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.6875rem', color: '#6b7280', marginBottom: '0.25rem' }}>
-                          <span>1: {q.left}</span>
-                          <span>5: {q.right}</span>
-                        </div>
-                        {/* Visual Track */}
-                        <div style={{ height: '6px', backgroundColor: 'var(--color-border)', borderRadius: '3px', position: 'relative' }}>
+            {student.personality_profile &&
+              student.personality_profile.length === 4 && (
+                <div>
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 800,
+                      color: '#6b7280',
+                      textTransform: 'uppercase',
+                      marginBottom: '0.5rem',
+                    }}
+                  >
+                    Personality &amp; Communication Preferences (1–5)
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.625rem',
+                    }}
+                  >
+                    {PERSONALITY_PREF_QUESTIONS.map((q, idx) => {
+                      const score = student.personality_profile![idx] ?? 3;
+                      return (
+                        <div
+                          key={idx}
+                          style={{
+                            backgroundColor: 'var(--color-muted)',
+                            padding: '0.625rem 0.875rem',
+                            borderRadius: 'var(--radius-md)',
+                          }}
+                        >
                           <div
                             style={{
-                              position: 'absolute',
-                              left: `${((score - 1) / 4) * 100}%`,
-                              top: '-3px',
-                              width: '12px',
-                              height: '12px',
-                              backgroundColor: 'var(--color-secondary)',
-                              borderRadius: '50%',
-                              transform: 'translateX(-50%)',
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: '0.75rem',
+                              fontWeight: 700,
+                              color: 'var(--fg-main)',
+                              marginBottom: '0.25rem',
                             }}
-                          />
+                          >
+                            <span>{q.title}</span>
+                            <span
+                              style={{
+                                fontWeight: 800,
+                                color: 'var(--color-secondary)',
+                              }}
+                            >
+                              Rating: {score}/5
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              fontSize: '0.6875rem',
+                              color: '#6b7280',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            <span>1: {q.left}</span>
+                            <span>5: {q.right}</span>
+                          </div>
+                          {/* Visual Track */}
+                          <div
+                            style={{
+                              height: '6px',
+                              backgroundColor: 'var(--color-border)',
+                              borderRadius: '3px',
+                              position: 'relative',
+                            }}
+                          >
+                            <div
+                              style={{
+                                position: 'absolute',
+                                left: `${((score - 1) / 4) * 100}%`,
+                                top: '-3px',
+                                width: '12px',
+                                height: '12px',
+                                backgroundColor: 'var(--color-secondary)',
+                                borderRadius: '50%',
+                                transform: 'translateX(-50%)',
+                              }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
           </div>
         )}
       </div>

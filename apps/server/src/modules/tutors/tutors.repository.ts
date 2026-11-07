@@ -329,7 +329,7 @@ export const tutorsRepository = {
         subject_name: subjects.name,
         variant_name: subjectVariants.name,
         category: subjects.category,
-        hourly_rate: tutorSubjects.hourly_rate,
+        hourly_rate: students.budget_max,
         confirmed_at: matchRequests.created_at,
         style_profile: students.style_profile,
         personality_profile: students.personality_profile,
