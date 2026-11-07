@@ -15,6 +15,13 @@
       "when": 1793221418201,
       "tag": "0001_known_maelstrom",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793356983854,
+      "tag": "0002_aromatic_power_pack",
+      "breakpoints": true
     }
   ]
 }

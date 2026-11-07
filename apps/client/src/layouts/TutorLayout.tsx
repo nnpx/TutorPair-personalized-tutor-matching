@@ -1,3 +1,4 @@
+import { NotificationBell } from '../features/notifications/NotificationBell';
 import React, { useState } from 'react';
 import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
@@ -5,7 +6,7 @@ import { queryClient } from '../services/query-client';
 import apiClient from '../services/api-client';
 import { useTutorVerification } from '../features/tutors/hooks/useTutors';
 import { VerificationStatus } from '@tutorpair/shared';
-import { User, LogOut, Lock, LayoutDashboard, Bell } from 'lucide-react';
+import { User, LogOut, Lock, LayoutDashboard } from 'lucide-react';
 import { Modal } from '../components/ui';
 
 export const TutorLayout: React.FC = () => {
@@ -173,43 +174,7 @@ export const TutorLayout: React.FC = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {/* Non-functional Notification Bell per user instruction */}
-            <button
-              type="button"
-              title="Notifications"
-              aria-label="Notifications"
-              style={{
-                position: 'relative',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                width: '2.5rem',
-                height: '2.5rem',
-                borderRadius: 'var(--radius-full)',
-                backgroundColor: 'var(--color-muted)',
-                border: '2px solid var(--color-border)',
-                color: 'var(--fg-main)',
-                cursor: 'pointer',
-              }}
-              onClick={(e) => {
-                e.preventDefault();
-                // Placeholder - backend notifications left out as requested
-              }}
-            >
-              <Bell size={18} strokeWidth={2.4} />
-              <span
-                style={{
-                  position: 'absolute',
-                  top: '5px',
-                  right: '6px',
-                  width: '8px',
-                  height: '8px',
-                  borderRadius: '50%',
-                  backgroundColor: 'var(--color-secondary)',
-                  border: '2px solid var(--bg-canvas)',
-                }}
-              />
-            </button>
+            <NotificationBell />
 
             <span style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--fg-main)', marginLeft: '0.25rem' }}>
               {user?.email}

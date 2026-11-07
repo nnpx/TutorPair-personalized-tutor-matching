@@ -103,23 +103,29 @@ API returns after transaction commit (email is asynchronous; backlog and retries
 The frontend checks for unread notifications on page load and periodically:
 
 ```typescript
-// features/auth/hooks/useNotifications.ts
+// features/notifications/NotificationBell.tsx
 const { data } = useQuery({
-  queryKey: ['notifications', 'unread'],
-  queryFn: () => apiClient.get('/api/notifications?unread=true').then(r => r.data),
-  refetchInterval: 60_000,   // Poll every 60 seconds
+  queryKey: ['notifications', user?.id],
+  queryFn: () => apiClient.get('/api/notifications').then(r => r.data.data),
+  refetchInterval: 60_000,   // Poll every 60 seconds while visible
+  refetchOnWindowFocus: true, // Refresh on window focus and bell open
 });
 
-// unreadCount displayed as badge on Navbar bell icon
+// data.unreadCount displayed as badge on Navbar bell icon
 ```
 
-**Mark as read:**
+**Mark as read (per-item & bulk):**
 ```typescript
-// When user opens the notifications panel
-useMutation({
-  mutationFn: (notificationId: string) =>
-    apiClient.patch(`/api/notifications/${notificationId}/read`),
-  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }),
+// Mark a single notification read (or on card click)
+const readMutation = useMutation({
+  mutationFn: (id: string) => apiClient.patch(`/api/notifications/${id}/read`),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] }),
+});
+
+// Mark all owned unread notifications read
+const readAllMutation = useMutation({
+  mutationFn: () => apiClient.patch('/api/notifications/read-all'),
+  onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications', user?.id] }),
 });
 ```
 

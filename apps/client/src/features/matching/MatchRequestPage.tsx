@@ -1,3 +1,7 @@
+import { apiClient } from '../../services/api-client';
+import { useQueryClient } from '@tanstack/react-query';
+import { isAxiosError } from 'axios';
+import type { ApiResponse, MatchResultDto } from '@tutorpair/shared';
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, Button, Modal } from '../../components/ui';
@@ -15,6 +19,8 @@ import {
 
 export const MatchRequestPage: React.FC = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const [searching, setSearching] = useState(false);
   const { data: profile, isLoading } = useStudentProfile();
   const { data: serverAvailability } = useStudentAvailability();
 
@@ -89,7 +95,8 @@ export const MatchRequestPage: React.FC = () => {
     }
   };
 
-  const handleFindTutors = () => {
+  const handleFindTutors = async () => {
+    if (searching) return;
     setSubmitError(null);
     const errors: string[] = [];
 
@@ -110,22 +117,19 @@ export const MatchRequestPage: React.FC = () => {
       return;
     }
 
-    const formattedSchedule = matchSlots
-      .map((s) => `  • ${s.day_of_week.slice(0, 3)}: ${s.start_time} – ${s.end_time}`)
-      .join('\n');
-
-    alert(
-      `🎯 Match Request Submitted!\n\n` +
-      `• Subject: ${selectedSubject.subject_name}\n` +
-      `• Variant: ${selectedSubject.variant_name}\n` +
-      `• Budget: ${matchBudget} THB/hr\n` +
-      `• Tutoring Mode: Online (Live Video Session)\n` +
-      `• Preferred Schedule (${matchSlots.length} slot${matchSlots.length > 1 ? 's' : ''}):\n${formattedSchedule}\n` +
-      `• Student Grade: ${profile?.grade_level}\n\n` +
-      `Module 6 Matchmaking Engine will calculate Top 3 recommendations using your 9 learning & personality sliders!`
-    );
-
-    navigate('/student/history');
+    setSearching(true);
+    try {
+      // The matching API reads the saved profile, so persist these explicit form choices first.
+      // Use direct requests: a browser-only fallback must never masquerade as a real match.
+      await apiClient.patch('/api/students/profile', { budget_max: Number(matchBudget) });
+      await apiClient.put('/api/students/availability', { availability: matchSlots });
+      await queryClient.invalidateQueries({ queryKey: ['students'] });
+      const response = await apiClient.post<ApiResponse<MatchResultDto>>('/api/matching', { variant_id: selectedSubject.variant_id });
+      if (!response.data.success || !response.data.data) throw new Error('No match results returned');
+      navigate('/student/matching/results', { state: { result: response.data.data } });
+    } catch (error) {
+      setSubmitError(isAxiosError(error) ? error.response?.data?.message || 'Matching could not be completed. Please try again.' : 'Matching could not be completed. Please try again.');
+    } finally { setSearching(false); }
   };
 
   if (isLoading) {
@@ -363,7 +367,8 @@ export const MatchRequestPage: React.FC = () => {
         <Button
           type="button"
           variant="primary"
-          onClick={handleFindTutors}
+          onClick={() => void handleFindTutors()}
+          isLoading={searching}
           style={{ height: '3.25rem', padding: '0 2rem', fontSize: '0.9375rem', fontWeight: 800 }}
         >
           <Sparkles size={16} style={{ marginRight: '0.375rem' }} /> Find Matched Tutors

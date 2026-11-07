@@ -130,6 +130,9 @@ export const AdminVerificationsPage: React.FC = () => {
       return res.data;
     },
     onSuccess: async (_data, variables) => {
+      setSelectedStatus(variables.status);
+      setSelectedTutorId(variables.tutorId);
+      setIsDetailManuallyClosed(false);
       await queryClient.refetchQueries({ queryKey: ['admin', 'tutors'] });
       await queryClient.refetchQueries({ queryKey: ['admin', 'tutor-detail', variables.tutorId] });
       setRejectingTutorId(null);
@@ -1250,6 +1253,7 @@ export const AdminVerificationsPage: React.FC = () => {
               disabled={verifyMutation.isPending}
               onClick={() => {
                 if (approvingTutor) {
+                  setRejectError(null);
                   verifyMutation.mutate({
                     tutorId: approvingTutor.id,
                     status: VerificationStatus.APPROVED,
@@ -1283,6 +1287,7 @@ export const AdminVerificationsPage: React.FC = () => {
           </>
         }
       >
+        {rejectError && <p role="alert" style={{ color: 'var(--color-danger)', marginBottom: '1rem' }}>{rejectError}</p>}
         {approvingTutor && (
           <div
             style={{
@@ -1375,6 +1380,7 @@ export const AdminVerificationsPage: React.FC = () => {
               disabled={verifyMutation.isPending}
               onClick={() => {
                 if (confirmingRejectTutor) {
+                  setRejectError(null);
                   verifyMutation.mutate({
                     tutorId: confirmingRejectTutor.id,
                     status: VerificationStatus.REJECTED,
@@ -1409,6 +1415,7 @@ export const AdminVerificationsPage: React.FC = () => {
           </>
         }
       >
+        {rejectError && <p role="alert" style={{ color: 'var(--color-danger)', marginBottom: '1rem' }}>{rejectError}</p>}
         {confirmingRejectTutor && (
           <div
             style={{

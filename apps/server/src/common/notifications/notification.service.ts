@@ -2,6 +2,7 @@
  * NOTE: This is an initial draft / baseline implementation.
  * It should be reviewed, tested, and revised when implementing the notification business logic.
  */
+import type { Notification } from '../../db/schema/notifications.schema.js';
 import { notificationRepository } from './notification.repository.js';
 import type { DbExecutor } from '../../db/client.js';
 import { NotificationEventType, EmailStatus } from '@tutorpair/shared';
@@ -33,7 +34,9 @@ export const notificationService = {
     return notificationRepository.findByUserId(userId, unreadOnly);
   },
 
-  markAsRead: async (id: string, userId: string) => {
+  markAllAsRead: (userId: string) => notificationRepository.markAllAsRead(userId),
+
+  markAsRead: async (id: string, userId: string): Promise<Notification | undefined> => {
     return notificationRepository.markAsRead(id, userId);
   },
 };
