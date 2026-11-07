@@ -9,32 +9,37 @@
 In Thailand, primary and secondary students (Grades 1–12) face significant hurdles when finding private tutors: tutor details are scattered across informal social media groups, qualifications and test certificates (IELTS, SAT, TGAT) are difficult to verify, and comparing tutors across schedule, budget, learning pace, and personality is tedious and error-prone.
 
 **TutorPair** solves this with a cloud-native platform featuring:
-* **Role-Based Profiles**: Tailored experiences for **Students**, **Tutors**, and **Administrators**.
-* **Admin Document Verification**: Tutors submit degree transcripts, CVs, and score certificates for admin review before appearing in search pools.
+* **Role-Based Profiles**: Tailored experiences for **Students**, **Tutors**, and **Administrators** with AWS Cognito JWT authentication and seamless role synchronization.
+* **3-Step Cascading Subject Taxonomy**: Complete G1–G12 taxonomy across `GENERAL_LEARNING` (school curriculum), `LANGUAGE_TESTING` (standardized exams like IELTS, HSK, JLPT), and `UNIVERSITY_ENTRANCE` (TGAT/TPAT, A-Level).
+* **Admin Document Verification**: Tutors submit degree transcripts, CVs, and score certificates via direct S3 presigned URLs for admin review before appearing in search pools.
 * **Two-Stage Matchmaking**:
-  1. *Hard Filters*: Strictly eliminates tutors who don't match grade level, subject variant, mode (online/onsite), and schedule availability.
-  2. *Weighted Compatibility Scoring*: Ranks tutors using 1–5 slider responses for learning/teaching styles, personality traits, and budget fit.
-* **Top 3 Recommendations & 1-Tutor Commitment**: Students review the top 3 matches and confirm exactly 1 tutor, triggering automated notifications.
+  1. *Hard Filters*: Strictly eliminates tutors who don't match grade level, subject variant, and schedule availability.
+  2. *Weighted Compatibility Scoring*: Ranks tutors using 1–5 slider responses for learning/teaching styles (5 dimensions), personality traits (4 dimensions), and budget fit.
+* **Top 3 Recommendations & 1-Tutor Commitment**: Students review the top 3 matches and confirm exactly 1 tutor, immediately unlocking direct contact details (Phone, LINE ID, Email).
+* **In-App & Email Notifications**: Real-time notifications and notification bells for tutors (upon lesson selection or admin verification status updates) backed by an asynchronous Amazon SES email worker.
 * **Verified 4-Metric Reviews**: Gated reviews (Knowledge, Preparation, Clarity, Punctuality) submitted only by students who confirmed that tutor.
 
 > 🤖 **For AI Agents (Gemini, GPT, Claude, Cursor) & Contributors:**  
-> Read the complete requirements, 1–5 slider mapping, and system specification in [**`PROJECT_CONTEXT.md`**](./PROJECT_CONTEXT.md) (and [**`AGENTS.md`**](./AGENTS.md)).
+> Read the complete requirements, 1–5 slider mapping, and system specification in [**`PROJECT_CONTEXT.md`**](./PROJECT_CONTEXT.md) (and [**`AGENTS.md`**](./AGENTS.md)). For full endpoint contracts, consult [**`docs/API_SPEC.md`**](./docs/API_SPEC.md).
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ Architecture & Completed Modules
 
-* **Monorepo Layout**: Managed via npm workspaces (`packages/shared`, `apps/server`, `apps/client`).
-* **Frontend**: React 18, Vite, TypeScript, TanStack Query v5, React Hook Form, Zustand $\rightarrow$ Deployed to **AWS Amplify Hosting**.
-* **Backend**: Node.js, Express.js, TypeScript, Drizzle ORM, PostgreSQL $\rightarrow$ Deployed to **Amazon ECS Fargate** via Docker.
-* **Database**: **Amazon RDS for PostgreSQL 16** (or local PostgreSQL via Docker).
-* **Storage**: **Amazon S3** (Private bucket with PUT/GET Presigned URLs for certificates, CVs, and photos).
-* **Authentication**: **AWS Cognito** + Google OAuth 2.0 with JWT verification (`aws-jwt-verify`).
-* **Notifications**: Database-backed async email worker using **Amazon SES**.
+TutorPair is fully implemented across 8 core backend modules and client features:
 
-**Availability decision (2026-10-22):** Maintain one codebase that supports one or multiple API instances. Use a low-cost single-instance deployment regularly and an HA configuration for testing. Implementation and failover verification are pending; the current single-instance deployment plan does not provide HA. See [Availability and Deployment Profiles](./docs/clouds/HIGH_AVAILABILITY.md).
+| Module | Status | Core Endpoints / Capabilities | Documentation |
+|---|---|---|---|
+| **Module 2: Auth & Users** | ✅ Complete | `POST /api/auth/sync`, `GET /api/auth/me`, `POST /api/auth/mock-login`, `POST /api/auth/logout` | [API Spec](./docs/API_SPEC.md#part-0-module-2--authentication--user-management) • [Auth Flow](./docs/AUTH_FLOW.md) |
+| **Module 3: Student Profile** | ✅ Complete | Profile CRUD, 1–5 style sliders, availability schedule matrix, subject interests (`/api/students/*`) | [API Spec](./docs/API_SPEC.md#part-1-module-3--student-profile--preferences) • [Frontend Guide](./docs/FRONTEND_GUIDE.md) |
+| **Module 4: Tutor Profile & S3** | ✅ Complete | Tutor profile CRUD, subjects, rates, availability schedule, S3 presigned uploads (`/tutors/*`, `/documents/*`) | [API Spec](./docs/API_SPEC.md#part-2-module-4--tutor-profile--verification) • [S3 Docs](./docs/S3_DOCUMENTS.md) |
+| **Module 5: Admin Verification** | ✅ Complete | Tutor application audit, S3 document view URLs, approve/reject decisions (`/admin/tutors/*`) | [API Spec](./docs/API_SPEC.md#module-5-admin-tutor-verification) |
+| **Module 6: Tutor Matching** | ✅ Complete | 2-stage matchmaking engine (hard filters + weighted scoring), match confirmation (`POST /api/matching`, `/api/matching/:id/confirm`) | [API Spec](./docs/API_SPEC.md#module-6-tutor-matching) • [Algorithm Spec](./PROJECT_CONTEXT.md#33-two-stage-matchmaking-algorithm) |
+| **Module 7: Results & Reviews** | ✅ Complete | Matching history, unlocked tutor details, 4-metric rating & review submission (`/api/matching/history`, `/api/reviews/*`, `/api/tutors/:id`) | [API Spec](./docs/API_SPEC.md#module-7-matching-results-history--reviews) |
+| **Module 8: Notifications & SES** | ✅ Complete | In-app notification center, read/read-all endpoints, background Amazon SES email worker (`/api/notifications/*`) | [API Spec](./docs/API_SPEC.md#module-8-tutor-notifications--email-delivery-tp-13-tp-14) • [Notifications](./docs/NOTIFICATIONS.md) |
 
 Detailed documentation is available in the [`docs/`](./docs/README.md) directory:
+* [API Specification & Table of Contents](./docs/API_SPEC.md)
 * [AI Agent & Full Project Context](./PROJECT_CONTEXT.md)
 * [Agent Directives](./AGENTS.md)
 * [Architecture Decisions](./docs/ARCHITECTURE.md)
@@ -167,30 +172,31 @@ tutorpair/
 ├── apps/
 │   ├── client/                  # React (Vite) Frontend -> AWS Amplify Hosting
 │   │   ├── src/
-│   │   │   ├── components/      # UI & form primitives (Button, Card, SliderInput)
-│   │   │   ├── features/        # Feature pages (auth, students, tutors, matching, admin, reviews)
+│   │   │   ├── components/      # UI & form primitives (Button, Card, SliderInput, Modal)
+│   │   │   ├── features/        # Feature pages (landing, auth, students, tutors, matching, admin, reviews, notifications)
 │   │   │   ├── layouts/         # StudentLayout, TutorLayout, AdminLayout, AuthLayout
-│   │   │   ├── routes/          # ProtectedRoute and route configuration
+│   │   │   ├── routes/          # ProtectedRoute and role-based route guards
 │   │   │   ├── services/        # Axios API client configured with Bearer token interceptor
 │   │   │   └── store/           # Zustand client auth store
 │   │   └── vite.config.ts
 │   │
 │   └── server/                  # Node.js/Express Backend -> Docker -> AWS ECS Fargate
 │       ├── src/
-│       │   ├── common/          # Middlewares, errors, responses, asyncHandler
+│       │   ├── common/          # Middlewares, errors, responses, asyncHandler, auth guards
 │       │   ├── config/          # Zod env validation, AWS SDK clients (S3, SES, Cognito)
 │       │   ├── db/              # Drizzle ORM schemas, migrations, client, and seeder
 │       │   ├── modules/         # Feature modules (routes -> controller -> service -> repository)
-│       │   │   ├── auth/
-│       │   │   ├── users/
-│       │   │   ├── students/
-│       │   │   ├── tutors/
-│       │   │   ├── subjects/
-│       │   │   ├── documents/
-│       │   │   ├── admin/
-│       │   │   ├── matching/
-│       │   │   └── reviews/
-│       │   └── workers/         # Background email dispatch worker (30s interval)
+│       │   │   ├── auth/        # Authentication & Cognito sync
+│       │   │   ├── users/       # User management
+│       │   │   ├── students/    # Student profiles, sliders, availability
+│       │   │   ├── tutors/      # Tutor profiles, subjects, rates, availability
+│       │   │   ├── subjects/    # 3-step cascading subject & variant catalog
+│       │   │   ├── documents/   # S3 presigned upload & delete workflows
+│       │   │   ├── admin/       # Tutor application review & verification
+│       │   │   ├── matching/    # Two-stage matching engine & match confirmation
+│       │   │   ├── reviews/     # Verified 4-metric review submission & listing
+│       │   │   └── notifications/# In-app notifications & read state management
+│       │   └── workers/         # Background email dispatch worker (30s interval via SES)
 │       ├── Dockerfile           # Production multi-stage Docker build
 │       └── drizzle.config.ts
 │

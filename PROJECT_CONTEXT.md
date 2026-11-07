@@ -1,7 +1,8 @@
 # TutorPair — Project Context & AI Agent Specification
 
 > **Audience**: AI Agents (OpenAI GPT, Google Gemini, Anthropic Claude, Cursor, Copilot) and Human Developers.  
-> **Purpose**: Single source of truth for TutorPair's domain, business rules, matching algorithm, database schema expectations, and architectural patterns.
+> **Purpose**: Single source of truth for TutorPair's domain, business rules, matching algorithm, database schema expectations, and architectural patterns.  
+> **API Contracts**: All implemented endpoints, request/response DTOs, and error codes are indexed in [**`docs/API_SPEC.md`**](./docs/API_SPEC.md).
 
 ---
 
@@ -15,12 +16,14 @@ In Thailand, primary and secondary students (Grades 1–12) and their parents fa
 
 ### The Solution: TutorPair
 TutorPair is a cloud-native platform providing:
+* **Dedicated 1-on-1 Private Tutoring**: Specialized entirely in 1-on-1 private tutoring between verified tutors and students/parents.
 * **Role-Based Profiles**: Structured onboarding for Students, Tutors, and Administrators.
 * **Document Verification Workflow**: Mandatory admin review of degrees, CVs, and score certifications before a tutor enters the matching pool.
 * **Rule-Based & Weighted Matchmaking**: Two-stage matching pipeline:
   1. *Hard Filters*: Eliminates incompatible tutors (grade, subject/variant, availability, location mode).
   2. *Weighted Compatibility Scoring*: Ranks candidates using pedagogical style, personality traits, budget fit, and preferences.
-* **Top 3 Recommendations & 1-Tutor Commitment**: Recommends the Top 3 best matches; student confirms exactly 1 tutor.
+* **Top 3 Recommendations & 1-Tutor Commitment**: Recommends the Top 3 best matches; student confirms exactly 1 tutor, immediately unlocking direct contact details (Phone, LINE ID, Email).
+* **Automated Multi-Channel Notifications**: Real-time in-app notification center and badge counters, coupled with an asynchronous Amazon SES email delivery worker.
 * **Verified Reviews**: Review submission is strictly restricted to students who confirmed that tutor, evaluated on 4 concrete dimensions.
 
 ---
@@ -130,9 +133,9 @@ flowchart TD
    * Applies preference modifiers (Tutor Type, Gender).
    * Ranks candidates and produces the **Top 3 Recommendations**.
 3. **Student Selection**:
-   * Student inspects Top 3 profiles, ratings, and CV.
+   * Student inspects Top 3 profiles, ratings, and CV (via secure presigned S3 URLs).
    * Confirms exactly **1 tutor**.
-   * System writes the confirmed record to `matches` and enqueues an automated notification email to the tutor via Amazon SES.
+   * System performs an atomic transaction: writes the confirmed record to `matches`, unlocks direct contact channels (Phone, LINE ID, Email), and creates an in-app notification while enqueuing an asynchronous notification email to the tutor via Amazon SES.
 
 ---
 
@@ -151,7 +154,7 @@ flowchart TD
    * Admin inspects document via time-limited presigned GET URLs.
    * Status transitions: `PENDING` $\rightarrow$ `APPROVED` or `REJECTED`.
    * Rejections require an explicit reason text stored in database.
-   * Status updates trigger an asynchronous notification email to the tutor.
+   * Status updates perform atomic persistence of verification status, in-app notification creation, and enqueues an asynchronous notification email to the tutor via Amazon SES.
 
 ---
 
@@ -223,13 +226,13 @@ Reviews are gated by system verification:
 
 | Layer | Technologies / AWS Services | Description |
 |---|---|---|
-| **Frontend** | React 18, Vite, TypeScript, TanStack Query v5, Zustand, React Hook Form, Zod | Fast single-page application hosted on **AWS Amplify Hosting**. |
-| **Backend** | Node.js 20+, Express.js, TypeScript, Drizzle ORM | RESTful API running in container on **Amazon ECS Fargate**. |
+| **Frontend** | React 18, Vite, TypeScript, TanStack Query v5, Zustand, React Hook Form, Zod | Fast single-page application hosted on **AWS Amplify Hosting**. Flat Design tokens, zero shadows, bold Outfit typography. |
+| **Backend** | Node.js 20+, Express.js, TypeScript, Drizzle ORM | RESTful API running in container on **Amazon ECS Fargate** across 8 fully implemented modules. |
 | **Database** | PostgreSQL 16 on **Amazon RDS** | Relational store for users, profiles, subjects, availability, matches, reviews, notifications. |
-| **Storage** | **Amazon S3** | Secure bucket for tutor certificates, resumes, and avatar pictures. |
-| **Authentication** | **AWS Cognito** + Google OAuth 2.0 | Managed user pools, tokens verified via `aws-jwt-verify`. Local mock mode supported. |
+| **Storage** | **Amazon S3** | Secure private bucket with presigned PUT/GET URLs for degrees, CVs, and score certifications. |
+| **Authentication** | **AWS Cognito** + Google OAuth 2.0 | Managed user pools, tokens verified via `aws-jwt-verify`. Local mock mode supported via `mock-token-<id>`. |
 | **DNS & Networking** | **Route 53**, **ALB**, **ACM**, **AWS VPC** | Secure custom domains, SSL/TLS, and isolated subnets for database and containers. |
-| **Notifications** | **Amazon SES** + Background Worker | Async polling worker (30-second interval) to dispatch queued email records. |
+| **Notifications** | **Amazon SES** + In-App Notification Center | In-app notification center and bell dropdown with background async email polling worker. |
 | **Observability** | **Amazon CloudWatch** | Centralized container logging and metrics. |
 
 ---
@@ -248,22 +251,23 @@ tutorpair/
 ├── apps/
 │   ├── server/                 # Express backend (Port 4000)
 │   │   └── src/
-│   │       ├── common/         # Auth middlewares, error handlers, async wrapper
+│   │       ├── common/         # Auth middlewares, error handlers, async wrapper, response utils
 │   │       ├── config/         # Zod env schema, AWS SDK clients (S3, SES, Cognito)
 │   │       ├── db/             # Drizzle schemas, migrations, seed data
-│   │       │   └── schema/     # users, tutors, students, subjects, matches, reviews, etc.
-│   │       ├── modules/        # Domain modules (auth, admin, students, tutors, matching, reviews)
-│   │       └── workers/        # Notification email worker
+│   │       │   └── schema/     # users, tutors, students, subjects, matches, reviews, notifications, etc.
+│   │       ├── modules/        # 8 domain modules (auth, users, students, tutors, subjects, documents, admin, matching, reviews, notifications)
+│   │       └── workers/        # Notification email worker (SES)
 │   │
 │   └── client/                 # React frontend (Port 5173)
 │       └── src/
-│           ├── components/     # Reusable primitives (sliders, modal, cards)
-│           ├── features/       # Feature views (auth, admin, matching, reviews, profile)
-│           ├── layouts/        # Layout wrappers by user role
+│           ├── components/     # Reusable primitives (sliders, modal, cards, buttons)
+│           ├── features/       # Feature views (landing, auth, admin, matching, reviews, profile, notifications)
+│           ├── layouts/        # Layout wrappers by user role (StudentLayout, TutorLayout, AdminLayout)
 │           ├── services/       # Axios API client with token interceptors
 │           └── store/          # Zustand client auth store
 │
-├── docs/                       # Detailed architectural references
+├── docs/                       # Detailed architectural references & API specification
+│   └── API_SPEC.md             # Complete API contracts, DTOs, and error catalogue
 ├── PROJECT_CONTEXT.md          # This file — Full AI agent specification & context
 ├── AGENTS.md                   # Agent guidelines & rules of engagement
 ├── README.md                   # Quick start & repository overview
