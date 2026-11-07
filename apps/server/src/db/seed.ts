@@ -21,7 +21,7 @@ import {
   VerificationStatus,
   DocumentType,
 } from '@tutorpair/shared';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, or } from 'drizzle-orm';
 
 async function getOrCreateSubject(name: string, category: SubjectCategory) {
   const [existing] = await db
@@ -213,7 +213,7 @@ async function seed() {
       let [user] = await db
         .select()
         .from(users)
-        .where(eq(users.cognito_sub, params.cognitoSub))
+        .where(or(eq(users.cognito_sub, params.cognitoSub), eq(users.email, params.email)))
         .limit(1);
 
       if (!user) {
@@ -224,6 +224,12 @@ async function seed() {
             email: params.email,
             role: UserRole.TUTOR,
           })
+          .returning();
+      } else if (user.cognito_sub !== params.cognitoSub || user.role !== UserRole.TUTOR) {
+        [user] = await db
+          .update(users)
+          .set({ cognito_sub: params.cognitoSub, email: params.email, role: UserRole.TUTOR })
+          .where(eq(users.id, user.id))
           .returning();
       }
 
@@ -320,7 +326,7 @@ async function seed() {
       let [user] = await db
         .select()
         .from(users)
-        .where(eq(users.cognito_sub, params.studentSub))
+        .where(or(eq(users.cognito_sub, params.studentSub), eq(users.email, params.studentEmail)))
         .limit(1);
 
       if (!user) {
@@ -331,6 +337,12 @@ async function seed() {
             email: params.studentEmail,
             role: UserRole.STUDENT,
           })
+          .returning();
+      } else if (user.cognito_sub !== params.studentSub || user.role !== UserRole.STUDENT) {
+        [user] = await db
+          .update(users)
+          .set({ cognito_sub: params.studentSub, email: params.studentEmail, role: UserRole.STUDENT })
+          .where(eq(users.id, user.id))
           .returning();
       }
 
