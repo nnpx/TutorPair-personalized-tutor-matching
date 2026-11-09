@@ -73,31 +73,9 @@ async function ensureVariant(
 }
 
 async function seed() {
-  console.log('🌱 Seeding database reference data & test fixtures...');
+  console.log('🌱 Seeding reference subjects and variants...');
 
   try {
-    // 0. Seed Dev Mock Users
-    await db
-      .insert(users)
-      .values([
-        {
-          cognito_sub: 'mock-tutor-id',
-          email: 'tutor@tutorpair.local',
-          role: UserRole.TUTOR,
-        },
-        {
-          cognito_sub: 'mock-student-id',
-          email: 'student@tutorpair.local',
-          role: UserRole.STUDENT,
-        },
-        {
-          cognito_sub: 'mock-admin-id',
-          email: 'admin@tutorpair.local',
-          role: UserRole.ADMIN,
-        },
-      ])
-      .onConflictDoNothing();
-
     // =========================================================================
     // 1. GENERAL LEARNING (G1–G12 THAI & INTERNATIONAL CURRICULA)
     // =========================================================================
@@ -225,7 +203,16 @@ async function seed() {
     // =========================================================================
     // 4. VERIFIED SAMPLE TUTORS (FOR MATCHMAKING & REVIEWS TESTING)
     // =========================================================================
-    console.log('🧑‍🏫 Seeding sample verified tutors for matchmaking...');
+    // Reference subjects above are safe to seed in every environment. Demo users and profiles
+    // are deliberately opt-in so they cannot accidentally enter a production account database.
+    if (process.env.SEED_MOCK_USERS === 'true') {
+      if (process.env.NODE_ENV === 'production') throw new Error('Mock fixtures are disabled in production');
+      await db.insert(users).values([
+        { cognito_sub: 'mock-tutor-id', email: 'tutor@tutorpair.local', role: UserRole.TUTOR },
+        { cognito_sub: 'mock-student-id', email: 'student@tutorpair.local', role: UserRole.STUDENT },
+        { cognito_sub: 'mock-admin-id', email: 'admin@tutorpair.local', role: UserRole.ADMIN },
+      ]).onConflictDoNothing();
+      console.log('🧑‍🏫 Seeding sample verified tutors for matchmaking...');
 
     const mathSchool = await ensureVariant(math.id, 'School Curriculum Mathematics', LearningGoal.SCHOOL_CURRICULUM, false);
     const mathComp = await ensureVariant(math.id, 'Math Olympiad & Competitions', LearningGoal.COMPETITIONS, true);
@@ -933,9 +920,11 @@ async function seed() {
       });
     }
 
-    console.log('✅ Database seeded with expanded subjects and verified tutors successfully!');
+    }
+    console.log('✅ Reference subjects seeded; mock fixtures are opt-in.');
   } catch (error) {
     console.error('❌ Seeding failed:', error);
+    process.exitCode = 1;
   } finally {
     await pool.end();
   }

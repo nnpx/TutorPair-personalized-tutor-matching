@@ -15,15 +15,15 @@ Agreed component list supplied directly by the user on 2026-10-22. This list sup
 | Amazon Cognito | Provides user authentication and integrates Google OAuth 2.0 for login. |
 | Amazon SES | Sends automated email notifications, such as notifying tutors when they are selected by students. |
 | Amazon CloudWatch | Collects application/container logs and AWS metrics for monitoring and troubleshooting. |
-| AWS VPC | Provides the private networking environment for the backend and database resources. |
+| AWS VPC | Provides networking for the public ALB and ECS tasks and isolated private database resources. |
 | Security Groups | Controls network traffic between the ALB, ECS Fargate, and RDS resources. |
 | AWS IAM | Controls permissions for AWS services and the ECS application to access resources such as S3 and SES. |
 | AWS Secrets Manager | Securely stores the PostgreSQL credentials and supplies them to the ECS task without placing passwords in source code or the Docker image. |
 
 ## Deployment details
 
-This table establishes component scope and responsibilities. The accepted [availability decision](./HIGH_AVAILABILITY.md) keeps one codebase supporting one or multiple API instances. Regular deployment uses one task and Single-AZ RDS; HA testing uses at least two tasks across two AZs, Multi-AZ RDS, and resilient outbound connectivity. Implementation and failover verification are pending. Region, sizes, subnet layout, exact outbound solution, and monthly budget still require deployment planning. Private ECS/RDS remain the baseline; public ECS remains an unselected alternative.
+This table establishes component scope and responsibilities. The accepted [availability decision](./HIGH_AVAILABILITY.md) keeps one codebase supporting one or multiple API instances. On 2026-11-09, the user selected public-subnet ECS tasks with public IPs for the deployment profiles; the ALB remains public and RDS remains private. Regular deployment uses one task and Single-AZ RDS; HA testing uses at least two tasks across two AZs and Multi-AZ RDS. Implementation and failover verification are pending. Singapore (`ap-southeast-1`) and a total budget of ฿4,000 through the professor review window ending 19 November 2026, including later charges, are recorded in [AWS_SETUP_PLAN.md](./AWS_SETUP_PLAN.md). Sizes, exact DNS names, and infrastructure tooling remain deployment details.
 
-NAT gateways or VPC endpoints are supporting network options to evaluate, not additional approved components inferred from this table. Do not add AMI management, a separately managed CloudFront distribution, or customer-managed KMS keys based on the superseded screenshots.
+The selected public ECS layout gives tasks direct outbound access through an internet gateway and does not require a NAT gateway for those tasks. VPC endpoints remain optional supporting network choices, not additional approved components inferred from this table. Do not add AMI management, a separately managed CloudFront distribution, or customer-managed KMS keys based on the superseded screenshots.
 
 See [AWS_SETUP_PLAN.md](./AWS_SETUP_PLAN.md) for proposed deployment details and [AWS_ALIGNMENT_REVIEW.md](./AWS_ALIGNMENT_REVIEW.md) for repository implementation status.

@@ -36,6 +36,13 @@ export function errorHandler(
 
   // Handle common PostgreSQL database error codes defensively
   const pgCode = getPgErrorCode(err);
+  const errorCode = 'code' in err ? String((err as Error & { code?: unknown }).code) : '';
+  if (pgCode?.startsWith('08') || ['57P01', '57014'].includes(pgCode ?? '') ||
+      ['ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET'].includes(errorCode) ||
+      ['ECONNREFUSED', 'ETIMEDOUT', 'ECONNRESET'].includes(pgCode ?? '')) {
+    res.status(503).json(errorResponse('Database temporarily unavailable. Please try again shortly.'));
+    return;
+  }
   if (pgCode === '22P02') {
     res.status(400).json(errorResponse('Invalid parameter format: expected valid UUID'));
     return;

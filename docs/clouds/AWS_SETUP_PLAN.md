@@ -4,9 +4,11 @@ Prepared 2026-10-22. Status: proposed deployment plan; no AWS resources provisio
 
 Accepted direction: one codebase that supports HA, regular single-instance deployment, and an HA configuration for testing. [HIGH_AVAILABILITY.md](./HIGH_AVAILABILITY.md) defines the profiles, application requirements, and evidence needed. Implementation and failover verification remain pending. The existing 99% availability target is unchanged.
 
-This plan follows PROJECT_CONTEXT.md and the existing docs. New deployment choices below are recommendations for discussion, not replacements for recorded architecture decisions. The user selected a low-cost demo/pilot deployment. The exact monthly ceiling, existing AWS resources, domain ownership, and infrastructure tooling remain to be confirmed.
+This plan follows PROJECT_CONTEXT.md and the existing docs. New deployment choices below are recommendations for discussion, not replacements for recorded architecture decisions. The user selected a private test deployment using the production application paths so it can be prepared for real usage. The user has an AWS account and owns the domain. Singapore (`ap-southeast-1`) is the selected region. The total budget is **฿4,000**, including domain and charges after the test window. Infrastructure tooling, exact DNS names, account resources, and the domain renewal date remain to be confirmed.
 
-The authoritative component scope is the user's replacement [Cloud Components table](./CLOUD_COMPONENTS.md), supplied directly on 2026-10-22. It supersedes the earlier Word document and its screenshots. The agreed stack includes Amplify, Route 53, ALB, ACM, ECS Fargate, ECR, RDS PostgreSQL, S3, Cognito with Google OAuth, SES, CloudWatch, VPC, security groups, IAM, and Secrets Manager. Private ECS and RDS remain the planning baseline for the table's private-networking intent; specific subnet and outbound-connectivity choices are proposed deployment details. See [AWS_ALIGNMENT_REVIEW.md](./AWS_ALIGNMENT_REVIEW.md) for implementation evidence. Deployed AWS account state has not been inspected.
+**Confirmed review deadline (2026-11-09):** Keep the test site available through **19 November 2026** for professor review. After that review, take the site offline and plan removal of chargeable runtime resources; decide what data to export or retain before deleting any database or documents. If hosting begins on 9 November, the maximum planned window through 19 November is 11 calendar days (264 hours), equivalent to about ฿364/day before later charges. Do not start paid infrastructure until the application release gates and a Singapore-region AWS Pricing Calculator estimate fit the total budget with a reserve for taxes, variable usage, domain/DNS, and post-test charges. AWS Budget alerts are monitoring, not a hard spending cap. This date decision does not authorize provisioning or deletion.
+
+The authoritative component scope is the user's replacement [Cloud Components table](./CLOUD_COMPONENTS.md), supplied directly on 2026-10-22. It supersedes the earlier Word document and its screenshots. The agreed stack includes Amplify, Route 53, ALB, ACM, ECS Fargate, ECR, RDS PostgreSQL, S3, Cognito with Google OAuth, SES, CloudWatch, VPC, security groups, IAM, and Secrets Manager. On 2026-11-09, the user selected public-subnet ECS tasks instead of the earlier private ECS proposal; RDS remains private. See [AWS_ALIGNMENT_REVIEW.md](./AWS_ALIGNMENT_REVIEW.md) for implementation evidence. Deployed AWS account state has not been inspected.
 
 ## 1. Project understanding
 
@@ -34,7 +36,7 @@ flowchart TD
 
 The SPA contacts the API directly from the browser. Amplify does not proxy the API by default. DNS resolves names; it does not transport application requests.
 
-Use `ap-southeast-1` (Singapore) as the initial planning region because the repository already defaults to it. Validate account availability, service support, latency, and any data-location requirements before provisioning. A Thailand region deployment is an alternative to evaluate if in-country hosting is required; it is not assumed here.
+Use the selected `ap-southeast-1` (Singapore) region. Validate account availability, service support, latency, and any data-location requirements before provisioning. A Thailand region deployment would require a new decision.
 
 ## 3. Resources and sizing proposals
 
@@ -55,12 +57,12 @@ These starting sizes are estimates to validate. A small database or task is not 
 
 ## 4. Networking and identity boundaries
 
-Team-aligned demo layout: one VPC across two Availability Zones, with two public ALB subnets, two private application subnets, and two isolated database subnets. Initially run one ECS task and Single-AZ RDS; subnet coverage across two AZs does not make these resources highly available. ECS tasks have no public IP. Private application subnets need outbound connectivity for Cognito JWKS fetching and AWS service calls. Budget for one NAT gateway initially, accepting its failure dependency and possible cross-AZ traffic charges. Evaluate VPC endpoints against actual costs and dependencies. Endpoints alone do not automatically solve access to Cognito's public JWKS endpoint. Production can add NAT redundancy and increase API/database availability after budget and reliability review.
+Selected test layout: one VPC across two Availability Zones, with two public subnets for the ALB and ECS and two isolated private database subnets. Initially run one ECS task and Single-AZ RDS; subnet coverage across two AZs does not make these resources highly available. Give each ECS task a public IP and a public-subnet default route through the internet gateway for Cognito JWKS and AWS service calls. The task's public IP is not an application entry point: browsers use the HTTPS ALB, which forwards to the task's private ENI IP on port 4000. No NAT gateway is required for ECS outbound access in this layout. Keep RDS without a public endpoint.
 
 Security group rules:
 
 - ALB: inbound TCP 443 from browsers; TCP 80 only for HTTPS redirect.
-- ECS: inbound TCP 4000 only from the ALB security group.
+- ECS: inbound TCP 4000 only from the ALB security group, despite the task's public IP; no internet-wide inbound rule or direct task DNS entry.
 - RDS: inbound TCP 5432 only from the ECS security group and an explicitly authorized migration/administration path. No public database endpoint.
 - Database administration: use a temporary authenticated tunnel into the VPC, such as an SSM-managed host, when needed. Do not expose RDS publicly for Drizzle Studio.
 
@@ -75,15 +77,15 @@ Keep local mock authentication functional. Set `NODE_ENV=production` on ECS and 
 
 ## 5. Cost profiles to choose between
 
-Accepted regular profile: **single-instance demo/pilot, keep costs low**. Use one private API task and Single-AZ RDS. One NAT gateway and short log retention are cost proposals. Build all concurrency and recovery protections into the shared codebase before testing the second profile; do not disable them in regular deployment. Preserve the team's agreed stack. Do not enable autoscaling until concurrent processing is verified.
+Accepted regular profile: **single-instance private test, keep costs low**. Use one public-subnet API task with a public IP and Single-AZ private RDS. No NAT gateway is planned for ECS; include the task's public IPv4 charge and short log retention in the estimate. Build all concurrency and recovery protections into the shared codebase before testing the second profile; do not disable them in regular deployment. Preserve the team's agreed stack. Do not enable autoscaling until concurrent processing is verified.
 
-**Demo/pilot:** one private API task, Single-AZ RDS with a subnet group covering two AZs, small storage, short log retention, and a deliberate teardown schedule. Keep the ALB public and both ECS and RDS private as the planning baseline. Public-subnet ECS with ALB-only ingress was discussed as a cost-saving alternative; it has not been selected. If the estimate exceeds the budget, discuss that alternative explicitly instead of silently changing the private-network boundary.
+**Private test:** one public-subnet API task with ALB-only ingress, Single-AZ RDS in private database subnets with a subnet group covering two AZs, small storage, short log retention, and a deliberate post-review teardown plan. Keep the ALB public and RDS private. Validate that the task can pull images, obtain secrets, fetch Cognito keys, sign S3 URLs, and send SES mail using its task role and outbound route. Do not put AWS access keys in the container.
 
-**Accepted HA testing profile:** at least two private API tasks across two AZs, desired/minimum count at least two, Multi-AZ RDS primary/standby, and outbound routing that survives either AZ failing. For the proposed zonal NAT layout, use one per AZ with AZ-local routes. Verify worker concurrency, surviving-task capacity, health-checked rolling deployment/rollback, and recovery before describing observed HA results. Use the same application release as the regular profile. Deployment details, cost, and failure-test limits must be finalized before provisioning.
+**Accepted HA testing profile:** at least two public-subnet API tasks with public IPs across two AZs, desired/minimum count at least two, Multi-AZ private RDS primary/standby, and outbound routing through each AZ's public subnet to the internet gateway. Verify worker concurrency, surviving-task capacity and outbound access, health-checked rolling deployment/rollback, and recovery before describing observed HA results. Use the same application release as the regular profile. Deployment details, cost, and failure-test limits must be finalized before provisioning.
 
 Keep HA test infrastructure active only for the planned test window if cost requires it. Do not assume switching profiles is instant or that changing database availability settings is disruption-free. Plan preservation of data, recovery, and post-test resource cleanup. This decision does not authorize provisioning or failover now. One task/Single-AZ operation remains a reduced-availability deployment even after a successful HA test elsewhere or earlier.
 
-Build an AWS Pricing Calculator estimate after choosing the profile. Include Fargate, ALB hours/capacity, RDS compute/storage/backups, NAT hours/data processing or endpoints, public IPv4, Amplify builds/bandwidth, S3, CloudWatch, Secrets Manager, DNS, Cognito, SES, and data transfer. Do not assume free-tier eligibility. Create AWS Budgets alerts first; alerts do not enforce a spending cap.
+Build an AWS Pricing Calculator estimate for the selected profile. Include Fargate, ALB hours/capacity, RDS compute/storage/backups, the ECS public IPv4 address per task, Amplify builds/bandwidth, S3, CloudWatch, Secrets Manager, DNS, Cognito, SES, and data transfer. Do not include a NAT gateway unless one is actually introduced for another resource. Do not assume free-tier eligibility. Create AWS Budgets alerts first; alerts do not enforce a spending cap.
 
 ## 6. Repository readiness findings
 
@@ -100,7 +102,7 @@ Inspection found these gaps; none were changed by this planning task:
 9. `db/client.ts` has no explicit RDS certificate/TLS or pool sizing configuration. Configure trusted CA verification and bound total connections across API tasks and migration jobs.
 10. No workspace declares a test script. The root `npm test` uses `--if-present`, so it can succeed without running tests. Add actual scoring unit tests and API integration tests before calling the deployment verified.
 11. Amplify needs root workspace installation and a shared-package build. The architecture document's phrase “reads apps/client only” must not lead to omitting `packages/shared` during builds.
-12. `/api/health` currently reports process liveness only. Add a separate database readiness check so a green ALB target is not treated as proof that application dependencies work.
+12. The application exposes `/api/health` for process liveness and `/api/ready` for bounded database readiness. Configure the ALB target group to probe `/api/ready`; keep container health checks on `/api/health`.
 
 For documents, implement authorization and upload confirmation checks against actual S3 object metadata, not just client-reported file sizes. Honor the 10 MB/file and 100 MB/tutor limits. Expiring presigned URLs remain shareable until expiry; their lifetime alone does not enforce consent or recipient identity.
 
@@ -113,7 +115,7 @@ For documents, implement authorization and upload confirmation checks against ac
 | 3. Network and persistence | VPC/subnets/routing/security groups; encrypted private RDS; seven-day backups; S3; secrets | Database accessible only through approved paths; backup configuration inspected |
 | 4. Identity and email | Cognito SPA client, callback/logout URLs, Google IdP; SES domain verification and production access request | Real test user obtains JWT; verified sender works within account sending restrictions |
 | 5. Container baseline | Supported Node LTS, Docker context exclusions, root build, image pushed to ECR; IAM roles | Container starts without local environment files or static credentials |
-| 6. API infrastructure | ALB certificate and DNS; ECS task definition, service, logs, health checks | HTTPS `/api/health` works; logs visible; RDS readiness verified |
+| 6. API infrastructure | ALB certificate and DNS; ECS task definition, service, logs, health checks | ALB target group health check path is `/api/ready`; container liveness uses `/api/health`; logs visible |
 | 7. Database release | One-off ECS migration task inside VPC; reviewed reference-data seeding | Successful exit code, migration journal checked, required subjects present |
 | 8. Frontend release | Amplify monorepo build and SPA fallback; public build variables; API/S3 CORS | Direct links load; browser reaches API and S3 without CORS errors |
 | 9. Feature pilot | Complete auth, profiles, verification, documents, matching, reviews, email | Student → tutor selection → email and admin approval flows demonstrated |
@@ -123,7 +125,7 @@ Infrastructure as code is recommended, but the repository does not mandate Terra
 
 Amplify build outline: run `npm ci` at the repository root, `npm run build:shared`, and `npm run build:client`; publish `apps/client/dist`. Configure `appRoot: apps/client`, root build path, and the matching `AMPLIFY_MONOREPO_APP_ROOT` setting. Verify the actual build specification and SPA rewrite behavior in a preview deployment.
 
-Backend release outline: test/build → build image from repository root → push immutable image → run migration task once → update ECS service → wait for health → smoke test. Use backward-compatible migrations; rolling back an image does not roll back a database migration.
+Backend release outline: test/build → build image from repository root → push immutable image → run one ECS task with command override `node apps/server/dist/db/migrate.js` → confirm a successful exit code → update ECS service → wait for ALB readiness at `/api/ready` → smoke test. The image includes compiled migration code and SQL; do not use the server's development `db:migrate` script in the production image because it requires `tsx`. Use backward-compatible migrations; rolling back an image does not roll back a database migration.
 
 Do not run the local reference seed blindly on production: review repeatability and data contents first. After migrations or seeding, the human developer must run `npm run db:studio` through an authorized database connection and inspect https://local.drizzle.studio for tables, relations, and reference data.
 

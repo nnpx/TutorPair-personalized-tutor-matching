@@ -1,6 +1,6 @@
 # TutorPair availability and deployment decision
 
-Accepted by the user on 2026-10-22. This document records implementation requirements and deployment intent. The required code changes and AWS failover tests are not yet complete.
+Accepted by the user on 2026-10-22; ECS subnet placement updated on 2026-11-09. This document records implementation requirements and deployment intent. The required code changes and AWS failover tests are not yet complete.
 
 ## Decision and scope
 
@@ -17,15 +17,15 @@ HA testing initially covers task failures and Availability Zone failures within 
 | Setting | Regular single-instance deployment | HA testing deployment |
 |---|---|---|
 | Application | Same release, supports concurrent instances | Same release, supports concurrent instances |
-| API | One private Fargate task; desired/minimum count one | At least two private Fargate tasks across two AZs; desired/minimum count at least two |
+| API | One Fargate task in a public subnet with a public IP; desired/minimum count one | At least two Fargate tasks with public IPs across two public-subnet AZs; desired/minimum count at least two |
 | ALB | Public, across two AZ subnets | Public, across two AZ subnets; healthy targets in both AZs |
 | PostgreSQL | Single-AZ RDS | RDS Multi-AZ DB instance with primary and standby in different AZs |
-| Outbound path | Cost-controlled; one zonal NAT gateway is the current proposal | Must survive either AZ failing; for zonal NAT, one per AZ and AZ-local routing |
+| Outbound path | Task uses the public-subnet route to the internet gateway; no NAT gateway required for ECS | Each surviving AZ's task must retain outbound access through its public subnet and internet gateway |
 | Scaling | Fixed one task unless deliberately testing concurrency | Verify AZ distribution/rebalancing and surviving-task capacity before increasing traffic |
 | Deployments | Health-checked replacement; temporary task overlap is possible | Keep healthy capacity during rolling releases; allow replacement capacity and automatic rollback |
 | Availability claim | Can have downtime during task replacement or DB recovery | HA candidate; validate failure recovery before reporting measured results |
 
-Private ECS and RDS remain the baseline. Public-subnet ECS is an unselected cost-saving alternative. NAT/endpoints, sizes, region, tooling, and monthly spending remain deployment details to finalize. Backups retain the existing seven-day requirement in both cloud profiles; Multi-AZ does not replace backups.
+Public-subnet ECS is the selected layout for both profiles as of 2026-11-09; the ALB remains public and RDS remains in isolated private database subnets. Assign a public IP to each task, but allow inbound port 4000 only from the ALB security group. The ALB targets task private ENI addresses through an IP-type target group; browser traffic still uses the ALB hostname. Public IP charges and direct exposure from security-group mistakes are part of the cost and security review. Sizes, tooling, and exact spending remain deployment details to finalize. Backups retain the existing seven-day requirement in both cloud profiles; Multi-AZ does not replace backups.
 
 Maintain profiles as deployment configuration rather than separate application forks or incompatible database schemas. A separate paid environment is not mandatory. A temporary environment or a controlled change to the pilot may be used for HA testing; estimate charges and plan the change window first. Changing database availability settings can cause operational disruption. After testing, return to the regular profile deliberately, preserve data, and verify health and billing resources. Do not treat this document as authorization to provision, resize, fail over, or delete AWS resources now.
 
@@ -53,7 +53,7 @@ Use bounded retries with backoff for transient failures only when safe. Do not b
 
 ### Health and shutdown
 
-Provide separate process liveness and bounded database readiness checks. A shared database outage must not make every otherwise healthy process fail its liveness check and trigger a restart loop. Define ALB readiness thresholds and ECS startup grace periods deliberately; an ALB health signal alone does not prove business readiness or guarantee rejection of all traffic when all targets fail health checks. Request handlers must still fail clearly when dependencies are unavailable.
+Provide separate process liveness and bounded database readiness checks. Use `/api/health` for container/process liveness and configure the ALB target group's health check path as `/api/ready`. A shared database outage must not make every otherwise healthy process fail its liveness check and trigger a restart loop. Define ALB readiness thresholds and ECS startup grace periods deliberately; an ALB health signal alone does not prove business readiness or guarantee rejection of all traffic when all targets fail health checks. Request handlers must still fail clearly when dependencies are unavailable.
 
 On SIGTERM, mark the process as draining, stop worker polling/new claims, drain active requests and bounded in-flight worker work, close the database pool, and exit within the configured ECS stop timeout. Align ALB draining with the shutdown budget and recover abandoned claims after forced termination.
 
