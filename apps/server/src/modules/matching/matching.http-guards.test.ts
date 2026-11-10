@@ -17,9 +17,9 @@ describe('Matching endpoints: request guards (no database needed)', () => {
   before(async () => {
     const app = createApp();
     await new Promise<void>((resolve) => {
-      server = app.listen(0, () => {
+      server = app.listen(0, '127.0.0.1', () => {
         const address = server.address();
-        if (address && typeof address === 'object') baseUrl = `http://localhost:${address.port}`;
+        if (address && typeof address === 'object') baseUrl = `http://127.0.0.1:${address.port}`;
         resolve();
       });
     });
