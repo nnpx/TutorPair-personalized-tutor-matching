@@ -158,7 +158,7 @@ export const TutorOnboardingPage: React.FC = () => {
   const handleSaveAvailabilityAndContinue = async () => {
     setErrorMsg(null);
     if (availabilitySlots.length === 0) {
-      setErrorMsg('Please configure at least one available teaching time slot.');
+      setErrorMsg('At least one available teaching time slot is required. Please add a time slot before continuing.');
       return;
     }
 

@@ -225,7 +225,9 @@ textarea {
 }
 
 .flat-card-no-hover,
-.flat-card-no-hover:hover {
+.flat-card-no-hover:hover,
+form .flat-card,
+form .flat-card:hover {
   transform: none !important;
   transition: none !important;
 }
@@ -260,6 +262,14 @@ textarea {
 
 .flat-card-muted.flat-card-hover:hover {
   background-color: var(--color-muted-hover);
+}
+
+.quick-preset-btn {
+  transition: all 0.15s ease;
+}
+
+.quick-preset-btn:active {
+  transform: scale(0.94);
 }
 
 /* Flat Form Controls */

@@ -26,7 +26,7 @@ export const FormField: React.FC<FormFieldProps> = ({
 }) => {
   const cleanLabel =
     typeof label === 'string' && required
-      ? label.replace(/\s*\*+$/, '')
+      ? label.replace(/(\s*\*)+\s*$/, '').trim()
       : label;
 
   return (

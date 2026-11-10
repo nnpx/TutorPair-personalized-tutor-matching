@@ -251,6 +251,11 @@ export const StudentOnboardingPage: React.FC = () => {
       return;
     }
 
+    if (availabilitySlots.length === 0) {
+      setErrorMsg('At least one available weekly time slot is required. Please add a time slot before continuing.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await updateProfileMutation.mutateAsync({
@@ -258,11 +263,9 @@ export const StudentOnboardingPage: React.FC = () => {
         personality_profile: personalityProfile,
       });
 
-      if (availabilitySlots.length > 0) {
-        await setAvailabilityMutation.mutateAsync({
-          availability: availabilitySlots,
-        });
-      }
+      await setAvailabilityMutation.mutateAsync({
+        availability: availabilitySlots,
+      });
 
       setStep2Saved(true);
       setCurrentStep(3);
