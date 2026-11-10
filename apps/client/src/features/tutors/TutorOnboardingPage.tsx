@@ -373,6 +373,7 @@ export const TutorOnboardingPage: React.FC = () => {
         <TutorProfileForm
           initialData={profile}
           mode={profile ? 'edit' : 'create'}
+          allowNameEdit={true}
           onSuccess={handleProfileSuccess}
           submitLabel="Save Profile & Continue →"
           showSuccessMessage={false}

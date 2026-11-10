@@ -7,9 +7,29 @@ import { TutorType, DayOfWeek } from '../enums/index.js';
 import { SliderValueSchema } from './student.schema.js';
 
 export const TutorProfileSchema = z.object({
-  first_name: z.string().min(1, 'First name is required').max(100),
-  last_name: z.string().min(1, 'Last name is required').max(100),
-  phone_number: z.string().min(1, 'Phone number is required').max(20),
+  first_name: z
+    .string()
+    .trim()
+    .min(1, 'First name is required')
+    .max(100, 'First name must not exceed 100 characters')
+    .refine((val) => !val || /^[a-zA-Z\u0E00-\u0E7F-]+$/.test(val), {
+      message: 'Only letters and hyphen (-) are allowed',
+    }),
+  last_name: z
+    .string()
+    .trim()
+    .min(1, 'Last name is required')
+    .max(100, 'Last name must not exceed 100 characters')
+    .refine((val) => !val || /^[a-zA-Z\u0E00-\u0E7F-]+$/.test(val), {
+      message: 'Only letters and hyphen (-) are allowed',
+    }),
+  phone_number: z
+    .string()
+    .trim()
+    .min(1, 'Phone number is required')
+    .refine((val) => !val || /^\d{10}$/.test(val), {
+      message: 'Please enter a 10-digit phone number',
+    }),
   line_id: z.string().max(100).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
   tutor_type: z.nativeEnum(TutorType),

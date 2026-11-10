@@ -591,7 +591,7 @@ export const StudentProfilePage: React.FC = () => {
               {/* Name Row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
                 <InputField
-                  label="First Name *"
+                  label="First Name"
                   id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
@@ -599,7 +599,7 @@ export const StudentProfilePage: React.FC = () => {
                   required
                 />
                 <InputField
-                  label="Last Name *"
+                  label="Last Name"
                   id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
@@ -611,7 +611,7 @@ export const StudentProfilePage: React.FC = () => {
               {/* Contact Channels Row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
                 <InputField
-                  label="Mobile Phone Number *"
+                  label="Mobile Phone Number"
                   id="phoneNumber"
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
@@ -631,7 +631,7 @@ export const StudentProfilePage: React.FC = () => {
               {/* Grade Level & Tutor Type */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
                 <SelectField
-                  label="Current Grade Level (G1–G12) *"
+                  label="Current Grade Level (G1–G12)"
                   id="gradeLevel"
                   value={gradeLevel}
                   onChange={(e) => setGradeLevel(e.target.value)}
@@ -650,7 +650,7 @@ export const StudentProfilePage: React.FC = () => {
               {/* Default Budget */}
               <div style={{ maxWidth: '320px' }}>
                 <InputField
-                  label="Default Target Budget (THB / hr) *"
+                  label="Default Target Budget (THB / hr)"
                   id="budgetMax"
                   type="number"
                   min="100"

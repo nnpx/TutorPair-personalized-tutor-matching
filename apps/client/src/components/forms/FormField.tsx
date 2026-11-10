@@ -24,6 +24,11 @@ export const FormField: React.FC<FormFieldProps> = ({
   className = '',
   style,
 }) => {
+  const cleanLabel =
+    typeof label === 'string' && required
+      ? label.replace(/\s*\*+$/, '')
+      : label;
+
   return (
     <div className={className} style={{ display: 'flex', flexDirection: 'column', ...style }}>
       {label && (
@@ -39,7 +44,7 @@ export const FormField: React.FC<FormFieldProps> = ({
             marginBottom: '0.375rem',
           }}
         >
-          <span>{label}</span>
+          <span>{cleanLabel}</span>
           {required && (
             <span style={{ color: 'var(--color-danger)', fontWeight: 800 }} aria-hidden="true">
               *
