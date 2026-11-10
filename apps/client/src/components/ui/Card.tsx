@@ -9,7 +9,7 @@ export interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Card: React.FC<CardProps> = ({
   children,
   tint = 'white',
-  hoverEffect = true,
+  hoverEffect = false,
   className = '',
   style,
   ...props
@@ -32,7 +32,7 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <div
-      className={`flat-card ${getTintClass()} ${!hoverEffect ? 'flat-card-no-hover' : ''} ${className}`}
+      className={`flat-card ${getTintClass()} ${hoverEffect ? 'flat-card-hover' : 'flat-card-no-hover'} ${className}`}
       style={style}
       {...props}
     >

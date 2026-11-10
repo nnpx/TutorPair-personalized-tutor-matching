@@ -1,6 +1,6 @@
 import { LearningGoal, SubjectCategory } from '@tutorpair/shared';
 import { BookOpen, Coins, FileCheck, Plus, Trash2 } from 'lucide-react';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Alert, Button, Card, SaveButton } from '../../../components/ui';
 import {
   useSetTutorSubjects,
@@ -92,14 +92,17 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
-  // Sync configuredSubjects from server on initial load if not controlled
+  const hasInitServer = useRef<boolean>(false);
+
+  // Sync configuredSubjects from server on initial load if not controlled (once on initial load)
   useEffect(() => {
     if (
       value === undefined &&
       currentSubjects &&
       currentSubjects.length > 0 &&
-      internalSubjects.length === 0
+      !hasInitServer.current
     ) {
+      hasInitServer.current = true;
       const mapped = currentSubjects.map((s) => ({
         variant_id: s.variant_id,
         subject_name: s.subject_name,
@@ -114,7 +117,7 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
       setInternalSubjects(mapped);
       onChange?.(mapped);
     }
-  }, [currentSubjects, value, internalSubjects.length, onChange]);
+  }, [currentSubjects, value, onChange]);
 
   // Fetch subjects catalog for currently selected category
   const { data: catalog = [], isLoading: loadingCatalog } =
@@ -227,6 +230,11 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
   const handleSaveToBackend = async () => {
     setFormError(null);
     setSaveSuccess(false);
+
+    if (configuredSubjects.length === 0) {
+      setFormError('At least one teaching subject is required. Please add a subject before saving.');
+      return;
+    }
 
     try {
       await setSubjectsMutation.mutateAsync({
@@ -891,7 +899,12 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                     )
                   }
                   className="flat-input"
-                  style={{ paddingLeft: '2.5rem', fontWeight: 700 }}
+                  style={{
+                    backgroundColor: 'var(--color-white)',
+                    border: '2px solid var(--color-border)',
+                    paddingLeft: '2.5rem',
+                    fontWeight: 700,
+                  }}
                   placeholder="e.g. 500"
                 />
               </div>
@@ -926,6 +939,10 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
                 onChange={(e) => setTeachingFocus(e.target.value)}
                 placeholder="e.g. Intensive exam practice, Foundation rebuilding, Target 700+"
                 className="flat-input"
+                style={{
+                  backgroundColor: 'var(--color-white)',
+                  border: '2px solid var(--color-border)',
+                }}
                 maxLength={255}
               />
               <p
@@ -1029,7 +1046,7 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
           }}
         >
           <Plus size={20} strokeWidth={2.4} />
-          Add More Subject
+          Add Subject
         </Button>
       </Card>
 

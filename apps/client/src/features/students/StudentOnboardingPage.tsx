@@ -93,6 +93,13 @@ export const StudentOnboardingPage: React.FC = () => {
   // Status feedback
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [fieldErrors, setFieldErrors] = useState<{
+    firstName?: string;
+    lastName?: string;
+    phoneNumber?: string;
+    gradeLevel?: string;
+    budgetMax?: string;
+  }>({});
 
   // Derive step completion strictly from server state and in-session saves
   const isStep1Done = Boolean(profile?.first_name && profile?.grade_level) || step1Saved;
@@ -149,25 +156,46 @@ export const StudentOnboardingPage: React.FC = () => {
   const handleSaveStep1 = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
+    setFieldErrors({});
+
+    const errors: {
+      firstName?: string;
+      lastName?: string;
+      phoneNumber?: string;
+      gradeLevel?: string;
+      budgetMax?: string;
+    } = {};
 
     if (!firstName.trim()) {
-      setErrorMsg('First name is required.');
-      return;
+      errors.firstName = 'First name is required';
+    } else if (!/^[a-zA-Z\u0E00-\u0E7F-]+$/.test(firstName.trim())) {
+      errors.firstName = 'Only letters and hyphen (-) are allowed';
     }
+
     if (!lastName.trim()) {
-      setErrorMsg('Last name is required.');
-      return;
+      errors.lastName = 'Last name is required';
+    } else if (!/^[a-zA-Z\u0E00-\u0E7F-]+$/.test(lastName.trim())) {
+      errors.lastName = 'Only letters and hyphen (-) are allowed';
     }
+
     if (!phoneNumber.trim()) {
-      setErrorMsg('Phone number is required for tutor contact channels.');
-      return;
+      errors.phoneNumber = 'Phone number is required';
+    } else if (!/^\d{10}$/.test(phoneNumber.trim())) {
+      errors.phoneNumber = 'Please enter a 10-digit phone number';
     }
+
     if (!gradeLevel) {
-      setErrorMsg('Grade level is required. Please select your current grade level (G1–G12).');
-      return;
+      errors.gradeLevel = 'Grade level is required. Please select your current grade level (G1–G12).';
     }
+
     if (!budgetMax || Number(budgetMax) <= 0) {
-      setErrorMsg('Please specify a positive hourly budget in THB.');
+      errors.budgetMax = 'Please specify a positive hourly budget in THB (min 100).';
+    } else if (Number(budgetMax) < 100) {
+      errors.budgetMax = 'Hourly budget must be at least 100 THB.';
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
       return;
     }
 
@@ -223,6 +251,11 @@ export const StudentOnboardingPage: React.FC = () => {
       return;
     }
 
+    if (availabilitySlots.length === 0) {
+      setErrorMsg('At least one available weekly time slot is required. Please add a time slot before continuing.');
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       await updateProfileMutation.mutateAsync({
@@ -230,11 +263,9 @@ export const StudentOnboardingPage: React.FC = () => {
         personality_profile: personalityProfile,
       });
 
-      if (availabilitySlots.length > 0) {
-        await setAvailabilityMutation.mutateAsync({
-          availability: availabilitySlots,
-        });
-      }
+      await setAvailabilityMutation.mutateAsync({
+        availability: availabilitySlots,
+      });
 
       setStep2Saved(true);
       setCurrentStep(3);
@@ -397,13 +428,6 @@ export const StudentOnboardingPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Global Error Banner */}
-      {errorMsg && (
-        <Alert variant="error">
-          <strong>Validation Error:</strong> {errorMsg}
-        </Alert>
-      )}
-
       {/* ================= STEP 1: Personal Details & Contact Info ================= */}
       {currentStep === 1 && (
         <form onSubmit={handleSaveStep1}>
@@ -460,18 +484,26 @@ export const StudentOnboardingPage: React.FC = () => {
               {/* Name Row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
                 <InputField
-                  label="First Name *"
+                  label="First Name"
                   id="firstName"
                   value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
+                  onChange={(e) => {
+                    setFirstName(e.target.value);
+                    if (fieldErrors.firstName) setFieldErrors((prev) => ({ ...prev, firstName: undefined }));
+                  }}
+                  error={fieldErrors.firstName}
                   placeholder="e.g. Pitchaya"
                   required
                 />
                 <InputField
-                  label="Last Name *"
+                  label="Last Name"
                   id="lastName"
                   value={lastName}
-                  onChange={(e) => setLastName(e.target.value)}
+                  onChange={(e) => {
+                    setLastName(e.target.value);
+                    if (fieldErrors.lastName) setFieldErrors((prev) => ({ ...prev, lastName: undefined }));
+                  }}
+                  error={fieldErrors.lastName}
                   placeholder="e.g. Siriwong"
                   required
                 />
@@ -480,10 +512,14 @@ export const StudentOnboardingPage: React.FC = () => {
               {/* Contact Channels Row */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
                 <InputField
-                  label="Mobile Phone Number *"
+                  label="Mobile Phone Number"
                   id="phoneNumber"
                   value={phoneNumber}
-                  onChange={(e) => setPhoneNumber(e.target.value)}
+                  onChange={(e) => {
+                    setPhoneNumber(e.target.value);
+                    if (fieldErrors.phoneNumber) setFieldErrors((prev) => ({ ...prev, phoneNumber: undefined }));
+                  }}
+                  error={fieldErrors.phoneNumber}
                   placeholder="e.g. 0812345678"
                   type="tel"
                   required
@@ -500,10 +536,15 @@ export const StudentOnboardingPage: React.FC = () => {
               {/* Grade Level & Tutor Type */}
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem' }}>
                 <SelectField
-                  label="Current Grade Level (G1–G12) *"
+                  label="Current Grade Level (G1–G12)"
                   id="gradeLevel"
                   value={gradeLevel}
-                  onChange={(e) => setGradeLevel(e.target.value)}
+                  onChange={(e) => {
+                    setGradeLevel(e.target.value);
+                    if (fieldErrors.gradeLevel) setFieldErrors((prev) => ({ ...prev, gradeLevel: undefined }));
+                    if (errorMsg) setErrorMsg(null);
+                  }}
+                  error={fieldErrors.gradeLevel}
                   options={GRADE_OPTIONS}
                   required
                 />
@@ -519,14 +560,19 @@ export const StudentOnboardingPage: React.FC = () => {
               {/* Target Hourly Budget */}
               <div style={{ maxWidth: '320px' }}>
                 <InputField
-                  label="Default Hourly Budget (THB / hr) *"
+                  label="Default Hourly Budget (THB / hr)"
                   id="budgetMax"
                   type="number"
                   min="100"
                   max="10000"
                   step="50"
                   value={budgetMax}
-                  onChange={(e) => setBudgetMax(e.target.value ? Number(e.target.value) : '')}
+                  onChange={(e) => {
+                    setBudgetMax(e.target.value ? Number(e.target.value) : '');
+                    if (fieldErrors.budgetMax) setFieldErrors((prev) => ({ ...prev, budgetMax: undefined }));
+                    if (errorMsg) setErrorMsg(null);
+                  }}
+                  error={fieldErrors.budgetMax}
                   placeholder="500"
                   required
                 />
@@ -540,25 +586,34 @@ export const StudentOnboardingPage: React.FC = () => {
                 paddingTop: '1.5rem',
                 borderTop: '2px solid var(--color-border)',
                 display: 'flex',
-                justifyContent: 'flex-end',
+                flexDirection: 'column',
+                gap: '1rem',
               }}
             >
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSubmitting}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.875rem 2rem',
-                  fontSize: '1rem',
-                  fontWeight: 800,
-                }}
-              >
-                {isSubmitting ? 'Saving...' : 'Save Profile & Continue →'}
-                <ArrowRight size={18} strokeWidth={2.4} />
-              </Button>
+              {errorMsg && (
+                <Alert variant="error">
+                  <strong>Validation Error:</strong> {errorMsg}
+                </Alert>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isSubmitting}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.875rem 2rem',
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                  }}
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Profile & Continue →'}
+                  <ArrowRight size={18} strokeWidth={2.4} />
+                </Button>
+              </div>
             </div>
           </Card>
         </form>
@@ -668,41 +723,49 @@ export const StudentOnboardingPage: React.FC = () => {
                 paddingTop: '1.5rem',
                 borderTop: '2px solid var(--color-border)',
                 display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
+                flexDirection: 'column',
+                gap: '1rem',
               }}
             >
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setStep(1)}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  fontWeight: 700,
-                }}
-              >
-                <ArrowLeft size={16} strokeWidth={2.4} />
-                Back to Profile
-              </Button>
+              {errorMsg && (
+                <Alert variant="error">
+                  <strong>Validation Error:</strong> {errorMsg}
+                </Alert>
+              )}
 
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={isSubmitting}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                  padding: '0.875rem 2rem',
-                  fontSize: '1rem',
-                  fontWeight: 800,
-                }}
-              >
-                {isSubmitting ? 'Saving...' : 'Save Sliders & Schedule →'}
-                <ArrowRight size={18} strokeWidth={2.4} />
-              </Button>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setStep(1)}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    fontWeight: 700,
+                  }}
+                >
+                  <ArrowLeft size={16} strokeWidth={2.4} />
+                  Back to Profile
+                </Button>
+
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={isSubmitting}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.875rem 2rem',
+                    fontSize: '1rem',
+                    fontWeight: 800,
+                  }}
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Sliders & Schedule →'}
+                  <ArrowRight size={18} strokeWidth={2.4} />
+                </Button>
+              </div>
             </div>
           </Card>
         </form>

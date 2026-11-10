@@ -45,6 +45,8 @@ export const TutorOnboardingPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [isSubmittingFinal, setIsSubmittingFinal] = useState<boolean>(false);
   const verificationRef = useRef<VerificationSectionRef>(null);
+  const hasInitSubjects = useRef<boolean>(false);
+  const hasInitSlots = useRef<boolean>(false);
 
   // Step 2 state: Configured Subjects
   const [configuredSubjects, setConfiguredSubjects] = useState<ConfiguredSubjectItem[]>([]);
@@ -97,9 +99,10 @@ export const TutorOnboardingPage: React.FC = () => {
     }
   }, [loadingProfile, currentStep, maxReachableStep, setSearchParams]);
 
-  // Pre-fill previously configured subjects if user returns
+  // Pre-fill previously configured subjects if user returns (once on initial load)
   useEffect(() => {
-    if (serverSubjects && serverSubjects.length > 0 && configuredSubjects.length === 0) {
+    if (serverSubjects && serverSubjects.length > 0 && !hasInitSubjects.current) {
+      hasInitSubjects.current = true;
       setConfiguredSubjects(
         serverSubjects.map((s) => ({
           variant_id: s.variant_id,
@@ -114,20 +117,21 @@ export const TutorOnboardingPage: React.FC = () => {
         }))
       );
     }
-  }, [serverSubjects, configuredSubjects.length]);
+  }, [serverSubjects]);
 
-  // Pre-fill previously configured availability if user returns
+  // Pre-fill previously configured availability if user returns (once on initial load)
   useEffect(() => {
-    if (serverAvailability && serverAvailability.length > 0 && availabilitySlots.length === 0) {
+    if (serverAvailability && serverAvailability.length > 0 && !hasInitSlots.current) {
+      hasInitSlots.current = true;
       setAvailabilitySlots(serverAvailability);
     }
-  }, [serverAvailability, availabilitySlots.length]);
+  }, [serverAvailability]);
 
   // Handle Step 2: Save Subjects & Continue to Step 3
   const handleSaveSubjectsAndContinue = async () => {
     setErrorMsg(null);
     if (configuredSubjects.length === 0) {
-      setErrorMsg('Please add at least one subject offering before proceeding.');
+      setErrorMsg('At least one teaching subject is required. Please add a subject before continuing.');
       return;
     }
 
@@ -154,7 +158,7 @@ export const TutorOnboardingPage: React.FC = () => {
   const handleSaveAvailabilityAndContinue = async () => {
     setErrorMsg(null);
     if (availabilitySlots.length === 0) {
-      setErrorMsg('Please configure at least one available teaching time slot.');
+      setErrorMsg('At least one available teaching time slot is required. Please add a time slot before continuing.');
       return;
     }
 
@@ -373,6 +377,7 @@ export const TutorOnboardingPage: React.FC = () => {
         <TutorProfileForm
           initialData={profile}
           mode={profile ? 'edit' : 'create'}
+          allowNameEdit={true}
           onSuccess={handleProfileSuccess}
           submitLabel="Save Profile & Continue →"
           showSuccessMessage={false}

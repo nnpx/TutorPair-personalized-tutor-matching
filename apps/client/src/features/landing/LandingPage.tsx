@@ -15,9 +15,88 @@ import {
   Sparkles,
   Star,
 } from 'lucide-react';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuthStore } from '../../store/auth.store';
+
+const NAV_ITEMS = [
+  { label: 'How It Works', href: '#how-it-works' },
+  { label: 'Learning Style Fit', href: '#matching-system' },
+  { label: 'Subjects & Exams', href: '#subjects' },
+  { label: 'Tutor Verification', href: '#verification' },
+  { label: 'Tutor Tiers', href: '#tutors' },
+  { label: 'FAQ', href: '#faq' },
+];
+
+const LANDING_FAQS = [
+  {
+    id: 1,
+    question: 'Is TutorPair for group classes or private 1-on-1 tutoring?',
+    answer: (
+      <>
+        TutorPair is strictly designed for{' '}
+        <strong>1-on-1 private tutoring</strong>. We match individual students
+        directly to verified private tutors. There are no crowded cohorts or
+        pre-recorded videos — every lesson is personalized 1-to-1 mentorship
+        focused entirely on the student's individual learning goals, pace, and
+        curriculum.
+      </>
+    ),
+  },
+  {
+    id: 2,
+    question: 'How does the Top 3 tutor matchmaking work?',
+    answer: (
+      <>
+        First, we filter out any tutors who don’t match your exact subject,
+        grade level, weekly schedule, or maximum budget. Then, we score
+        compatibility based on your answers to our learning style questions
+        (learning pace, practice style, discussion level). We present the Top 3
+        best matches so you can compare their full profiles and choose the right
+        educator for you.
+      </>
+    ),
+  },
+  {
+    id: 3,
+    question: 'How do I contact my tutor after selecting them?',
+    answer: (
+      <>
+        As soon as you confirm a tutor from your Top 3 results, their direct{' '}
+        <strong>Phone Number</strong> and <strong>LINE ID</strong> unlock
+        immediately on your screen and in your Matching History. You can message
+        or call them directly to discuss lesson plans and start learning right
+        away.
+      </>
+    ),
+  },
+  {
+    id: 4,
+    question: 'Are tutors verified before they can teach?',
+    answer: (
+      <>
+        Yes, absolutely. Every tutor must upload their resume/CV, proof of
+        degree or university transcript, and official test score certificates
+        (for exams like IELTS, SAT, or JLPT). Our team manually inspects each
+        application, and only approved tutors are eligible to match with
+        students.
+      </>
+    ),
+  },
+  {
+    id: 5,
+    question: 'How are student reviews kept fair and honest?',
+    answer: (
+      <>
+        Reviews can only be submitted by students who have confirmed a booking
+        with that specific tutor. Each review evaluates four clear criteria:
+        Subject Knowledge, Lesson Preparation, Clarity of Explanation, and
+        Punctuality. This eliminates fake reviews and provides helpful feedback
+        for everyone.
+      </>
+    ),
+  },
+];
 
 const SAMPLE_STYLE_DIMENSIONS = [
   {
@@ -67,7 +146,20 @@ export const LandingPage: React.FC = () => {
   const [activeCategory, setActiveCategory] = useState<
     'GENERAL' | 'LANGUAGE' | 'ENTRANCE'
   >('GENERAL');
-  const [activeFaq, setActiveFaq] = useState<number | null>(0);
+  const [activeFaq, setActiveFaq] = useState<number | null>(null);
+  const [activeNavHash, setActiveNavHash] = useState<string>(
+    () => window.location.hash || '#how-it-works',
+  );
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      if (window.location.hash) {
+        setActiveNavHash(window.location.hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, []);
 
   // Interactive state for 5 Learning Style dimensions demo
   const [sampleSliders, setSampleSliders] = useState<number[]>([4, 2, 2, 3, 4]);
@@ -89,181 +181,113 @@ export const LandingPage: React.FC = () => {
       {/* ──────────────────────────────────────────────────────────── */}
       {/* 1. STICKY FLAT NAVIGATION BAR                                */}
       {/* ──────────────────────────────────────────────────────────── */}
-      <header
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 50,
-          backgroundColor: 'var(--bg-canvas)',
-          borderBottom: '2px solid var(--color-border)',
-          padding: '1.25rem 0',
-        }}
-      >
-        <div
-          className="container-flat"
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          {/* Logo */}
-          <Link
-            to="/"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              textDecoration: 'none',
-            }}
-          >
-            <div
-              style={{
-                width: '3rem',
-                height: '3rem',
-                borderRadius: 'var(--radius-md)',
-                backgroundColor: 'var(--color-primary)',
-                color: 'var(--color-white)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 800,
-                fontSize: '1.5rem',
-              }}
-            >
-              TP
-            </div>
-            <div>
-              <span
+      <header className="landing-header">
+        <div className="container-flat landing-header-container">
+          <div className="landing-header-top-row">
+            {/* Logo */}
+            <Link to="/" className="landing-header-logo">
+              <div
+                className="landing-header-logo-icon"
                 style={{
-                  fontSize: '1.5rem',
-                  fontWeight: 800,
-                  letterSpacing: '-0.02em',
-                  color: 'var(--fg-main)',
-                }}
-              >
-                Tutor<span style={{ color: 'var(--color-primary)' }}>Pair</span>
-              </span>
-              <span
-                style={{
-                  display: 'block',
-                  fontSize: '0.6875rem',
-                  fontWeight: 700,
-                  textTransform: 'uppercase',
-                  letterSpacing: '0.08em',
-                  color: 'var(--color-secondary)',
-                }}
-              >
-                Thailand Verified Matchmaking
-              </span>
-            </div>
-          </Link>
-
-          {/* Nav Links */}
-          <nav style={{ display: 'flex', gap: '2rem', alignItems: 'center' }}>
-            <a
-              href="#how-it-works"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9375rem',
-                color: 'var(--fg-main)',
-                textDecoration: 'none',
-              }}
-            >
-              How It Works
-            </a>
-            <a
-              href="#matching-system"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9375rem',
-                color: 'var(--fg-main)',
-                textDecoration: 'none',
-              }}
-            >
-              Learning Style Fit
-            </a>
-            <a
-              href="#subjects"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9375rem',
-                color: 'var(--fg-main)',
-                textDecoration: 'none',
-              }}
-            >
-              Subjects &amp; Exams
-            </a>
-            <a
-              href="#verification"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9375rem',
-                color: 'var(--fg-main)',
-                textDecoration: 'none',
-              }}
-            >
-              Tutor Verification
-            </a>
-            <a
-              href="#tutors"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9375rem',
-                color: 'var(--fg-main)',
-                textDecoration: 'none',
-              }}
-            >
-              Tutor Tiers
-            </a>
-            <a
-              href="#faq"
-              style={{
-                fontWeight: 600,
-                fontSize: '0.9375rem',
-                color: 'var(--fg-main)',
-                textDecoration: 'none',
-              }}
-            >
-              FAQ
-            </a>
-          </nav>
-
-          {/* Action CTAs */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-            {user ? (
-              <Link
-                to={getDashboardPath()}
-                className="flat-btn flat-btn-primary flat-btn-sm"
-                style={{
-                  fontWeight: 700,
-                  display: 'inline-flex',
+                  width: '3rem',
+                  height: '3rem',
+                  borderRadius: 'var(--radius-md)',
+                  backgroundColor: 'var(--color-primary)',
+                  color: 'var(--color-white)',
+                  display: 'flex',
                   alignItems: 'center',
-                  gap: '0.5rem',
-                  textDecoration: 'none',
+                  justifyContent: 'center',
+                  fontWeight: 800,
+                  fontSize: '1.5rem',
+                  flexShrink: 0,
                 }}
               >
-                <span>Go to Dashboard</span>
-              </Link>
-            ) : (
-              <>
-                <Link
-                  to="/login?mode=signin"
-                  className="flat-btn flat-btn-secondary flat-btn-sm"
-                  style={{ fontWeight: 700, textDecoration: 'none' }}
+                TP
+              </div>
+              <div>
+                <span
+                  className="landing-header-logo-title"
+                  style={{
+                    fontSize: '1.5rem',
+                    fontWeight: 800,
+                    letterSpacing: '-0.02em',
+                    color: 'var(--fg-main)',
+                    display: 'block',
+                    lineHeight: 1.1,
+                  }}
                 >
-                  Sign In
-                </Link>
+                  Tutor
+                  <span style={{ color: 'var(--color-primary)' }}>Pair</span>
+                </span>
+                <span
+                  className="landing-logo-subtitle"
+                  style={{
+                    display: 'block',
+                    fontSize: '0.6875rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.08em',
+                    color: 'var(--color-secondary)',
+                  }}
+                >
+                  Thailand Verified Matchmaking
+                </span>
+              </div>
+            </Link>
+
+            {/* Action CTAs */}
+            <div className="landing-header-ctas">
+              {user ? (
                 <Link
-                  to="/login?mode=register&role=student"
+                  to={getDashboardPath()}
                   className="flat-btn flat-btn-primary flat-btn-sm"
-                  style={{ fontWeight: 700, textDecoration: 'none' }}
+                  style={{
+                    fontWeight: 700,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    textDecoration: 'none',
+                  }}
                 >
-                  Find a Tutor
+                  <span>Go to Dashboard</span>
                 </Link>
-              </>
-            )}
+              ) : (
+                <>
+                  <Link
+                    to="/login?mode=signin"
+                    className="flat-btn flat-btn-secondary flat-btn-sm"
+                    style={{ fontWeight: 700, textDecoration: 'none' }}
+                  >
+                    Sign In
+                  </Link>
+                  <Link
+                    to="/login?mode=register&role=student"
+                    className="flat-btn flat-btn-primary flat-btn-sm"
+                    style={{ fontWeight: 700, textDecoration: 'none' }}
+                  >
+                    Find a Tutor
+                  </Link>
+                </>
+              )}
+            </div>
           </div>
+
+          {/* Nav Links / Responsive Tab Bar */}
+          <nav
+            className="landing-nav-tabs"
+            aria-label="Landing Page Navigation"
+          >
+            {NAV_ITEMS.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className={`landing-nav-tab-item ${activeNavHash === item.href ? 'active' : ''}`}
+                onClick={() => setActiveNavHash(item.href)}
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
         </div>
       </header>
 
@@ -2103,7 +2127,7 @@ export const LandingPage: React.FC = () => {
               gap: '1.5rem',
             }}
           >
-            <div className="flat-card flat-card-muted">
+            <div className="flat-card flat-card-muted flat-card-hover">
               <span
                 style={{
                   fontSize: '2rem',
@@ -2135,7 +2159,7 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flat-card flat-card-muted">
+            <div className="flat-card flat-card-muted flat-card-hover">
               <span
                 style={{
                   fontSize: '2rem',
@@ -2167,7 +2191,7 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flat-card flat-card-muted">
+            <div className="flat-card flat-card-muted flat-card-hover">
               <span
                 style={{
                   fontSize: '2rem',
@@ -2199,7 +2223,7 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flat-card flat-card-muted">
+            <div className="flat-card flat-card-muted flat-card-hover">
               <span
                 style={{
                   fontSize: '2rem',
@@ -2644,244 +2668,61 @@ export const LandingPage: React.FC = () => {
           </div>
 
           <div style={{ maxWidth: '840px', margin: '0 auto' }}>
-            {/* FAQ 0: 1-on-1 Focus */}
-            <div className="faq-item" onClick={() => toggleFaq(4)}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <h4
-                  style={{ fontSize: '1.125rem', fontWeight: 800, margin: 0 }}
+            {LANDING_FAQS.map((faq) => {
+              const isOpen = activeFaq === faq.id;
+              return (
+                <div
+                  key={faq.id}
+                  className="faq-item"
+                  onClick={() => toggleFaq(faq.id)}
                 >
-                  Is TutorPair for group classes or private 1-on-1 tutoring?
-                </h4>
-                {activeFaq === 4 ? (
-                  <ChevronUp size={22} strokeWidth={2.5} />
-                ) : (
-                  <ChevronDown size={22} strokeWidth={2.5} />
-                )}
-              </div>
-              {activeFaq === 4 && (
-                <p
-                  style={{
-                    marginTop: '0.75rem',
-                    color: '#4b5563',
-                    fontSize: '0.9375rem',
-                    lineHeight: 1.6,
-                    marginBottom: 0,
-                  }}
-                >
-                  TutorPair is strictly designed for{' '}
-                  <strong>1-on-1 private tutoring</strong>. We match individual
-                  students directly to verified private tutors. There are no
-                  crowded cohorts or pre-recorded videos — every lesson is
-                  personalized 1-to-1 mentorship focused entirely on the
-                  student's individual learning goals, pace, and curriculum.
-                </p>
-              )}
-            </div>
-
-            {/* FAQ 0: 1-on-1 Focus */}
-            <div className="faq-item" onClick={() => toggleFaq(4)}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <h4
-                  style={{ fontSize: '1.125rem', fontWeight: 800, margin: 0 }}
-                >
-                  Is TutorPair for group classes or private 1-on-1 tutoring?
-                </h4>
-                {activeFaq === 4 ? (
-                  <ChevronUp size={22} strokeWidth={2.5} />
-                ) : (
-                  <ChevronDown size={22} strokeWidth={2.5} />
-                )}
-              </div>
-              {activeFaq === 4 && (
-                <p
-                  style={{
-                    marginTop: '0.75rem',
-                    color: '#4b5563',
-                    fontSize: '0.9375rem',
-                    lineHeight: 1.6,
-                    marginBottom: 0,
-                  }}
-                >
-                  TutorPair is strictly designed for{' '}
-                  <strong>1-on-1 private tutoring</strong>. We match individual
-                  students directly to verified private tutors. There are no
-                  crowded cohorts or pre-recorded videos — every lesson is
-                  personalized 1-to-1 mentorship focused entirely on the
-                  student's individual learning goals, pace, and curriculum.
-                </p>
-              )}
-            </div>
-
-            {/* FAQ 1 */}
-            <div className="faq-item" onClick={() => toggleFaq(0)}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <h4
-                  style={{ fontSize: '1.125rem', fontWeight: 800, margin: 0 }}
-                >
-                  How does the Top 3 tutor matchmaking work?
-                </h4>
-                {activeFaq === 0 ? (
-                  <ChevronUp size={22} strokeWidth={2.5} />
-                ) : (
-                  <ChevronDown size={22} strokeWidth={2.5} />
-                )}
-              </div>
-              {activeFaq === 0 && (
-                <p
-                  style={{
-                    marginTop: '0.75rem',
-                    color: '#4b5563',
-                    fontSize: '0.9375rem',
-                    lineHeight: 1.6,
-                    marginBottom: 0,
-                  }}
-                >
-                  First, we filter out any tutors who don’t match your exact
-                  subject, grade level, weekly schedule, or maximum budget.
-                  Then, we score compatibility based on your answers to our
-                  learning style questions (learning pace, practice style,
-                  discussion level). We present the Top 3 best matches so you
-                  can compare their full profiles and choose the right educator
-                  for you.
-                </p>
-              )}
-            </div>
-
-            {/* FAQ 2 */}
-            <div className="faq-item" onClick={() => toggleFaq(1)}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <h4
-                  style={{ fontSize: '1.125rem', fontWeight: 800, margin: 0 }}
-                >
-                  How do I contact my tutor after selecting them?
-                </h4>
-                {activeFaq === 1 ? (
-                  <ChevronUp size={22} strokeWidth={2.5} />
-                ) : (
-                  <ChevronDown size={22} strokeWidth={2.5} />
-                )}
-              </div>
-              {activeFaq === 1 && (
-                <p
-                  style={{
-                    marginTop: '0.75rem',
-                    color: '#4b5563',
-                    fontSize: '0.9375rem',
-                    lineHeight: 1.6,
-                    marginBottom: 0,
-                  }}
-                >
-                  As soon as you confirm a tutor from your Top 3 results, their
-                  direct <strong>Phone Number</strong> and{' '}
-                  <strong>LINE ID</strong> unlock immediately on your screen and
-                  in your Matching History. You can message or call them
-                  directly to discuss lesson plans and start learning right
-                  away.
-                </p>
-              )}
-            </div>
-
-            {/* FAQ 3 */}
-            <div className="faq-item" onClick={() => toggleFaq(2)}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <h4
-                  style={{ fontSize: '1.125rem', fontWeight: 800, margin: 0 }}
-                >
-                  Are tutors vetted before they can teach?
-                </h4>
-                {activeFaq === 2 ? (
-                  <ChevronUp size={22} strokeWidth={2.5} />
-                ) : (
-                  <ChevronDown size={22} strokeWidth={2.5} />
-                )}
-              </div>
-              {activeFaq === 2 && (
-                <p
-                  style={{
-                    marginTop: '0.75rem',
-                    color: '#4b5563',
-                    fontSize: '0.9375rem',
-                    lineHeight: 1.6,
-                    marginBottom: 0,
-                  }}
-                >
-                  Yes, absolutely. Every tutor must upload their resume/CV,
-                  proof of degree or university transcript, and official test
-                  score certificates (for exams like IELTS, SAT, or JLPT). Our
-                  team manually inspects each application, and only approved
-                  tutors are eligible to match with students.
-                </p>
-              )}
-            </div>
-
-            {/* FAQ 4 */}
-            <div className="faq-item" onClick={() => toggleFaq(3)}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}
-              >
-                <h4
-                  style={{ fontSize: '1.125rem', fontWeight: 800, margin: 0 }}
-                >
-                  How are student reviews kept fair and honest?
-                </h4>
-                {activeFaq === 3 ? (
-                  <ChevronUp size={22} strokeWidth={2.5} />
-                ) : (
-                  <ChevronDown size={22} strokeWidth={2.5} />
-                )}
-              </div>
-              {activeFaq === 3 && (
-                <p
-                  style={{
-                    marginTop: '0.75rem',
-                    color: '#4b5563',
-                    fontSize: '0.9375rem',
-                    lineHeight: 1.6,
-                    marginBottom: 0,
-                  }}
-                >
-                  Reviews can only be submitted by students who have confirmed a
-                  booking with that specific tutor. Each review evaluates four
-                  clear criteria: Subject Knowledge, Lesson Preparation, Clarity
-                  of Explanation, and Punctuality. This eliminates fake reviews
-                  and provides helpful feedback for everyone.
-                </p>
-              )}
-            </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      gap: '1rem',
+                    }}
+                  >
+                    <h4
+                      style={{
+                        fontSize: '1.125rem',
+                        fontWeight: 800,
+                        margin: 0,
+                      }}
+                    >
+                      {faq.question}
+                    </h4>
+                    {isOpen ? (
+                      <ChevronUp
+                        size={22}
+                        strokeWidth={2.5}
+                        style={{ flexShrink: 0 }}
+                      />
+                    ) : (
+                      <ChevronDown
+                        size={22}
+                        strokeWidth={2.5}
+                        style={{ flexShrink: 0 }}
+                      />
+                    )}
+                  </div>
+                  {isOpen && (
+                    <p
+                      style={{
+                        marginTop: '0.75rem',
+                        color: '#4b5563',
+                        fontSize: '0.9375rem',
+                        lineHeight: 1.6,
+                        marginBottom: 0,
+                      }}
+                    >
+                      {faq.answer}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>
