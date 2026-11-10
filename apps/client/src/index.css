@@ -216,12 +216,12 @@ textarea {
   background-color: var(--bg-canvas);
   border-radius: var(--radius-lg);
   padding: 2rem;
-  transition: all 0.2s ease;
   position: relative;
 }
 
-.flat-card:hover {
+.flat-card-hover:hover {
   transform: scale(1.02);
+  transition: transform 0.2s ease;
 }
 
 .flat-card-no-hover,
@@ -234,7 +234,7 @@ textarea {
   background-color: var(--color-primary-tint);
 }
 
-.flat-card-tint-blue:hover {
+.flat-card-tint-blue.flat-card-hover:hover {
   background-color: #dbeafe; /* intensified blue-100 */
 }
 
@@ -242,7 +242,7 @@ textarea {
   background-color: var(--color-secondary-tint);
 }
 
-.flat-card-tint-emerald:hover {
+.flat-card-tint-emerald.flat-card-hover:hover {
   background-color: #d1fae5; /* intensified emerald-100 */
 }
 
@@ -250,7 +250,7 @@ textarea {
   background-color: var(--color-accent-tint);
 }
 
-.flat-card-tint-amber:hover {
+.flat-card-tint-amber.flat-card-hover:hover {
   background-color: #fef3c7; /* intensified amber-100 */
 }
 
@@ -258,7 +258,7 @@ textarea {
   background-color: var(--color-muted);
 }
 
-.flat-card-muted:hover {
+.flat-card-muted.flat-card-hover:hover {
   background-color: var(--color-muted-hover);
 }
 
@@ -341,7 +341,7 @@ textarea {
 }
 
 .group:hover .flat-icon-circle,
-.flat-card:hover .flat-icon-circle {
+.flat-card-hover:hover .flat-icon-circle {
   transform: scale(1.1);
 }
 

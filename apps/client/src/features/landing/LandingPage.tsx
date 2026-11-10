@@ -2127,7 +2127,7 @@ export const LandingPage: React.FC = () => {
               gap: '1.5rem',
             }}
           >
-            <div className="flat-card flat-card-muted">
+            <div className="flat-card flat-card-muted flat-card-hover">
               <span
                 style={{
                   fontSize: '2rem',
@@ -2159,7 +2159,7 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flat-card flat-card-muted">
+            <div className="flat-card flat-card-muted flat-card-hover">
               <span
                 style={{
                   fontSize: '2rem',
@@ -2191,7 +2191,7 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flat-card flat-card-muted">
+            <div className="flat-card flat-card-muted flat-card-hover">
               <span
                 style={{
                   fontSize: '2rem',
@@ -2223,7 +2223,7 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
 
-            <div className="flat-card flat-card-muted">
+            <div className="flat-card flat-card-muted flat-card-hover">
               <span
                 style={{
                   fontSize: '2rem',
