@@ -449,7 +449,6 @@ export const AdminVerificationsPage: React.FC = () => {
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      transition: 'all 0.15s ease',
                       position: 'relative',
                     }}
                   >
