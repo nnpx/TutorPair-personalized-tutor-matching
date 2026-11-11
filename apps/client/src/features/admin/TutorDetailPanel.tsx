@@ -568,9 +568,21 @@ export const TutorDetailPanel: React.FC<TutorDetailPanelProps> = ({
                       sent to the tutor.
                     </p>
 
+                    {/* Scoped to this textarea: global .flat-input placeholder is 2.5:1 and has no focus outline */}
+                    <style>{`.reject-reason-input::placeholder{color:#6b7280}.reject-reason-input:focus-visible{outline:3px solid var(--color-primary);outline-offset:2px}`}</style>
+                    <label
+                      htmlFor="reject-reason"
+                      style={{ fontWeight: 700, fontSize: '0.9375rem', color: 'var(--fg-main)' }}
+                    >
+                      Rejection reason
+                    </label>
                     <textarea
+                      id="reject-reason"
                       rows={3}
-                      className="flat-input"
+                      className="flat-input reject-reason-input"
+                      aria-required="true"
+                      aria-invalid={!!rejectError}
+                      aria-describedby={rejectError ? 'reject-reason-error' : undefined}
                       value={rejectionReason}
                       onChange={(e) => onRejectionReasonChange(e.target.value)}
                       placeholder="e.g. The uploaded academic certificate lacks an official university seal or watermark. Please upload an official scanned copy."
@@ -583,9 +595,11 @@ export const TutorDetailPanel: React.FC<TutorDetailPanelProps> = ({
 
                     {rejectError && (
                       <span
+                        id="reject-reason-error"
+                        role="alert"
                         style={{
                           fontSize: '0.875rem',
-                          color: 'var(--color-danger)',
+                          color: '#b91c1c', // darker than --color-danger for >=4.5:1 on muted bg
                           fontWeight: 700,
                         }}
                       >
