@@ -46,11 +46,16 @@ export const MatchHistoryPage: React.FC = () => {
   }, [searchParams]);
 
   // Inspection & Confirmation modals
-  const [inspectTutorId, setInspectTutorId] = useState<string | null>(null);
-  const [confirmingRec, setConfirmingRec] = useState<{
+  type ConfirmTarget = {
     matchRequestId: string;
     rec: MatchRecommendationDto;
+  };
+  // `pending` is set only for recommendations of a PENDING request (profile card shows Confirm)
+  const [inspect, setInspect] = useState<{
+    tutorId: string;
+    pending: ConfirmTarget | null;
   } | null>(null);
+  const [confirmingRec, setConfirmingRec] = useState<ConfirmTarget | null>(null);
 
   // Copy Line ID feedback state
   const [copiedLineId, setCopiedLineId] = useState<string | null>(null);
@@ -778,7 +783,7 @@ export const MatchHistoryPage: React.FC = () => {
                             padding: '0.375rem 0.75rem',
                             height: 'auto',
                           }}
-                          onClick={() => setInspectTutorId(selected.tutor_id)}
+                          onClick={() => setInspect({ tutorId: selected.tutor_id, pending: null })}
                         >
                           Inspect Full Profile & All Reviews
                         </Button>
@@ -1022,7 +1027,10 @@ export const MatchHistoryPage: React.FC = () => {
                                         height: 'auto',
                                       }}
                                       onClick={() =>
-                                        setInspectTutorId(rec.tutor.tutor_id)
+                                        setInspect({
+                                          tutorId: rec.tutor.tutor_id,
+                                          pending: null,
+                                        })
                                       }
                                     >
                                       View Full Profile
@@ -1179,7 +1187,13 @@ export const MatchHistoryPage: React.FC = () => {
                                 height: 'auto',
                               }}
                               onClick={() =>
-                                setInspectTutorId(rec.tutor.tutor_id)
+                                setInspect({
+                                  tutorId: rec.tutor.tutor_id,
+                                  pending: {
+                                    matchRequestId: item.match_request_id,
+                                    rec,
+                                  },
+                                })
                               }
                             >
                               Profile
@@ -1220,9 +1234,14 @@ export const MatchHistoryPage: React.FC = () => {
 
       {/* Detailed Tutor Profile Modal (TP-35 + TP-19) */}
       <TutorDetailModal
-        isOpen={Boolean(inspectTutorId)}
-        tutorId={inspectTutorId}
-        onClose={() => setInspectTutorId(null)}
+        isOpen={Boolean(inspect)}
+        tutorId={inspect?.tutorId ?? null}
+        onClose={() => setInspect(null)}
+        onConfirmSelection={
+          inspect?.pending
+            ? () => setConfirmingRec(inspect.pending)
+            : undefined
+        }
       />
 
       {/* Confirm Tutor Modal Prompt */}
