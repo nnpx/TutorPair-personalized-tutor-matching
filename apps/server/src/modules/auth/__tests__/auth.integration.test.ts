@@ -58,6 +58,28 @@ describe('Auth Module — Integration Tests (Module 2)', () => {
   });
 
   describe('POST /api/auth/sync', () => {
+    it('0a. unprovisioned user cannot bypass the sync allow-list with "/api/auth/sync" in the query string (401)', async () => {
+      const res = await fetch(`${baseUrl}/api/notifications?x=/api/auth/sync`, {
+        headers: { Authorization: `Bearer mock-token-unprovisioned-${timestamp}` },
+      });
+      assert.equal(res.status, 401);
+    });
+
+    it('0b. sync still works with a trailing slash (201 Created)', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/sync/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer mock-token-trailing-${timestamp}`,
+          'X-Mock-Email': `trailing-${timestamp}@test.tutorpair.local`,
+        },
+        body: JSON.stringify({ role: UserRole.STUDENT }),
+      });
+      assert.equal(res.status, 201);
+      const json = await getJson<{ id: string }>(res);
+      if (json.data?.id) createdUserIds.push(json.data.id);
+    });
+
     it('1. should provision a new student on first-time login (201 Created)', async () => {
       const res = await fetch(`${baseUrl}/api/auth/sync`, {
         method: 'POST',

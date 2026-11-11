@@ -84,7 +84,9 @@ export const authenticate = asyncHandler(
 
     // If user does not exist in DB yet:
     // Allow /api/auth/sync to proceed so first-time users can register/sync
-    const isSyncRoute = req.originalUrl?.includes('/api/auth/sync') || req.path === '/sync';
+    // Exact path + method (trailing slash tolerated); originalUrl.includes() would also match query strings.
+    const isSyncRoute =
+      req.method === 'POST' && (req.baseUrl + req.path).replace(/\/+$/, '') === '/api/auth/sync';
     if (isSyncRoute) {
       return next();
     }
