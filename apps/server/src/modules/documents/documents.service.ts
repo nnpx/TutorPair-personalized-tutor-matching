@@ -45,10 +45,7 @@ export const documentsService = {
       fileKey = `tutors/${tutorId}/certificate-${fileUuid}${ext}`;
     }
 
-    // Check if AWS S3 credentials are configured
-    const hasAwsCreds = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-
-    if (hasAwsCreds) {
+    if (env.NODE_ENV === 'production') {
       const s3Client = new S3Client({ region: env.AWS_REGION });
       const command = new PutObjectCommand({
         Bucket: env.S3_BUCKET_NAME,
@@ -88,8 +85,7 @@ export const documentsService = {
       throw new ForbiddenError('You do not have permission to delete this document.');
     }
 
-    const hasAwsCreds = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-    if (hasAwsCreds) {
+    if (env.NODE_ENV === 'production') {
       try {
         const s3Client = new S3Client({ region: env.AWS_REGION });
         await s3Client.send(
@@ -108,9 +104,7 @@ export const documentsService = {
   },
 
   async generatePresignedViewUrl(fileKey: string, expiresInSeconds = 900) {
-    const hasAwsCreds = Boolean(process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY);
-
-    if (hasAwsCreds) {
+    if (env.NODE_ENV === 'production') {
       const s3Client = new S3Client({ region: env.AWS_REGION });
       const command = new GetObjectCommand({
         Bucket: env.S3_BUCKET_NAME,

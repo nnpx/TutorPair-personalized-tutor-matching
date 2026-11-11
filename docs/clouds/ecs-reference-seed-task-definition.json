@@ -1,0 +1,38 @@
+{
+  "family": "tutorpair-pilot-reference-seed",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "executionRoleArn": "arn:aws:iam::528301714999:role/tutorpair-pilot-ecs-migration-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "seed",
+      "image": "528301714999.dkr.ecr.ap-southeast-1.amazonaws.com/tutorpair-pilot-api@sha256:f9809288af59bab2287746bcbe8d99548d246be6a4568f50f1d70e146c24b652",
+      "essential": true,
+      "command": ["node", "apps/server/dist/db/seed.js"],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" },
+        { "name": "SEED_MOCK_USERS", "value": "false" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:528301714999:secret:tutorpair/pilot/migration/database-url-UZuBOp:tutorpair/pilot/migration/database-url::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/tutorpair-pilot-api",
+          "awslogs-region": "ap-southeast-1",
+          "awslogs-stream-prefix": "reference-seed"
+        }
+      }
+    }
+  ]
+}

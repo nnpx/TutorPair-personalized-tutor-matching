@@ -29,8 +29,17 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 
+# Require the zlib release that fixes CVE-2026-4738 in the runtime image.
+RUN apk add --no-cache 'zlib>=1.4-r0'
+
+# RDS certificate trust for both the API and the one-off migration task.
+RUN wget -q -O /app/rds-ap-southeast-1-bundle.pem \
+  https://truststore.pki.rds.amazonaws.com/ap-southeast-1/ap-southeast-1-bundle.pem \
+  && test -s /app/rds-ap-southeast-1-bundle.pem
+
 ENV NODE_ENV=production
 ENV PORT=4000
+ENV RDS_CA_BUNDLE=/app/rds-ap-southeast-1-bundle.pem
 
 # Copy root package files
 COPY package.json package-lock.json* ./
@@ -38,8 +47,8 @@ COPY packages/shared/package.json ./packages/shared/
 COPY apps/client/package.json ./apps/client/
 COPY apps/server/package.json ./apps/server/
 
-# Install only production dependencies
-RUN npm ci --omit=dev
+# Install production dependencies for the API and its shared package.
+RUN npm ci --omit=dev --workspace=server --workspace=@tutorpair/shared
 
 # Copy built artifacts from builder
 COPY --from=builder /app/packages/shared/dist ./packages/shared/dist

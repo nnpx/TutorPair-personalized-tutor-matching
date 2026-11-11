@@ -9,12 +9,10 @@ import { UserRole } from '../enums/index.js';
 export const SyncUserSchema = z
   .object({
     role: z.enum([UserRole.STUDENT, UserRole.TUTOR], {
-      errorMap: () => ({ message: "Role must be either 'STUDENT' or 'TUTOR'" }),
+      error: "Role must be either 'STUDENT' or 'TUTOR'",
     }),
   })
-  .strict({
-    message: 'Unexpected property in request body',
-  });
+  .strict();
 
 export type SyncUserInput = z.infer<typeof SyncUserSchema>;
 
@@ -24,18 +22,16 @@ export type SyncUserInput = z.infer<typeof SyncUserSchema>;
  */
 export const MockLoginSchema = z
   .object({
-    role: z.nativeEnum(UserRole, {
-      errorMap: () => ({ message: "Role must be 'STUDENT', 'TUTOR', or 'ADMIN'" }),
+    role: z.enum(UserRole, {
+      error: "Role must be 'STUDENT', 'TUTOR', or 'ADMIN'",
     }),
     email: z
-      .string({ invalid_type_error: 'Email must be a string' })
+      .string({ error: 'Email must be a string' })
       .trim()
       .email('Invalid email address format')
       .optional()
       .or(z.literal('')),
   })
-  .strict({
-    message: 'Unexpected property in request body',
-  });
+  .strict();
 
 export type MockLoginInput = z.infer<typeof MockLoginSchema>;
