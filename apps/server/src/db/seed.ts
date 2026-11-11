@@ -321,6 +321,8 @@ async function seed() {
             style_profile: params.styleProfile,
             personality_profile: params.personalityProfile,
             tutor_type: params.tutorType,
+            average_rating: params.averageRating,
+            review_count: params.reviewCount,
           },
         });
 
@@ -1050,27 +1052,84 @@ async function seed() {
     ];
     for (const t of extraTutors) await upsertVerifiedTutor(t);
 
-    // Seeded primary-grade student (the G10 demo student cannot match G1-G6 variants).
-    {
-      const sub = 'seed-student-mina';
-      const email = 'mina.primary@tutorpair.local';
+    // Seeded grade-specific students (the G10 demo student cannot match G1-G6 / G7-G9 variants).
+    async function upsertSeedStudent(
+      sub: string,
+      email: string,
+      profile: Omit<typeof students.$inferInsert, 'user_id'>,
+      slots: Array<{ day: DayOfWeek; start: string; end: string }>,
+    ) {
       const [existingUser] = await db.select().from(users).where(or(eq(users.cognito_sub, sub), eq(users.email, email))).limit(1);
-      const [minaUser] = existingUser
+      const [user] = existingUser
         ? [existingUser]
         : await db.insert(users).values({ cognito_sub: sub, email, role: UserRole.STUDENT }).returning();
-      await db
-        .insert(students)
-        .values({
-          user_id: minaUser.id, first_name: 'Mina', last_name: 'Kaewjai', phone_number: '0881110001', line_id: 'mina_parent',
-          grade_level: 'G4', tutor_type_pref: 'ANY', budget_max: '500.00',
-          style_profile: [2, 4, 2, 2, 3], personality_profile: [2, 2, 3, 3],
-        })
-        .onConflictDoNothing();
-      await db.delete(availabilities).where(eq(availabilities.user_id, minaUser.id));
-      await db.insert(availabilities).values([
-        { user_id: minaUser.id, day_of_week: DayOfWeek.SATURDAY, start_time: '09:00', end_time: '12:00' },
-        { user_id: minaUser.id, day_of_week: DayOfWeek.WEDNESDAY, start_time: '16:00', end_time: '18:00' },
-      ]);
+      await db.insert(students).values({ ...profile, user_id: user.id }).onConflictDoNothing();
+      await db.delete(availabilities).where(eq(availabilities.user_id, user.id));
+      await db.insert(availabilities).values(
+        slots.map((s) => ({ user_id: user.id, day_of_week: s.day, start_time: s.start, end_time: s.end })),
+      );
+    }
+    await upsertSeedStudent('seed-student-mina', 'mina.primary@tutorpair.local', {
+      first_name: 'Mina', last_name: 'Kaewjai', phone_number: '0881110001', line_id: 'mina_parent',
+      grade_level: 'G4', tutor_type_pref: 'ANY', budget_max: '500.00',
+      style_profile: [2, 4, 2, 2, 3], personality_profile: [2, 2, 3, 3],
+    }, [
+      { day: DayOfWeek.SATURDAY, start: '09:00', end: '12:00' },
+      { day: DayOfWeek.WEDNESDAY, start: '16:00', end: '18:00' },
+    ]);
+    await upsertSeedStudent('seed-student-nara', 'nara.lower@tutorpair.local', {
+      first_name: 'Nara', last_name: 'Lertsiri', phone_number: '0881110002', line_id: 'nara_lower',
+      grade_level: 'G8', tutor_type_pref: 'ANY', budget_max: '600.00',
+      style_profile: [3, 3, 4, 2, 4], personality_profile: [3, 2, 4, 3],
+    }, [
+      { day: DayOfWeek.TUESDAY, start: '17:00', end: '19:00' },
+      { day: DayOfWeek.SUNDAY, start: '10:00', end: '13:00' },
+    ]);
+
+    // =========================================================================
+    // 6. GENERALIST TUTORS — every subject variant in the DB gets >= 3 approved tutors.
+    //    3 tutors per subject category, each teaching every variant of that category. Grade levels come from
+    //    the "(Gx–Gy)" in the variant name (else G1–G12). Rates <= 450 so they fit the demo (700), Mina (500)
+    //    and Nara (600) budgets. Slots cover demo (Mon 17-19, Sat/Sun 13-17), Mina (Sat 9-12, Wed 16-18)
+    //    and Nara (Tue 17-19, Sun 10-13).
+    // =========================================================================
+    const allVariants = await db
+      .select({ id: subjectVariants.id, name: subjectVariants.name, category: subjects.category })
+      .from(subjectVariants)
+      .innerJoin(subjects, eq(subjects.id, subjectVariants.subject_id));
+    const gradesFor = (name: string) => {
+      const m = name.match(/\(G(\d+)–G(\d+)\)/);
+      return m ? G(Number(m[1]), Number(m[2])) : G(1, 12);
+    };
+    const generalistSlots = [
+      { day: DayOfWeek.MONDAY, start: '17:00', end: '20:00' },
+      { day: DayOfWeek.TUESDAY, start: '17:00', end: '20:00' },
+      { day: DayOfWeek.WEDNESDAY, start: '16:00', end: '19:00' },
+      { day: DayOfWeek.SATURDAY, start: '09:00', end: '18:00' },
+      { day: DayOfWeek.SUNDAY, start: '09:00', end: '18:00' },
+    ];
+    const generalists: Array<{ slug: string; first: string; last: string; category: SubjectCategory; type: TutorType; rate: string; style: number[]; pers: number[]; rating: string }> = [
+      { slug: 'gen-learn-aom', first: 'Aom', last: 'Chaiyo', category: SubjectCategory.GENERAL_LEARNING, type: TutorType.INSTITUTIONAL, rate: '300.00', style: [3, 4, 2, 3, 4], pers: [2, 2, 4, 3], rating: '4.50' },
+      { slug: 'gen-learn-bank', first: 'Bank', last: 'Direk', category: SubjectCategory.GENERAL_LEARNING, type: TutorType.UNDERGRADUATE, rate: '380.00', style: [5, 2, 4, 4, 2], pers: [4, 4, 2, 5], rating: '4.60' },
+      { slug: 'gen-learn-cherry', first: 'Cherry', last: 'Eksit', category: SubjectCategory.GENERAL_LEARNING, type: TutorType.FREELANCE, rate: '450.00', style: [2, 5, 3, 1, 3], pers: [3, 1, 5, 2], rating: '4.70' },
+      { slug: 'gen-lang-dao', first: 'Dao', last: 'Fahsai', category: SubjectCategory.LANGUAGE_TESTING, type: TutorType.FREELANCE, rate: '320.00', style: [4, 3, 3, 3, 3], pers: [3, 3, 3, 4], rating: '4.55' },
+      { slug: 'gen-lang-ek', first: 'Ek', last: 'Gunthon', category: SubjectCategory.LANGUAGE_TESTING, type: TutorType.INSTITUTIONAL, rate: '400.00', style: [2, 4, 5, 2, 5], pers: [5, 2, 2, 3], rating: '4.65' },
+      { slug: 'gen-lang-fon', first: 'Fon', last: 'Hirun', category: SubjectCategory.LANGUAGE_TESTING, type: TutorType.UNDERGRADUATE, rate: '450.00', style: [1, 3, 2, 5, 1], pers: [2, 5, 3, 1], rating: '4.75' },
+      { slug: 'gen-uni-gun', first: 'Gun', last: 'Intarat', category: SubjectCategory.UNIVERSITY_ENTRANCE, type: TutorType.UNDERGRADUATE, rate: '350.00', style: [5, 3, 1, 4, 2], pers: [4, 3, 3, 4], rating: '4.45' },
+      { slug: 'gen-uni-hana', first: 'Hana', last: 'Jirawat', category: SubjectCategory.UNIVERSITY_ENTRANCE, type: TutorType.FREELANCE, rate: '420.00', style: [3, 2, 4, 2, 5], pers: [1, 4, 5, 2], rating: '4.80' },
+      { slug: 'gen-uni-ice', first: 'Ice', last: 'Kiattisak', category: SubjectCategory.UNIVERSITY_ENTRANCE, type: TutorType.INSTITUTIONAL, rate: '450.00', style: [4, 4, 4, 1, 3], pers: [3, 3, 1, 5], rating: '4.90' },
+    ];
+    for (const g of generalists) {
+      await upsertVerifiedTutor({
+        cognitoSub: `seed-tutor-${g.slug}`, email: `${g.slug}@tutorpair.local`, firstName: g.first, lastName: g.last,
+        phoneNumber: '0872220000', lineId: g.slug.replace(/-/g, '_'), tutorType: g.type,
+        description: `Generalist ${g.category.toLowerCase().replace(/_/g, ' ')} tutor covering every variant in the catalogue (sample data).`,
+        styleProfile: g.style, personalityProfile: g.pers, averageRating: g.rating, reviewCount: 10,
+        subjects: allVariants
+          .filter((v) => v.category === g.category)
+          .map((v) => subj(v, g.rate, gradesFor(v.name), 'Exam-focused practice and concept clarity')),
+        slots: generalistSlots,
+      });
     }
     }
     console.log('✅ Reference subjects seeded; mock fixtures are opt-in.');

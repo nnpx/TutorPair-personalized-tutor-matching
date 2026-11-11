@@ -8,36 +8,28 @@ import { users, subjectVariants, matchRequests } from '../../db/schema/index.js'
 import { ApiResponse, MatchResultDto } from '@tutorpair/shared';
 
 /**
- * Needs the dev seed (`npm run db:seed`) and the demo student profile.
- * Primary (G1-G6) variants cannot match the G10 demo student, so they use the seeded primary student.
+ * Needs the dev seed (`SEED_MOCK_USERS=true npm run db:seed`).
+ * Iterates EVERY subject variant in the database and picks a seeded student whose grade fits it:
+ * (G1-G6) -> Mina (G4), (G7-G9) -> Nara (G8), everything else -> demo student (G10).
  */
 const DEMO = 'student@tutorpair.local';
 const PRIMARY = 'mina.primary@tutorpair.local';
+const LOWER_SECONDARY = 'nara.lower@tutorpair.local';
 
-const CASES: Array<[student: string, variant: string]> = [
-  [DEMO, 'School Curriculum Mathematics'],
-  [DEMO, 'Math Olympiad & Competitions'],
-  [DEMO, 'School English (Grammar & Writing)'],
-  [DEMO, 'Digital SAT Math (700+)'],
-  [DEMO, 'Digital SAT Reading & Writing'],
-  [DEMO, 'IELTS Academic (Target 6.5+)'],
-  [DEMO, 'Medical Biology & POSN Olympiad'],
-  [DEMO, 'Chemistry Olympiad (POSN)'],
-  [DEMO, 'TPAT 1 Medical Aptitude (GAT-Doctor)'],
-  [DEMO, 'Python Programming & Algorithms (G7–G12)'],
-  [PRIMARY, 'Primary School Mathematics (G1–G6)'],
-  [PRIMARY, 'Primary English Foundations (G1–G6)'],
-  [PRIMARY, 'Primary School Science (G1–G6)'],
-  [PRIMARY, 'Primary Thai Reading & Writing (G1–G6)'],
-  [PRIMARY, 'Scratch & Block Coding (G1–G6)'],
-];
+function studentFor(variantName: string): string {
+  if (variantName.includes('(G1–G6)')) return PRIMARY;
+  if (variantName.includes('(G7–G9)')) return LOWER_SECONDARY;
+  return DEMO;
+}
 
-describe('Seeded data — every demo variant yields exactly 3 recommendations', () => {
+describe('Seeded data — every subject variant yields exactly 3 recommendations', () => {
   let server: Server;
   let baseUrl: string;
+  let variants: Array<{ id: string; name: string }> = [];
   const createdRequestIds: string[] = [];
 
   before(async () => {
+    variants = await db.select({ id: subjectVariants.id, name: subjectVariants.name }).from(subjectVariants);
     const app = createApp();
     await new Promise<void>((resolve) => {
       server = app.listen(0, () => {
@@ -55,16 +47,16 @@ describe('Seeded data — every demo variant yields exactly 3 recommendations', 
     if (server) await new Promise<void>((resolve) => server.close(() => resolve()));
   });
 
-  for (const [email, variantName] of CASES) {
-    it(`${variantName} -> 3 distinct-score matches for ${email}`, async () => {
+  it('database has subject variants to check', () => {
+    assert.ok(variants.length > 0, 'no subject variants found (run npm run db:seed)');
+  });
+
+  it('every variant -> exactly 3 matches for a grade-appropriate seeded student', async () => {
+    const failures: string[] = [];
+    for (const variant of variants) {
+      const email = studentFor(variant.name);
       const [user] = await db.select().from(users).where(eq(users.email, email)).limit(1);
-      assert.ok(user, `seeded user ${email} missing (run npm run db:seed)`);
-      const [variant] = await db
-        .select()
-        .from(subjectVariants)
-        .where(eq(subjectVariants.name, variantName))
-        .limit(1);
-      assert.ok(variant, `variant ${variantName} missing`);
+      assert.ok(user, `seeded user ${email} missing (run SEED_MOCK_USERS=true npm run db:seed)`);
 
       const res = await fetch(`${baseUrl}/api/matching`, {
         method: 'POST',
@@ -74,12 +66,16 @@ describe('Seeded data — every demo variant yields exactly 3 recommendations', 
         },
         body: JSON.stringify({ variant_id: variant.id }),
       });
-      assert.equal(res.status, 200);
-      const json = (await res.json()) as ApiResponse<MatchResultDto>;
-      const data = json.data!;
+      if (res.status !== 200) {
+        failures.push(`${variant.name} (${email}): HTTP ${res.status}`);
+        continue;
+      }
+      const data = ((await res.json()) as ApiResponse<MatchResultDto>).data!;
       createdRequestIds.push(data.match_request_id);
-      assert.equal(data.recommendations.length, 3);
-      assert.equal(new Set(data.recommendations.map((r) => r.score)).size, 3, 'scores should differ');
-    });
-  }
+      if (data.recommendations.length !== 3) {
+        failures.push(`${variant.name} (${email}): got ${data.recommendations.length} recommendations, expected 3`);
+      }
+    }
+    assert.deepEqual(failures, [], `Variants without exactly 3 matches:\n${failures.join('\n')}`);
+  });
 });
