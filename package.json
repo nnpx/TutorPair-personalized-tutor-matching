@@ -19,9 +19,11 @@
     "db:seed": "npm run db:seed --workspace=server",
     "db:studio": "npm run db:studio --workspace=server",
     "test": "npm run build:shared && npm run test --workspaces --if-present",
+    "test:e2e": "playwright test",
     "test:notifications": "npm run test:notifications --workspace=server"
   },
   "devDependencies": {
+    "@playwright/test": "^1.65.0",
     "drizzle-orm": "^0.45.4",
     "typescript": "^5.4.5"
   }

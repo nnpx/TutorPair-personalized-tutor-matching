@@ -7,6 +7,6 @@ function tests(directory) {
     return entry.isDirectory() ? tests(path) : entry.name.endsWith('.test.ts') ? [path] : [];
   });
 }
-const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', '--test-force-exit', ...tests('src').sort()], { stdio: 'inherit' });
+const result = spawnSync(process.execPath, ['--import', 'tsx', '--test', '--test-concurrency=1', '--test-force-exit', ...tests('src').sort()], { stdio: 'inherit' });
 if (result.error) throw result.error;
 process.exitCode = result.status ?? 1;

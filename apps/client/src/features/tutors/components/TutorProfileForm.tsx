@@ -10,11 +10,12 @@ import {
 import { useCreateTutorProfile, useUpdateTutorProfile } from '../hooks/useTutors';
 import { TutorSliders } from './TutorSliders';
 import { Card, Alert, SaveButton } from '../../../components/ui';
-import { User, Lock } from 'lucide-react';
+import { User, Lock, AlertCircle } from 'lucide-react';
 
 interface TutorProfileFormProps {
   initialData?: TutorProfileDto | null;
   mode: 'create' | 'edit';
+  allowNameEdit?: boolean;
   onSuccess?: () => void;
   submitLabel?: string;
   showSuccessMessage?: boolean;
@@ -23,10 +24,12 @@ interface TutorProfileFormProps {
 export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
   initialData,
   mode,
+  allowNameEdit = mode === 'create',
   onSuccess,
   submitLabel,
   showSuccessMessage = true,
 }) => {
+  const isNameLocked = mode === 'edit' && !allowNameEdit;
   const createMutation = useCreateTutorProfile();
   const updateMutation = useUpdateTutorProfile();
 
@@ -44,9 +47,11 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
     handleSubmit,
     setValue,
     reset,
+    setError,
     formState: { errors },
   } = useForm<TutorProfileInput>({
     resolver: zodResolver(TutorProfileSchema),
+    mode: 'onTouched',
     defaultValues: {
       first_name: initialData?.first_name ?? '',
       last_name: initialData?.last_name ?? '',
@@ -104,6 +109,9 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
         if (onSuccess) onSuccess();
       } else {
         await updateMutation.mutateAsync({
+          ...(allowNameEdit
+            ? { first_name: data.first_name, last_name: data.last_name }
+            : {}),
           phone_number: data.phone_number,
           line_id: data.line_id || null,
           description: data.description,
@@ -116,6 +124,19 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
         if (onSuccess) onSuccess();
       }
     } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'response' in err) {
+        const resp = (err as { response?: { data?: { details?: Array<{ field?: string; message?: string }> } } }).response;
+        if (resp?.data?.details && Array.isArray(resp.data.details)) {
+          let hasFieldErr = false;
+          resp.data.details.forEach((d) => {
+            if (d.field && d.message) {
+              setError(d.field as any, { message: d.message });
+              hasFieldErr = true;
+            }
+          });
+          if (hasFieldErr) return;
+        }
+      }
       const message = err instanceof Error ? err.message : 'Failed to save profile';
       setFormError(message);
     }
@@ -144,12 +165,10 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
           </span>
           <div>
             <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: 'var(--fg-main)' }}>
-              {mode === 'create' ? 'Tutor Personal Details' : 'Tutor Profile'}
+              Personal Details &amp; Contact Channels
             </h2>
             <p style={{ fontSize: '0.9375rem', color: '#4b5563', fontWeight: 500 }}>
-              {mode === 'create'
-                ? 'Provide your verified identity, educational qualification tier, and contact info.'
-                : 'Manage your public tutor bio, contact phone, and teaching style preferences.'}
+              Provide your verified identity, educational qualification tier, and contact channels.
             </p>
           </div>
         </div>
@@ -175,10 +194,10 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
           {/* First Name */}
           <div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-              First Name *
-              {mode === 'edit' && <Lock size={12} color="#6b7280" />}
+              First Name <span style={{ color: 'var(--color-danger)', fontWeight: 800 }}>*</span>
+              {isNameLocked && <Lock size={12} color="#6b7280" />}
             </label>
-            {mode === 'edit' ? (
+            {isNameLocked ? (
               <input
                 type="text"
                 value={initialData?.first_name ?? ''}
@@ -192,10 +211,30 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
                 {...register('first_name')}
                 placeholder="e.g. John"
                 className="flat-input"
+                style={
+                  errors.first_name
+                    ? {
+                        border: '2px solid var(--color-danger)',
+                        backgroundColor: 'var(--color-danger-tint)',
+                      }
+                    : undefined
+                }
               />
             )}
             {errors.first_name && (
-              <span style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', fontWeight: 600 }}>
+              <span
+                role="alert"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  color: 'var(--color-danger)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  marginTop: '0.375rem',
+                }}
+              >
+                <AlertCircle size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
                 {errors.first_name.message}
               </span>
             )}
@@ -204,10 +243,10 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
           {/* Last Name */}
           <div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-              Last Name *
-              {mode === 'edit' && <Lock size={12} color="#6b7280" />}
+              Last Name <span style={{ color: 'var(--color-danger)', fontWeight: 800 }}>*</span>
+              {isNameLocked && <Lock size={12} color="#6b7280" />}
             </label>
-            {mode === 'edit' ? (
+            {isNameLocked ? (
               <input
                 type="text"
                 value={initialData?.last_name ?? ''}
@@ -221,10 +260,30 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
                 {...register('last_name')}
                 placeholder="e.g. Smith"
                 className="flat-input"
+                style={
+                  errors.last_name
+                    ? {
+                        border: '2px solid var(--color-danger)',
+                        backgroundColor: 'var(--color-danger-tint)',
+                      }
+                    : undefined
+                }
               />
             )}
             {errors.last_name && (
-              <span style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', fontWeight: 600 }}>
+              <span
+                role="alert"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  color: 'var(--color-danger)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  marginTop: '0.375rem',
+                }}
+              >
+                <AlertCircle size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
                 {errors.last_name.message}
               </span>
             )}
@@ -232,19 +291,39 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1.25rem', marginBottom: '0.75rem' }}>
-          {/* Phone Number */}
+          {/* Mobile Phone Number */}
           <div>
             <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-              Phone Number *
+              Mobile Phone Number <span style={{ color: 'var(--color-danger)', fontWeight: 800 }}>*</span>
             </label>
             <input
               type="tel"
               {...register('phone_number')}
-              placeholder="e.g. +66 81 234 5678"
+              placeholder="e.g. 0812345678"
               className="flat-input"
+              style={
+                errors.phone_number
+                  ? {
+                      border: '2px solid var(--color-danger)',
+                      backgroundColor: 'var(--color-danger-tint)',
+                    }
+                  : undefined
+              }
             />
             {errors.phone_number && (
-              <span style={{ color: 'var(--color-danger)', fontSize: '0.8125rem', fontWeight: 600 }}>
+              <span
+                role="alert"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  color: 'var(--color-danger)',
+                  fontSize: '0.8125rem',
+                  fontWeight: 700,
+                  marginTop: '0.375rem',
+                }}
+              >
+                <AlertCircle size={13} strokeWidth={2.4} style={{ flexShrink: 0 }} />
                 {errors.phone_number.message}
               </span>
             )}
@@ -268,7 +347,7 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
           {/* Tutor Type */}
           <div>
             <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.875rem', fontWeight: 700, marginBottom: '0.375rem' }}>
-              Tutor Qualification Type *
+              Tutor Qualification Type <span style={{ color: 'var(--color-danger)', fontWeight: 800 }}>*</span>
               {mode === 'edit' && <Lock size={12} color="#6b7280" />}
             </label>
             {mode === 'edit' ? (

@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { DayOfWeek, type TutorAvailabilitySlotDto } from '@tutorpair/shared';
 import { useTutorAvailability, useSetTutorAvailability } from '../hooks/useTutors';
 import { Card, Button, Alert, SaveButton } from '../../../components/ui';
-import { Calendar, Plus, Trash2, Clock } from 'lucide-react';
+import { Calendar, Plus, Trash2, Clock, AlertCircle } from 'lucide-react';
 
 const DAYS_ORDER: DayOfWeek[] = [
   DayOfWeek.MONDAY,
@@ -36,6 +36,7 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
 
   const [internalSlots, setInternalSlots] = useState<TutorAvailabilitySlotDto[]>([]);
   const slots = value !== undefined ? value : internalSlots;
+  const hasInitSlots = useRef(false);
 
   const updateSlots = (newSlots: TutorAvailabilitySlotDto[]) => {
     if (value === undefined) {
@@ -47,23 +48,43 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
   const [selectedDay, setSelectedDay] = useState<DayOfWeek>(DayOfWeek.MONDAY);
   const [startTime, setStartTime] = useState<string>('09:00');
   const [endTime, setEndTime] = useState<string>('12:00');
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [slotError, setSlotError] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
-  // Sync slots from server if not controlled by parent
+  // Sync slots from server if not controlled by parent (once on initial load)
   useEffect(() => {
-    if (value === undefined && serverSlots && serverSlots.length > 0 && internalSlots.length === 0) {
+    if (value === undefined && serverSlots && serverSlots.length > 0 && !hasInitSlots.current) {
+      hasInitSlots.current = true;
       setInternalSlots(serverSlots);
     }
-  }, [serverSlots, value, internalSlots.length]);
+  }, [serverSlots, value]);
+
+  const getDurationMinutes = (start: string, end: string): number => {
+    if (!start || !end) return 0;
+    const [sH, sM] = start.split(':').map(Number);
+    const [eH, eM] = end.split(':').map(Number);
+    if (isNaN(sH) || isNaN(sM) || isNaN(eH) || isNaN(eM)) return 0;
+    return (eH * 60 + eM) - (sH * 60 + sM);
+  };
+
+  const durationMinutes = getDurationMinutes(startTime, endTime);
+  const timeValidationError =
+    !startTime || !endTime
+      ? null
+      : startTime >= endTime
+      ? 'Start time must be earlier than end time.'
+      : durationMinutes < 30
+      ? `Time slot duration must be at least 30 minutes (selected: ${durationMinutes} min).`
+      : null;
 
   // Add slot
   const handleAddSlot = () => {
-    setErrorMsg(null);
+    setSlotError(null);
+    setSaveError(null);
     setSaveSuccess(false);
 
-    if (startTime >= endTime) {
-      setErrorMsg('Start time must be earlier than end time.');
+    if (timeValidationError) {
       return;
     }
 
@@ -77,7 +98,7 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
     );
 
     if (hasOverlap) {
-      setErrorMsg(`This slot overlaps with an existing slot on ${selectedDay}.`);
+      setSlotError(`This slot overlaps with an existing slot on ${selectedDay}.`);
       return;
     }
 
@@ -88,18 +109,25 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
   const applyPreset = (start: string, end: string) => {
     setStartTime(start);
     setEndTime(end);
+    setSlotError(null);
   };
 
   // Remove slot
   const handleRemoveSlot = (index: number) => {
     updateSlots(slots.filter((_, idx) => idx !== index));
+    setSlotError(null);
     setSaveSuccess(false);
   };
 
   // Save to backend
   const handleSave = async () => {
-    setErrorMsg(null);
+    setSaveError(null);
     setSaveSuccess(false);
+
+    if (slots.length === 0) {
+      setSaveError('At least one available teaching time slot is required. Please add a time slot before saving.');
+      return;
+    }
 
     try {
       await setAvailabilityMutation.mutateAsync({
@@ -112,7 +140,7 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
       setSaveSuccess(true);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Failed to save availability';
-      setErrorMsg(message);
+      setSaveError(message);
     }
   };
 
@@ -160,7 +188,10 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
                 <button
                   key={day}
                   type="button"
-                  onClick={() => setSelectedDay(day)}
+                  onClick={() => {
+                    setSelectedDay(day);
+                    setSlotError(null);
+                  }}
                   style={{
                     padding: '0.625rem 1rem',
                     borderRadius: 'var(--radius-md)',
@@ -185,24 +216,32 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
           {/* Quick Presets */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '0.8125rem', fontWeight: 700, color: '#4b5563' }}>Quick Presets:</span>
-            {PRESETS.map((p) => (
-              <button
-                key={p.label}
-                type="button"
-                onClick={() => applyPreset(p.start, p.end)}
-                style={{
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  padding: '0.3rem 0.625rem',
-                  borderRadius: 'var(--radius-md)',
-                  backgroundColor: 'var(--bg-canvas)',
-                  border: '1px solid var(--color-border)',
-                  cursor: 'pointer',
-                }}
-              >
-                {p.label}
-              </button>
-            ))}
+            {PRESETS.map((p) => {
+              const isActive = startTime === p.start && endTime === p.end;
+              return (
+                <button
+                  key={p.label}
+                  type="button"
+                  onClick={() => {
+                    applyPreset(p.start, p.end);
+                    setSlotError(null);
+                  }}
+                  className="quick-preset-btn"
+                  style={{
+                    fontSize: '0.75rem',
+                    fontWeight: isActive ? 800 : 600,
+                    padding: '0.35rem 0.75rem',
+                    borderRadius: 'var(--radius-md)',
+                    backgroundColor: isActive ? 'var(--color-primary)' : 'var(--bg-canvas)',
+                    color: isActive ? 'var(--color-white)' : 'var(--fg-main)',
+                    border: isActive ? '2px solid var(--color-primary)' : '1px solid var(--color-border)',
+                    cursor: 'pointer',
+                  }}
+                >
+                  {p.label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Time Picker Inputs */}
@@ -214,9 +253,15 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
               <input
                 type="time"
                 value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                onChange={(e) => {
+                  setStartTime(e.target.value);
+                  setSlotError(null);
+                }}
                 className="flat-input"
-                style={{ fontWeight: 700 }}
+                style={{
+                  fontWeight: 700,
+                  borderColor: timeValidationError ? 'var(--color-danger)' : undefined,
+                }}
               />
             </div>
 
@@ -227,9 +272,15 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
               <input
                 type="time"
                 value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
+                onChange={(e) => {
+                  setEndTime(e.target.value);
+                  setSlotError(null);
+                }}
                 className="flat-input"
-                style={{ fontWeight: 700 }}
+                style={{
+                  fontWeight: 700,
+                  borderColor: timeValidationError ? 'var(--color-danger)' : undefined,
+                }}
               />
             </div>
 
@@ -244,9 +295,27 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
             </Button>
           </div>
 
-          {errorMsg && (
+          {/* Live inline duration / time validation message */}
+          {timeValidationError && (
+            <div
+              style={{
+                marginTop: '0.625rem',
+                fontSize: '0.8125rem',
+                fontWeight: 700,
+                color: 'var(--color-danger)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+              }}
+            >
+              <AlertCircle size={14} strokeWidth={2.4} style={{ flexShrink: 0 }} />
+              <span>{timeValidationError}</span>
+            </div>
+          )}
+
+          {slotError && (
             <Alert variant="error" style={{ marginTop: '1rem' }}>
-              {errorMsg}
+              {slotError}
             </Alert>
           )}
         </div>
@@ -332,9 +401,9 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
             </Alert>
           )}
 
-          {errorMsg && (
+          {saveError && (
             <Alert variant="error">
-              {errorMsg}
+              {saveError}
             </Alert>
           )}
 
