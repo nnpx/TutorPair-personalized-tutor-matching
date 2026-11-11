@@ -3,7 +3,6 @@ import {
   type MatchRecommendationDto,
 } from '@tutorpair/shared';
 import {
-  ArrowLeft,
   BookOpen,
   Check,
   CheckCircle2,
@@ -18,7 +17,7 @@ import {
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Button, Card, Modal } from '../../components/ui';
+import { BackLink, Button, Card, Modal } from '../../components/ui';
 import { TutorDetailModal } from '../tutors/components/TutorDetailModal';
 import { useConfirmTutor, useMatchHistory } from './hooks/useMatching';
 
@@ -142,25 +141,7 @@ export const MatchHistoryPage: React.FC = () => {
     >
       {/* Back to Matching Hub Button */}
       <div>
-        <Link
-          to="/student/matching"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            color: '#4b5563',
-            textDecoration: 'none',
-            padding: '0.45rem 0.875rem',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: '#ffffff',
-            border: '2px solid var(--color-border)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <ArrowLeft size={16} strokeWidth={2.4} /> Back to Matching Hub
-        </Link>
+        <BackLink to="/student/matching">Back to Matching Hub</BackLink>
       </div>
 
       {/* Header with New Request CTA */}
