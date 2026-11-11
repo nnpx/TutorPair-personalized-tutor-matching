@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../services/api-client';
 import { Spinner } from '../../components/ui/Feedback';
@@ -32,6 +32,8 @@ export const AdminVerificationsPage: React.FC = () => {
   const [rejectError, setRejectError] = useState<string | null>(null);
   const [documentLoadingId, setDocumentLoadingId] = useState<string | null>(null);
   const [actionSuccessMessage, setActionSuccessMessage] = useState<string | null>(null);
+  const successTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  useEffect(() => () => clearTimeout(successTimer.current), []);
 
   // 1. Fetch Tutors in Verification Queue (for currently selected status)
   const {
@@ -116,7 +118,9 @@ export const AdminVerificationsPage: React.FC = () => {
           : 'Tutor application rejected. Feedback notification dispatched.'
       );
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      setTimeout(() => setActionSuccessMessage(null), 6000);
+      // Reset on every action so an earlier timer cannot clear a newer message.
+      clearTimeout(successTimer.current);
+      successTimer.current = setTimeout(() => setActionSuccessMessage(null), 6000);
     },
     onError: (err: any) => {
       const message =
