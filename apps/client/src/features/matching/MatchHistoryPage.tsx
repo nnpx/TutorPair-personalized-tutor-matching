@@ -14,6 +14,7 @@ import {
   PlusCircle,
   Sparkles,
   Star,
+  UserCheck,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
@@ -1198,6 +1199,11 @@ export const MatchHistoryPage: React.FC = () => {
                                 })
                               }
                             >
+                              <UserCheck
+                                size={18}
+                                strokeWidth={2.4}
+                                style={{ marginRight: '0.375rem' }}
+                              />
                               Confirm
                             </Button>
                           </div>
