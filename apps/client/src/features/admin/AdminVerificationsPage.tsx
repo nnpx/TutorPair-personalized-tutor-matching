@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import apiClient from '../../services/api-client';
 import { Spinner } from '../../components/ui/Feedback';
@@ -14,7 +14,8 @@ import {
   ShieldCheck,
   CheckCircle,
   XCircle,
-  ChevronRight,
+  ChevronDown,
+  ChevronUp,
   RefreshCw,
 } from 'lucide-react';
 
@@ -23,8 +24,7 @@ export const AdminVerificationsPage: React.FC = () => {
   const [selectedStatus, setSelectedStatus] = useState<VerificationStatus | 'ALL'>(
     VerificationStatus.PENDING
   );
-  const [selectedTutorId, setSelectedTutorId] = useState<string | null>(null);
-  const [isDetailManuallyClosed, setIsDetailManuallyClosed] = useState<boolean>(false);
+  const [expandedOverride, setExpandedTutorId] = useState<string | null | undefined>(undefined);
   const [rejectingTutorId, setRejectingTutorId] = useState<string | null>(null);
   const [approvingTutor, setApprovingTutor] = useState<{ id: string; name: string } | null>(null);
   const [confirmingRejectTutor, setConfirmingRejectTutor] = useState<{ id: string; name: string; reason: string } | null>(null);
@@ -75,15 +75,10 @@ export const AdminVerificationsPage: React.FC = () => {
     return counts;
   }, [allTutors]);
 
-  // FIFO auto-selection: When in PENDING queue and detail hasn't been manually closed,
-  // automatically select the oldest pending tutor (#1 in line) to review first.
-  useEffect(() => {
-    if (selectedStatus === VerificationStatus.PENDING && tutors.length > 0) {
-      if (!isDetailManuallyClosed && (!selectedTutorId || !tutors.some((t) => t.user_id === selectedTutorId))) {
-        setSelectedTutorId(tutors[0].user_id);
-      }
-    }
-  }, [selectedStatus, tutors, selectedTutorId, isDetailManuallyClosed]);
+  // Accordion: undefined = default (Pending tab auto-opens the oldest, #1 FIFO), null = user collapsed.
+  const defaultExpandedId =
+    selectedStatus === VerificationStatus.PENDING ? (tutors[0]?.user_id ?? null) : null;
+  const expandedTutorId = expandedOverride === undefined ? defaultExpandedId : expandedOverride;
 
 
   // 3. Mutation: Approve or Reject Tutor
@@ -107,11 +102,9 @@ export const AdminVerificationsPage: React.FC = () => {
       return res.data;
     },
     onSuccess: async (_data, variables) => {
-      setSelectedStatus(variables.status);
-      setSelectedTutorId(variables.tutorId);
-      setIsDetailManuallyClosed(false);
+      setExpandedTutorId(undefined);
+      queryClient.removeQueries({ queryKey: ['admin', 'tutor-detail', variables.tutorId] });
       await queryClient.refetchQueries({ queryKey: ['admin', 'tutors'] });
-      await queryClient.refetchQueries({ queryKey: ['admin', 'tutor-detail', variables.tutorId] });
       setRejectingTutorId(null);
       setApprovingTutor(null);
       setConfirmingRejectTutor(null);
@@ -212,6 +205,8 @@ export const AdminVerificationsPage: React.FC = () => {
             padding: '0.5rem',
             borderRadius: 'var(--radius-md)',
             width: 'fit-content',
+            maxWidth: '100%',
+            flexWrap: 'wrap',
           }}
         >
           {[
@@ -243,8 +238,7 @@ export const AdminVerificationsPage: React.FC = () => {
                 key={tab.value}
                 onClick={() => {
                   setSelectedStatus(tab.value as any);
-                  setSelectedTutorId(null);
-                  setIsDetailManuallyClosed(false);
+                  setExpandedTutorId(undefined);
                 }}
                 style={{
                   padding: '0.625rem 1.125rem',
@@ -306,14 +300,6 @@ export const AdminVerificationsPage: React.FC = () => {
       {/* ──────────────────────────────────────────────────────────── */}
       {/* MAIN TWO-COLUMN WORKBENCH                                    */}
       {/* ──────────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: selectedTutorId ? '1.1fr 1.3fr' : '1fr',
-          gap: '2rem',
-          alignItems: 'start',
-        }}
-      >
         {/* Left: Queue Applications List */}
         <div className="flat-card" style={{ padding: '2rem' }}>
           <div
@@ -368,27 +354,29 @@ export const AdminVerificationsPage: React.FC = () => {
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {tutors.map((tutor, index) => {
-                const isSelected = selectedTutorId === tutor.user_id;
+                const isExpanded = expandedTutorId === tutor.user_id;
+                const panelId = `tutor-panel-${tutor.user_id}`;
                 const isFifoPending = selectedStatus === VerificationStatus.PENDING;
                 return (
                   <div
                     key={tutor.user_id}
-                    onClick={() => {
-                      setSelectedTutorId(tutor.user_id);
-                      setIsDetailManuallyClosed(false);
-                    }}
                     style={{
-                      border: isSelected
+                      border: isExpanded
                         ? '3px solid var(--color-primary)'
                         : '2px solid var(--color-border)',
-                      backgroundColor: isSelected ? 'var(--color-primary-tint)' : 'var(--bg-canvas)',
+                      backgroundColor: isExpanded ? 'var(--color-primary-tint)' : 'var(--bg-canvas)',
                       borderRadius: 'var(--radius-lg)',
                       padding: '1.25rem 1.5rem',
-                      cursor: 'pointer',
+                      position: 'relative',
+                    }}
+                  >
+                  <div
+                    style={{
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
-                      position: 'relative',
+                      gap: '1rem',
+                      flexWrap: 'wrap',
                     }}
                   >
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
@@ -428,7 +416,7 @@ export const AdminVerificationsPage: React.FC = () => {
                           gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
                           gap: '0.75rem 1.25rem',
                           padding: '0.875rem 1rem',
-                          backgroundColor: isSelected ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-bg)',
+                          backgroundColor: isExpanded ? 'rgba(255, 255, 255, 0.7)' : 'var(--color-bg)',
                           borderRadius: 'var(--radius-md)',
                           border: '1px solid var(--color-border)',
                         }}
@@ -541,53 +529,56 @@ export const AdminVerificationsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span
-                        style={{
-                          fontSize: '0.9375rem',
-                          fontWeight: 700,
-                          color: isSelected ? 'var(--color-primary)' : '#6b7280',
+                    <button
+                      type="button"
+                      onClick={() => setExpandedTutorId(isExpanded ? null : tutor.user_id)}
+                      aria-expanded={isExpanded}
+                      aria-controls={panelId}
+                      className="flat-btn flat-btn-secondary flat-btn-sm"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {isExpanded ? 'Hide' : 'Inspect'}
+                      {isExpanded ? (
+                        <ChevronUp size={18} aria-hidden="true" />
+                      ) : (
+                        <ChevronDown size={18} aria-hidden="true" />
+                      )}
+                    </button>
+                  </div>
+
+                  {isExpanded && (
+                    <div id={panelId} style={{ marginTop: '1.5rem' }}>
+                      <TutorDetailPanel
+                        tutorId={tutor.user_id}
+                        isMutating={verifyMutation.isPending}
+                        documentLoadingId={documentLoadingId}
+                        rejectingTutorId={rejectingTutorId}
+                        rejectionReason={rejectionReason}
+                        rejectError={rejectError}
+                        onApprove={setApprovingTutor}
+                        onStartReject={(t) => {
+                          setRejectingTutorId(t.user_id);
+                          setRejectionReason(t.rejection_reason || '');
+                          setRejectError(null);
                         }}
-                      >
-                        Inspect
-                      </span>
-                      <ChevronRight
-                        size={20}
-                        style={{ color: isSelected ? 'var(--color-primary)' : '#9ca3af' }}
+                        onCancelReject={() => setRejectingTutorId(null)}
+                        onRejectionReasonChange={setRejectionReason}
+                        onRejectSubmit={handleRejectSubmit}
+                        onViewDocument={handleViewDocument}
                       />
                     </div>
+                  )}
                   </div>
                 );
               })}
             </div>
           )}
         </div>
-
-        {selectedTutorId && (
-          <TutorDetailPanel
-            tutorId={selectedTutorId}
-            isMutating={verifyMutation.isPending}
-            documentLoadingId={documentLoadingId}
-            rejectingTutorId={rejectingTutorId}
-            rejectionReason={rejectionReason}
-            rejectError={rejectError}
-            onClose={() => {
-              setSelectedTutorId(null);
-              setIsDetailManuallyClosed(true);
-            }}
-            onApprove={setApprovingTutor}
-            onStartReject={(t) => {
-              setRejectingTutorId(t.user_id);
-              setRejectionReason(t.rejection_reason || '');
-              setRejectError(null);
-            }}
-            onCancelReject={() => setRejectingTutorId(null)}
-            onRejectionReasonChange={setRejectionReason}
-            onRejectSubmit={handleRejectSubmit}
-            onViewDocument={handleViewDocument}
-          />
-        )}
-      </div>
 
       {/* Flat Design Approval Confirmation Modal */}
       <Modal

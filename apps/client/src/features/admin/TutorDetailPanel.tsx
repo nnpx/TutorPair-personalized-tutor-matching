@@ -64,7 +64,6 @@ export interface TutorDetailPanelProps {
   rejectingTutorId: string | null;
   rejectionReason: string;
   rejectError: string | null;
-  onClose: () => void;
   onApprove: (tutor: { id: string; name: string }) => void;
   onStartReject: (tutor: AdminTutorDetailDto) => void;
   onCancelReject: () => void;
@@ -80,7 +79,6 @@ export const TutorDetailPanel: React.FC<TutorDetailPanelProps> = ({
   rejectingTutorId,
   rejectionReason,
   rejectError,
-  onClose,
   onApprove,
   onStartReject,
   onCancelReject,
@@ -107,14 +105,14 @@ export const TutorDetailPanel: React.FC<TutorDetailPanelProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
             {isDetailLoading ? (
-              <div className="flat-card" style={{ padding: '3.5rem', textAlign: 'center' }}>
+              <div className="flat-card-muted" style={{ padding: '3.5rem', textAlign: 'center' }}>
                 <Spinner size={36} />
                 <p style={{ marginTop: '0.75rem', color: '#6b7280', fontWeight: 600 }}>
                   Loading tutor profile details...
                 </p>
               </div>
             ) : isDetailError || !tutorDetail ? (
-              <div className="flat-card" style={{ padding: '2.5rem', textAlign: 'center' }}>
+              <div className="flat-card-muted" style={{ padding: '2.5rem', textAlign: 'center' }}>
                 <div style={{ display: 'inline-flex', color: '#ef4444', marginBottom: '0.75rem' }}>
                   <AlertCircle size={36} />
                 </div>
@@ -135,58 +133,14 @@ export const TutorDetailPanel: React.FC<TutorDetailPanelProps> = ({
               </div>
             ) : (
               <div
-                className="flat-card"
                 style={{
-                  padding: '2.25rem',
+                  borderTop: '2px solid var(--color-border)',
+                  paddingTop: '1.5rem',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '1.75rem',
                 }}
               >
-                {/* Header with Name & Actions */}
-                <div
-                  style={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'flex-start',
-                    borderBottom: '2px solid var(--color-border)',
-                    paddingBottom: '1.25rem',
-                  }}
-                >
-                  <div>
-                    <span
-                      className="flat-badge flat-badge-secondary"
-                      style={{ marginBottom: '0.4rem' }}
-                    >
-                      Applicant Review
-                    </span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <h3 style={{ fontSize: '1.75rem', fontWeight: 800 }}>
-                        {tutorDetail.first_name} {tutorDetail.last_name}
-                      </h3>
-                      {renderStatusBadge(tutorDetail.verification_status)}
-                    </div>
-                    <p
-                      style={{
-                        color: '#4b5563',
-                        fontSize: '0.9375rem',
-                        fontWeight: 500,
-                        marginTop: '0.25rem',
-                      }}
-                    >
-                      {tutorDetail.email} • Phone: {tutorDetail.phone_number}
-                    </p>
-                  </div>
-
-                  <button
-                    onClick={onClose}
-                    className="flat-btn flat-btn-secondary flat-btn-sm"
-                    style={{ fontWeight: 700 }}
-                  >
-                    Close
-                  </button>
-                </div>
-
                 {/* Profile Overview (Poster Color Block Box) */}
                 <div
                   className="flat-card-muted"
@@ -519,6 +473,7 @@ export const TutorDetailPanel: React.FC<TutorDetailPanelProps> = ({
                   style={{
                     display: 'flex',
                     gap: '1rem',
+                    flexWrap: 'wrap',
                     borderTop: '2px solid var(--color-border)',
                     paddingTop: '1.5rem',
                   }}
@@ -533,7 +488,7 @@ export const TutorDetailPanel: React.FC<TutorDetailPanelProps> = ({
                     }
                     className="flat-btn flat-btn-lg"
                     style={{
-                      flex: 1,
+                      flex: '1 1 12rem',
                       backgroundColor: 'var(--color-secondary)',
                       color: 'var(--color-white)',
                       display: 'inline-flex',
@@ -552,7 +507,7 @@ export const TutorDetailPanel: React.FC<TutorDetailPanelProps> = ({
                     onClick={() => onStartReject(tutorDetail)}
                     className="flat-btn flat-btn-lg"
                     style={{
-                      flex: 1,
+                      flex: '1 1 12rem',
                       backgroundColor: 'var(--color-danger)',
                       color: 'var(--color-white)',
                       display: 'inline-flex',
