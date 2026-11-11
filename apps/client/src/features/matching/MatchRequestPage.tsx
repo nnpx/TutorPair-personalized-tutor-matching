@@ -665,7 +665,7 @@ export const MatchRequestPage: React.FC = () => {
 
         {/* 3-Step Cascading Subject Selector */}
         <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 800, color: 'var(--fg-main)', marginBottom: '0.625rem' }}>
+          <label style={{ display: 'block', fontSize: '1.0625rem', fontWeight: 800, color: 'var(--fg-main)', marginBottom: '0.625rem' }}>
             Target Subject & Goal Variant *
           </label>
           <StudentSubjectSelector
