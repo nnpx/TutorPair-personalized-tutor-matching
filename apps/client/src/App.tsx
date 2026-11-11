@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { fetchAuthSession } from 'aws-amplify/auth';
 import { AuthLayout } from './layouts/AuthLayout';
 import { StudentLayout } from './layouts/StudentLayout';
 import { TutorLayout } from './layouts/TutorLayout';
@@ -19,8 +20,27 @@ import {
 import { AdminVerificationsPage } from './features/admin/AdminVerificationsPage';
 import { ReviewSubmissionPage } from './features/reviews/ReviewSubmissionPage';
 import { UserRole } from '@tutorpair/shared';
+import apiClient from './services/api-client';
+import { useAuthStore } from './store/auth.store';
+import type { ApiResponse } from '@tutorpair/shared';
 
 export const App: React.FC = () => {
+  useEffect(() => {
+    if (!import.meta.env.PROD || window.location.pathname === '/login') return;
+    let active = true;
+    void (async () => {
+      try {
+        const session = await fetchAuthSession();
+        if (!session.tokens?.idToken) throw new Error('No Cognito session');
+        const response = await apiClient.get<ApiResponse<{ id: string; email: string; role: UserRole; cognito_sub: string }>>('/api/auth/me');
+        if (active && response.data.data) useAuthStore.getState().setUser(response.data.data);
+      } catch {
+        if (active) useAuthStore.getState().clearAuth();
+      }
+    })();
+    return () => { active = false; };
+  }, []);
+
   return (
     <Routes>
       {/* Public Landing Page */}

@@ -1,6 +1,6 @@
 # TutorPair API Specification
 
-> **Base URL:** `http://localhost:4000/api` (local) | `https://api.tutorpair.com/api` (production)
+> **Base URL:** `http://localhost:4000/api` (local) | `VITE_API_BASE_URL + /api` (production; configure with the actual HTTPS API origin)
 >
 > **Authentication:** `Authorization: Bearer <cognito-jwt>`  
 > Local mock bypass: `Authorization: Bearer mock-token-<user-id>` (see [`AUTH_FLOW.md`](./AUTH_FLOW.md))

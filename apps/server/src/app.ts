@@ -13,6 +13,7 @@ import { documentsRouter } from './modules/documents/documents.routes.js';
 import { adminRouter } from './modules/admin/admin.routes.js';
 import { matchingRouter } from './modules/matching/matching.routes.js';
 import { reviewsRouter } from './modules/reviews/reviews.routes.js';
+import { pool } from './db/client.js';
 
 export function createApp(): Express {
   const app = express();
@@ -25,11 +26,11 @@ export function createApp(): Express {
     });
   }
 
-  // CORS Configuration - allows both port 5173, 5174, dev tools, or configured origin
+  // Local development accepts localhost origins; production accepts only ALLOWED_ORIGIN.
   app.use(
     cors({
       origin: (origin, callback) => {
-        if (!origin || env.NODE_ENV === 'development' || origin.startsWith('http://localhost:') || origin === env.ALLOWED_ORIGIN) {
+        if (!origin || env.NODE_ENV === 'development' || origin === env.ALLOWED_ORIGIN) {
           callback(null, true);
         } else {
           callback(new Error('Not allowed by CORS'));
@@ -48,6 +49,28 @@ export function createApp(): Express {
   // Health check endpoint (used by ECS ALB / target group)
   app.get('/api/health', (_req, res) => {
     res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+
+  app.get('/api/ready', async (_req, res) => {
+    // Do not enqueue readiness probes behind a saturated pool.
+    if (pool.waitingCount > 0 || (pool.idleCount === 0 && pool.totalCount >= env.DB_POOL_MAX)) {
+      res.status(503).json({ status: 'not_ready', database: 'unavailable' });
+      return;
+    }
+    let timeout: NodeJS.Timeout | undefined;
+    try {
+      await Promise.race([
+        pool.query('SELECT 1'),
+        new Promise<never>((_resolve, reject) => {
+          timeout = setTimeout(() => reject(new Error('Readiness probe timed out')), 5_000);
+        }),
+      ]);
+      res.status(200).json({ status: 'ready', database: 'ok' });
+    } catch {
+      res.status(503).json({ status: 'not_ready', database: 'unavailable' });
+    } finally {
+      if (timeout) clearTimeout(timeout);
+    }
   });
 
   app.use('/api/notifications', notificationRouter);

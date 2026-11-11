@@ -212,6 +212,36 @@ describe('Auth Module — Integration Tests (Module 2)', () => {
         createdUserIds.push(json.data.id);
       }
     });
+
+    it('should reject an invalid Cognito token before account creation', async () => {
+      const res = await fetch(`${baseUrl}/api/auth/sync`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: 'Bearer not.a.valid.jwt' },
+        body: JSON.stringify({ role: UserRole.STUDENT }),
+      });
+      assert.equal(res.status, 401);
+    });
+
+    it('should safely resolve concurrent first-login sync attempts to one immutable user', async () => {
+      const sub = `auth-test-concurrent-${timestamp}`;
+      const email = `concurrent-${timestamp}@test.tutorpair.local`;
+      const sync = (role: UserRole.STUDENT | UserRole.TUTOR) => fetch(`${baseUrl}/api/auth/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer mock-token-${sub}`,
+          'X-Mock-Email': email,
+        },
+        body: JSON.stringify({ role }),
+      });
+      const responses = await Promise.all([sync(UserRole.STUDENT), sync(UserRole.TUTOR)]);
+      assert.deepEqual(responses.map((response) => response.status).sort(), [200, 201]);
+      const bodies = await Promise.all(responses.map((response) => getJson<{ id: string; role: UserRole }>(response)));
+      assert.equal(bodies[0].data?.id, bodies[1].data?.id);
+      assert.equal(bodies[0].data?.role, bodies[1].data?.role);
+      const id = bodies[0].data?.id;
+      if (id) createdUserIds.push(id);
+    });
   });
 
   describe('GET /api/auth/me & GET /api/users/me', () => {

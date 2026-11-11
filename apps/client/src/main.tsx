@@ -6,13 +6,28 @@ import { Amplify } from 'aws-amplify';
 import App from './App';
 import './index.css';
 
-// Configure AWS Amplify Auth if environment variables are provided
-if (import.meta.env.VITE_COGNITO_USER_POOL_ID && import.meta.env.VITE_COGNITO_CLIENT_ID) {
+const { VITE_COGNITO_USER_POOL_ID, VITE_COGNITO_CLIENT_ID, VITE_AWS_REGION, VITE_COGNITO_DOMAIN } = import.meta.env;
+if (import.meta.env.PROD && (!VITE_COGNITO_USER_POOL_ID || !VITE_COGNITO_CLIENT_ID || !VITE_AWS_REGION || !VITE_COGNITO_DOMAIN)) {
+  throw new Error('Production builds require VITE_COGNITO_USER_POOL_ID, VITE_COGNITO_CLIENT_ID, VITE_AWS_REGION, and VITE_COGNITO_DOMAIN.');
+}
+if (VITE_COGNITO_USER_POOL_ID && VITE_AWS_REGION && !VITE_COGNITO_USER_POOL_ID.startsWith(`${VITE_AWS_REGION}_`)) {
+  throw new Error('VITE_AWS_REGION must match the region in VITE_COGNITO_USER_POOL_ID.');
+}
+if (VITE_COGNITO_USER_POOL_ID && VITE_COGNITO_CLIENT_ID && VITE_AWS_REGION && VITE_COGNITO_DOMAIN) {
   Amplify.configure({
     Auth: {
       Cognito: {
-        userPoolId: import.meta.env.VITE_COGNITO_USER_POOL_ID,
-        userPoolClientId: import.meta.env.VITE_COGNITO_CLIENT_ID,
+        userPoolId: VITE_COGNITO_USER_POOL_ID,
+        userPoolClientId: VITE_COGNITO_CLIENT_ID,
+        loginWith: {
+          oauth: {
+            domain: VITE_COGNITO_DOMAIN,
+            scopes: ['openid', 'email', 'profile'],
+            redirectSignIn: [`${window.location.origin}/login`],
+            redirectSignOut: [`${window.location.origin}/login`],
+            responseType: 'code',
+          },
+        },
       },
     },
   });

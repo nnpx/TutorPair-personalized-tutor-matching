@@ -254,8 +254,10 @@ Vite exposes env vars prefixed with `VITE_` to the frontend bundle.
 | `VITE_COGNITO_USER_POOL_ID` | AWS Cognito User Pool ID |
 | `VITE_COGNITO_CLIENT_ID` | AWS Cognito App Client ID |
 | `VITE_AWS_REGION` | e.g., `ap-southeast-1` |
+| `VITE_COGNITO_DOMAIN` | Cognito managed login domain hostname (no `https://`) for the authorization-code flow |
 
 Create a `.env.local` file in `apps/client/` from the `.env.example` template. Never commit it.
+Production Amplify builds must set all four Cognito variables and `VITE_API_BASE_URL` to the actual public HTTPS API origin. Do not use a client secret or database/AWS credentials in `VITE_*` settings. After Amplify assigns its HTTPS hostname, enter `https://<assigned-amplify-hostname>/login` as both the Cognito app client's callback URL and sign-out URL; the app uses `/login` to complete the hosted authorization-code redirect.
 
 ---
 
