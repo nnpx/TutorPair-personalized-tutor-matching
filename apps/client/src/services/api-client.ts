@@ -2,8 +2,14 @@ import axios from 'axios';
 import { fetchAuthSession } from '@aws-amplify/auth';
 import { useAuthStore } from '../store/auth.store';
 
+const isProduction = import.meta.env.PROD;
+const configuredBaseUrl = import.meta.env.VITE_API_BASE_URL?.trim();
+if (isProduction && (!configuredBaseUrl || !configuredBaseUrl.startsWith('https://'))) {
+  throw new Error('Production builds require an HTTPS VITE_API_BASE_URL.');
+}
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:4000',
+  baseURL: configuredBaseUrl || (import.meta.env.DEV ? 'http://localhost:4000' : undefined),
   headers: {
     'Content-Type': 'application/json',
   },
@@ -11,12 +17,19 @@ export const apiClient = axios.create({
 
 // Interceptor to attach Cognito ID token or retained authentication token
 apiClient.interceptors.request.use(async (config) => {
-  // If an Authorization header was already explicitly provided on this request, preserve it
-  if (config.headers.Authorization) {
+  if (isProduction) {
+    // Never forward manually supplied or persisted mock credentials to a hosted API.
+    delete config.headers.Authorization;
+    const session = await fetchAuthSession({ forceRefresh: true });
+    const token = session.tokens?.idToken?.toString();
+    if (!token) throw new Error('Sign in is required to call the TutorPair API.');
+    config.headers.Authorization = `Bearer ${token}`;
     return config;
   }
 
-  // 1. In production / cloud, attempt to fetch live AWS Cognito ID token
+  if (config.headers.Authorization) return config;
+
+  // Local development can optionally use a configured Cognito session.
   try {
     const session = await fetchAuthSession();
     const cognitoToken = session.tokens?.idToken?.toString();

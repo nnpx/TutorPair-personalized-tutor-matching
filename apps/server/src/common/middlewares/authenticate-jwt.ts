@@ -5,6 +5,7 @@ import { User } from '../../db/schema/index.js';
 import { authRepository } from '../../modules/auth/auth.repository.js';
 import { env } from '../../config/env.js';
 import { asyncHandler } from '../utils/async-handler.js';
+import { isMockTokenAllowed } from '../utils/auth-mode.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -33,12 +34,13 @@ export const authenticate = asyncHandler(
     let cognitoEmail: string | undefined;
 
     // Strict security check: reject mock tokens in production
-    if (env.NODE_ENV === 'production' && token.startsWith('mock-token-')) {
+    const isMockToken = token.startsWith('mock-token-');
+    if (isMockToken && !isMockTokenAllowed(env.NODE_ENV, token)) {
       throw new UnauthorizedError('Mock authentication is disabled in production');
     }
 
     // Support mock token for local testing without AWS Cognito
-    if ((env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && token.startsWith('mock-token-')) {
+    if (isMockTokenAllowed(env.NODE_ENV, token)) {
       cognitoSub = token.replace('mock-token-', '');
       cognitoEmail =
         typeof req.headers['x-mock-email'] === 'string' && req.headers['x-mock-email'].trim()
@@ -59,13 +61,13 @@ export const authenticate = asyncHandler(
     // Store verified identity claims from Cognito/Mock
     req.cognitoUser = {
       sub: cognitoSub,
-      email: cognitoEmail || `${cognitoSub}@tutorpair.local`,
+      email: cognitoEmail || (isMockToken ? `${cognitoSub}@tutorpair.local` : ''),
     };
 
     // Lookup user via Repository layer (encapsulates Drizzle ORM / SQL query)
     let user = await authRepository.findByCognitoSub(cognitoSub);
     // Defensive fallback for local dev / tests: if token was passed as mock-token-<uuid>
-    if (!user && (env.NODE_ENV === 'development' || env.NODE_ENV === 'test') && UUID_REGEX.test(cognitoSub)) {
+    if (!user && isMockTokenAllowed(env.NODE_ENV, token) && UUID_REGEX.test(cognitoSub)) {
       user = await authRepository.findById(cognitoSub);
       if (user) {
         req.cognitoUser = {

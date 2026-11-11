@@ -1,4 +1,5 @@
 import { ApiResponse, UserRole } from '@tutorpair/shared';
+import { fetchAuthSession, signInWithRedirect } from 'aws-amplify/auth';
 import {
   ChevronDown,
   ChevronUp,
@@ -47,7 +48,7 @@ const GoogleIcon: React.FC<{ size?: number }> = ({ size = 20 }) => (
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { user, setUser } = useAuthStore();
+  const { user, setUser, setAuth } = useAuthStore();
 
   const modeParam = searchParams.get('mode');
   const roleParam = searchParams.get('role');
@@ -66,6 +67,33 @@ export const LoginPage: React.FC = () => {
   // Development Mock Tools State
   const [showDevPanel, setShowDevPanel] = useState(false);
   const [customMockEmail, setCustomMockEmail] = useState('');
+
+  // Amplify completes the authorization-code callback during app startup. Sync
+  // that Cognito identity and hydrate the application role after the redirect.
+  useEffect(() => {
+    if (!import.meta.env.PROD) return;
+    let active = true;
+    void (async () => {
+      try {
+        const session = await fetchAuthSession();
+        if (!session.tokens?.idToken) return;
+        const pendingRole = sessionStorage.getItem('tutorpair-pending-role');
+        const response = pendingRole
+          ? await apiClient.post<ApiResponse<{ id: string; email: string; role: UserRole; cognito_sub: string }>>(
+            '/api/auth/sync', { role: pendingRole === UserRole.TUTOR ? UserRole.TUTOR : selectedRole },
+          )
+          : await apiClient.get<ApiResponse<{ id: string; email: string; role: UserRole; cognito_sub: string }>>('/api/auth/me');
+        if (!active || !response.data.data) return;
+        sessionStorage.removeItem('tutorpair-pending-role');
+        const synced = response.data.data;
+        setAuth({ id: synced.id, email: synced.email, role: synced.role, cognito_sub: synced.cognito_sub }, null);
+        routeByRole(synced.role);
+      } catch {
+        // No Cognito session is normal before the user starts sign-in.
+      }
+    })();
+    return () => { active = false; };
+  }, [user, selectedRole]);
 
   const routeByRole = (role: UserRole) => {
     if (role === UserRole.STUDENT) {
@@ -103,8 +131,8 @@ export const LoginPage: React.FC = () => {
 
   /**
    * Google Authentication Action
-   * In local/dev mock mode: Performs mock authentication cycle.
-   * In cloud/production: Will trigger Amplify signInWithRedirect({ provider: 'Google' }).
+   * Production uses Cognito's hosted Google authorization-code flow. Local
+   * development keeps the deterministic mock-backed preview flow.
    */
   const handleGoogleAuth = async () => {
     setIsLoading(true);
@@ -113,6 +141,12 @@ export const LoginPage: React.FC = () => {
     queryClient.removeQueries();
 
     try {
+      if (import.meta.env.PROD) {
+        sessionStorage.setItem('tutorpair-pending-role', selectedRole);
+        await signInWithRedirect({ provider: 'Google' });
+        return;
+      }
+      if (!import.meta.env.DEV) throw new Error('Mock authentication is available only in local development.');
       // 1. In development, use mock identity simulation
       const fallbackEmail = `${selectedRole.toLowerCase()}@tutorpair.local`;
       const email =

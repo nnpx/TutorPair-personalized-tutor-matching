@@ -553,3 +553,108 @@ The developer subsequently deleted the unused public `tutorpair.com` Route 53 ho
 
 Frontend deployment readiness was checked before creating an Amplify app. The repository has an `amplify.yml` monorepo build specification, but `LoginPage.tsx` still constructs `mock-token-...` for its Google button, and the frontend API client defaults to `http://localhost:4000` without `VITE_API_BASE_URL`. Thus an Amplify build alone would not provide a functional cloud login or browser API flow. Complete production Cognito login and a browser-valid HTTPS API route before describing the hosted app as usable.
 
+## 2026-11-11 — Local Cognito and Amplify frontend integration implemented
+
+**Performed by:** Codex in the local repository. **AWS status:** No AWS resource or Cognito setting was changed. This entry records code changes only; it does not claim deployment or end-to-end cloud verification.
+
+The frontend now configures Amplify Auth from public `VITE_AWS_REGION`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, and `VITE_COGNITO_DOMAIN` values and uses Cognito's Google authorization-code redirect. The `/login` callback syncs the selected `STUDENT` or `TUTOR` role through `/api/auth/sync`; startup restores a Cognito session through `/api/auth/me`. Hosted API requests require HTTPS `VITE_API_BASE_URL` and a refreshed Cognito ID token; the production client cannot use its local URL or stored mock credentials. Local mock login remains a development-only flow. Backend sync uses Cognito JWT verification, preserves the first database role, rejects public `ADMIN` registration, and safely resolves concurrent insert races using existing unique constraints.
+
+The Cognito pool `ap-southeast-1_sYIuVgJx5` and SPA client `irch38183ksbnqcgabscq78oo` are the configured pilot identifiers. Amplify Hosting has not assigned a TutorPair HTTPS hostname, no HTTPS API URL exists, and Google login has not been tested end-to-end. After Amplify assigns its HTTPS hostname, set both Cognito callback and logout URLs to `https://<assigned-amplify-hostname>/login` (replace the placeholder with the actual assigned hostname). Set Amplify build variables `VITE_API_BASE_URL` (actual HTTPS API origin), `VITE_AWS_REGION=ap-southeast-1`, `VITE_COGNITO_USER_POOL_ID=ap-southeast-1_sYIuVgJx5`, `VITE_COGNITO_CLIENT_ID=irch38183ksbnqcgabscq78oo`, and `VITE_COGNITO_DOMAIN` (the configured Cognito managed login domain hostname without scheme). Do not enter a client secret. The actual Amplify hostname, API origin, and Cognito domain value remain pending; callback/logout settings must not be changed until the hostname exists.
+
+The private pilot database already contains migrations and reference data; no migration or seed was run for this work. Local automated test/build outcomes are recorded in the task report after verification. AWS deployment and browser verification remain pending.
+
+A subsequent read-only ECR check found that the newest pilot repository image is still the pre-auth reference-seed image `sha256:f9809288af59bab2287746bcbe8d99548d246be6a4568f50f1d70e146c24b652`. The Cognito/API code changes therefore need a new tested, pushed, scanned immutable API image before ECS deployment. The pilot cluster is active. Both public subnets have `MapPublicIpOnLaunch=false`, so ECS service network configuration must explicitly set `assignPublicIp=ENABLED` for the selected public-subnet layout.
+
+## 2026-11-11 — API target group created
+
+**Performed by:** Human developer in the AWS console. **Evidence:** Developer-provided review and success screenshots.
+
+Target group `tutorpair-pilot-api-tg` was created in `ap-southeast-1` with ARN `arn:aws:elasticloadbalancing:ap-southeast-1:528301714999:targetgroup/tutorpair-pilot-api-tg/911e281600473417`. It uses IP/IPv4 targets, HTTP port 4000, HTTP1, and pilot VPC `vpc-09afdab2ced554af7`. The review screen showed HTTP health checks on `/api/ready`, traffic-port, 30-second interval, 5-second timeout, healthy threshold 5, unhealthy threshold 2, and success code 200. The details screen shows creation success, no load balancer associated, and zero registered targets, which is expected before an ECS service is attached. No ALB was created by this step.
+
+## 2026-11-11 — Pilot cost estimate prepared without calculator entry
+
+**Performed by:** Codex using read-only AWS resource, Cost Explorer, and AWS Pricing API queries. The developer chose not to enter each resource in the interactive calculator. This is a planning estimate, not an AWS bill or a saved calculator estimate.
+
+Live RDS configuration is `db.t4g.small`, Single-AZ, 20 GiB gp3, seven-day backup retention, and private access. No ECS service exists. For a conservative **216 hours** (nine full days through 19 November), one Linux/x86 Fargate API task at 0.5 vCPU/1 GiB, one ALB, up to one ALB LCU, and three public IPv4 addresses (two ALB, one ECS task), current Singapore AWS list rates yield:
+
+| Item | Rate and assumption | Nine-day estimate |
+|---|---|---:|
+| RDS compute | $0.051/hour | $11.02 |
+| RDS 20 GiB gp3 storage | $0.138/GiB-month, 9/30 month | $0.83 |
+| ALB base | $0.0252/hour | $5.44 |
+| ALB capacity | Up to 1 LCU at $0.008/hour | $1.73 |
+| ECS Fargate | 0.5 × $0.05056/vCPU-hour + 1 × $0.00553/GB-hour | $6.66 |
+| Public IPv4 | 3 × $0.005/hour | $3.24 |
+| **Fixed/assumed subtotal** | | **$28.92** |
+
+The subtotal excludes CloudFront requests/transfer, Amplify builds/hosting, S3, logs, SES, Secrets Manager, backup overage, taxes, RDS CPU credit overage, deployment overlap, and resources retained after 19 November. Those require measured use or explicit allowance; a rough **$10–$20** variable reserve would put a light-traffic planning range near **$39–$49**, not a cap. CloudFront may have free allowances, but this shared account's eligibility and other usage have not been attributed to TutorPair. The ALB and API ECS service are not yet running, so their projected charges have not started.
+
+Cost Explorer returned **$240.35 USD** for 1–11 November across selected services in the *entire shared account*. It does not identify TutorPair resources and must not be treated as TutorPair spend or remaining pilot budget. The agreed ฿4,000 cap cannot be certified from this unallocated account-wide number. No paid resource was created during this estimate.
+
+Pricing sources: [AWS ALB](https://aws.amazon.com/elasticloadbalancing/pricing/), [AWS Fargate](https://aws.amazon.com/fargate/pricing/), [AWS RDS](https://aws.amazon.com/rds/postgresql/pricing/), [AWS public IPv4](https://aws.amazon.com/vpc/pricing/), and [AWS CloudFront](https://aws.amazon.com/cloudfront/pricing/). The unit rates above were retrieved from AWS Pricing API for `ap-southeast-1` on 11 November 2026.
+
+## 2026-11-11 — Post-auth API image built locally
+
+**Performed by:** Human developer from the current working tree. **Cloud status:** Not pushed to ECR.
+
+`docker build --platform linux/amd64 --provenance=false --sbom=false -t tutorpair-server:pilot-auth-20261111 -f Dockerfile .` completed successfully. Docker image inspection reported `linux/amd64` and local image ID `sha256:3ba1d4a1d2c634c6c66d0997e2845f55c3afbcf5e88bbb72bf13f8f445e92f1c`. The build included shared/server compilation and migration SQL/entry-point checks. This image contains the current local working tree, including uncommitted auth changes; it is not yet an ECR image, has not been scanned, and has not been run as the pilot API.
+
+The developer tagged the image for pilot ECR. Two `docker login` attempts failed when Docker's Windows credential helper returned `The stub received bad data`, including one attempt with a fresh temporary `DOCKER_CONFIG` directory. Codex then used a short-lived AWS ECR authorization token in a separate temporary file-based Docker config to push the already tagged image; the temporary credential directory was removed in a `finally` block after the push. No token or secret value was printed or recorded.
+
+ECR tag `pilot-auth-20261111-amd64` now has immutable digest `sha256:3ba1d4a1d2c634c6c66d0997e2845f55c3afbcf5e88bbb72bf13f8f445e92f1c` and a single-platform OCI image manifest. A manually started ECR basic scan completed with no reported severity findings (`{}`). This scan only covers findings detected by ECR basic scanning. No ECS API task or service was started.
+
+## 2026-11-11 — Pilot API load balancer created
+
+**Performed by:** Human developer in the EC2 console. **Evidence:** Developer-provided review and success screenshots, followed by read-only AWS CLI verification.
+
+Application Load Balancer `tutorpair-pilot-api-alb` has ARN `arn:aws:elasticloadbalancing:ap-southeast-1:528301714999:loadbalancer/app/tutorpair-pilot-api-alb/5b8b7091cbcb92a6` and DNS name `tutorpair-pilot-api-alb-1963567001.ap-southeast-1.elb.amazonaws.com`. It is internet-facing, IPv4, in VPC `vpc-09afdab2ced554af7`, across public subnets `subnet-0d62a470014fdd6cc` and `subnet-0200e4aade29adfb1`, with only `tutorpair-pilot-alb-sg` (`sg-0b915083597584494`). The single HTTP:80 listener forwards 100% to `tutorpair-pilot-api-tg` with stickiness off. Optional automatic CloudFront/WAF, WAF, and Global Accelerator integrations were left off. An AWS CLI waiter subsequently confirmed the ALB reached `active`; no ECS targets are registered yet. This ALB has started accruing hourly and public IPv4 charges. Its AWS-generated DNS name is not a browser-valid HTTPS API URL by itself.
+
+The CloudFront creation walkthrough reached the custom origin settings but did **not** create a distribution. A security review found that the proposed Free-plan CloudFront → public ALB HTTP path would carry authenticated API traffic over an unencrypted origin hop. AWS's CloudFront flat-rate feature matrix also reserves VPC origins for Business/Premium plans; the Free plan cannot provide the proposed private-origin alternative. Do not deploy the API through that HTTP public origin. A domain-free secure path needs a revised design, such as pay-as-you-go CloudFront with a VPC origin and internal ALB, before continuing the wizard. The public ALB remains active and chargeable until explicitly removed or replaced.
+
+The developer returned to the CloudFront plan selector and selected pay-as-you-go; no distribution was created. Read-only checks confirmed the public ALB's target group had zero registered targets and the ECS cluster had zero services. Codex then deleted the unused public ALB, and the AWS waiter confirmed deletion. Its target group `tutorpair-pilot-api-tg`, private RDS database, ECR image, and ECS cluster were not deleted. An internal ALB in private subnets is now needed for the pay-as-you-go CloudFront VPC origin. The deletion stops future ALB hourly and associated public IPv4 charges after AWS completes cleanup.
+
+## 2026-11-11 — Internal pilot API load balancer created
+
+**Performed by:** Human developer in the EC2 console. **Evidence:** Developer-provided creation and details screenshots; no independent AWS CLI check is recorded for this ALB.
+
+Application Load Balancer `tutorpair-pilot-api-int-alb` has ARN `arn:aws:elasticloadbalancing:ap-southeast-1:528301714999:loadbalancer/app/tutorpair-pilot-api-int-alb/80d5b46aec16cc39` and DNS name `internal-tutorpair-pilot-api-int-alb-1225202462.ap-southeast-1.elb.amazonaws.com`. The details screen shows **Internal** scheme, IPv4, pilot VPC `vpc-09afdab2ced554af7`, and private subnets `subnet-0347fa26e8d1ca8c8` (ap-southeast-1a) and `subnet-0facce04ab0d7ef07` (ap-southeast-1b). Its single HTTP:80 listener forwards 100% to `tutorpair-pilot-api-tg`, with target group stickiness off. The first screenshot showed `Provisioning`; the subsequent screenshot showed **Active**. The attached security group, registered target health, and CloudFront VPC origin have not yet been verified in these screenshots. ALB hourly charges began at creation; the internal ALB does not have public IPv4 addresses.
+
+
+## 2026-11-11 — Internal ALB configuration rechecked in console
+
+**Evidence:** Human-provided AWS console screenshot. The ALB details panel showed `tutorpair-pilot-api-int-alb` **Active**, **Internal**, IPv4, in VPC `vpc-09afdab2ced554af7`, with subnets `subnet-0347fa26e8d1ca8c8` (ap-southeast-1a) and `subnet-0facce04ab0d7ef07` (ap-southeast-1b). The listener panel showed one HTTP:80 listener forwarding 100% to `tutorpair-pilot-api-tg`, with target-group stickiness off. This confirms the reported ALB scheme, VPC, subnet placement, state, listener, and forwarding from the screenshot. The security tab/rules and target health remain unverified. A read-only AWS CLI verification attempt from Codex could not reach the AWS sign-in endpoint and returned no resource data; no CLI verification is claimed. No AWS setting was changed during this check.
+The Security tab subsequently showed the internal ALB attached to `sg-0b915083597584494`, with two inbound permission entries and one outbound entry. The actual inbound protocols, ports, and source ranges were not visible in that screenshot and remain to be checked before tightening access.
+The security group's inbound-rule screenshot showed `sg-0b915083597584494` allows TCP 80 (HTTP) and TCP 443 (HTTPS), both from `0.0.0.0/0`. The ALB is internal, so this is broad access from networks with a route to its private addresses, not a public ALB endpoint. The ALB has only an HTTP:80 listener. After CloudFront creates its VPC-origin managed security group, restrict ALB ingress to the CloudFront source on port 80 and remove unused port 443. No security-group rule was changed yet.
+
+## 2026-11-11 — CloudFront VPC origin created
+
+**Performed by:** Human developer in the CloudFront console. **Evidence:** Developer-provided VPC origin details screenshot.
+
+VPC origin `tutorpair-pilot-api-vpc-origin` was created in account `528301714999` with ID `vo_lhlEZUzGE76B4KIHibYWs8` and ARN `arn:aws:cloudfront::528301714999:vpcorigin/vo_lhlEZUzGE76B4KIHibYWs8`. Its settings show IPv4, origin ARN `arn:aws:elasticloadbalancing:ap-southeast-1:528301714999:loadbalancer/app/tutorpair-pilot-api-int-alb/80d5b46aec16cc39`, `http-only` protocol policy, and HTTP port 80. The screenshot showed status **Deploying** and zero associated distributions. Wait for **Deployed** before creating the distribution or restricting the ALB security group to the CloudFront-managed source. No CloudFront browser hostname exists yet.
+The human developer subsequently reported that the VPC origin reached **Deployed**. This status was reported in chat; no new console screenshot or independent CLI result was available. The origin has not yet been associated with a distribution.
+The human developer saved the internal ALB security-group change. The success screenshot showed `sg-0b915083597584494` now has one inbound permission: HTTP/TCP 80 sourced from security group `sg-050ef93b36cb160f1` (the source link was visually truncated in the table). The former HTTPS/TCP 443 rule and broad IPv4 sources are absent from the visible rules. The source security group's managed name has not yet been independently verified from its details page. Outbound rules count remains one. No ECS service or CloudFront distribution is shown by this screenshot.
+A follow-up screenshot opened the referenced source group and confirmed `sg-050ef93b36cb160f1` is the AWS-managed `CloudFront-VPCOrigins-Service-SG` in VPC `vpc-09afdab2ced554af7`, account `528301714999`. Thus the internal ALB's sole inbound HTTP:80 rule is restricted to CloudFront's VPC-origin service-managed group. The managed group itself was not edited.
+
+## 2026-11-11 — Pilot API CloudFront distribution created
+
+**Performed by:** Human developer in the CloudFront console. **Evidence:** Developer-provided wizard review and post-creation details screenshots. No successful read-only AWS CLI verification is claimed.
+
+Standard distribution `tutorpair-pilot-api` was created on the **pay-as-you-go** billing option, with ID `E34GZDTZ2HCOR1`, ARN `arn:aws:cloudfront::528301714999:distribution/E34GZDTZ2HCOR1`, and assigned domain `d2vk9dqgas2wkp.cloudfront.net`. The success screen showed **Deploying**, not yet Deployed. No alternate domain name or default root object was configured. Standard and cookie logging were Off; the visible price class was **Use all edge locations**. The console's `$0/month` pay-as-you-go label is not a spending cap; CloudFront usage and the selected WAF configuration can incur charges.
+
+The wizard review showed VPC origin `vo_lhlEZUzGE76B4KIHibYWs8`, blank origin path, no Origin Shield, HTTPS-only viewers, all seven HTTP methods (`GET`, `HEAD`, `OPTIONS`, `PUT`, `POST`, `PATCH`, `DELETE`), managed `CachingDisabled` cache policy, managed `AllViewer` origin request policy, no response headers policy, and WAF security protections Enabled with monitor mode Off. The preceding settings screenshot showed `OPTIONS` caching and gRPC disabled. The wizard displayed `Grant CloudFront access to origin: No`; the separate, already-verified internal ALB ingress rule allows HTTP:80 only from the AWS-managed CloudFront VPC-origin service security group. The VPC origin itself uses HTTP:80 over the private CloudFront-to-VPC path.
+
+Wait for distribution status **Deployed**, then inspect its Origins, Behaviors, and Security tabs in the console before considering the browser API route verified. No ECS API service or registered target exists yet, so the CloudFront hostname cannot be expected to serve the API successfully. Amplify frontend hosting, production Cognito callbacks, runtime CORS/origin settings, and end-to-end Google login remain pending. No domain purchase or DNS change was made.
+
+Follow-up console screenshots showed the General tab's Last modified value changed from **Deploying** to `November 11, 2026 at 10:51:58 AM UTC`; the screenshots do not show an explicit **Deployed** status. The Behaviors tab showed one default (`*`) behavior with **HTTPS only**, `Managed-CachingDisabled`, and `Managed-AllViewer`. The Security tab showed WAF **Core protections Enabled**, with Advanced DDoS protection, rate limiting, and SQL protections **Not enabled**. No request to the CloudFront hostname or API smoke test has been performed, and no ECS target exists yet.
+
+The Distributions list subsequently showed distribution `E34GZDTZ2HCOR1` with **Status: Enabled**, type Standard, pay-as-you-go pricing, and an origin name beginning `internal-tutorp...`. This establishes that the distribution is enabled, but the screenshot does not display a separate deployment-progress field or the full origin configuration. The Origins tab remains to be inspected.
+
+The developer then supplied the Origins tab. It shows **one** origin row with type **VPC origin** and an endpoint/name beginning `internal-t...`, consistent with the internal TutorPair ALB and the VPC origin selected in the creation wizard. No origin groups are configured. The table truncates the full origin name and endpoint, so those exact values are supported by the earlier wizard screenshot, not independently readable in this tab. No request-level API verification is possible until an ECS service registers a healthy target.
+
+## 2026-11-11 — Local frontend artifact prepared for manual Amplify deployment
+
+**Performed by:** Codex in the local working tree. **AWS status:** No Amplify app or deployment was created by this preparation.
+
+The current Cognito frontend changes remain uncommitted, so a Git-connected Amplify build would not include them. A production static build was run locally with public build-time values: `VITE_API_BASE_URL=https://d2vk9dqgas2wkp.cloudfront.net`, region `ap-southeast-1`, the recorded pilot Cognito pool/client identifiers, and the recorded Cognito managed-login hostname. `npm run build:shared` and `npm run build:client` succeeded. The build output (`index.html`, one JavaScript bundle, and one CSS bundle) was zipped at `C:\Users\Kcross\AppData\Local\Temp\tutorpair-pilot-client-20261111.zip` for a manual Amplify Hosting deployment; the zip contains the contents of `apps/client/dist` at its root. It contains no database credential, AWS access key, or Cognito client secret. A successful static build does not establish a working cloud login or API flow.
+
+The first sandboxed `npm test` attempt failed because localhost TCP 5432 was denied (`EACCES`); it did not reach the local PostgreSQL test database. The already-running local `tutorpair-postgres` container was then confirmed healthy, and `npm test` was rerun with local Docker/database access. The rerun passed with **257 tests passed, 0 failed, 3 skipped**. Neither test attempt ran the pilot RDS migration or reference-data seed. No AWS resource was changed. Amplify deployment, assigned HTTPS hostname, SPA rewrite, Cognito production callbacks, S3 CORS, and browser verification remain pending.

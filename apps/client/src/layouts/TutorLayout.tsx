@@ -4,13 +4,14 @@ import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { queryClient } from '../services/query-client';
 import apiClient from '../services/api-client';
+import { endAuthSession } from '../services/auth-session';
 import { useTutorVerification } from '../features/tutors/hooks/useTutors';
 import { VerificationStatus } from '@tutorpair/shared';
 import { User, LogOut, Lock, LayoutDashboard } from 'lucide-react';
 import { Modal } from '../components/ui';
 
 export const TutorLayout: React.FC = () => {
-  const { user, clearUser } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -25,7 +26,7 @@ export const TutorLayout: React.FC = () => {
       setIsLogoutModalOpen(false);
       queryClient.clear();
       queryClient.removeQueries();
-      clearUser();
+      await endAuthSession();
     }
   };
   const location = useLocation();
