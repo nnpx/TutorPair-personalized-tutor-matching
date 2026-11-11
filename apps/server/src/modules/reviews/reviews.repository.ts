@@ -12,7 +12,8 @@ import {
   Review,
 } from '../../db/schema/index.js';
 import { notificationService } from '../../common/notifications/notification.service.js';
-import { NotFoundError } from '../../common/errors/http-errors.js';
+import { NotFoundError, ConflictError } from '../../common/errors/http-errors.js';
+import { getPgErrorCode, getPgErrorConstraint } from '../../common/errors/pg-error.js';
 import { NotificationEventType, MatchRequestStatus, type ReviewItemDto, type TutorReviewsSummaryDto } from '@tutorpair/shared';
 
 export interface InsertReviewParams {
@@ -113,7 +114,10 @@ export const reviewsRepository = {
    * Inserts the new review and recalculates average_rating and review_count in one transaction.
    */
   async createReview(params: InsertReviewParams): Promise<Review> {
-    return await db.transaction(async (tx: DbExecutor) => {
+    try { return await db.transaction(async (tx: DbExecutor) => {
+      // Serialize aggregate recalculation for this tutor across independent API processes.
+      await tx.select({ user_id: tutors.user_id }).from(tutors)
+        .where(eq(tutors.user_id, params.tutor_id)).for('update');
       const [newReview] = await tx
         .insert(reviews)
         .values({
@@ -158,7 +162,12 @@ export const reviewsRepository = {
       );
 
       return newReview;
-    });
+    }); } catch (error) {
+      if (getPgErrorCode(error) === '23505' && getPgErrorConstraint(error) === 'reviews_recommendation_id_unique') {
+        throw new ConflictError('You have already submitted a review for this tutor match');
+      }
+      throw error;
+    }
   },
 
   /**

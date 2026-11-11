@@ -3,12 +3,13 @@ import { Outlet, Link, useLocation, Navigate } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { queryClient } from '../services/query-client';
 import apiClient from '../services/api-client';
+import { endAuthSession } from '../services/auth-session';
 import { useStudentProfile } from '../features/students/hooks/useStudents';
 import { Sparkles, History, User, LogOut, Lock } from 'lucide-react';
 import { Modal } from '../components/ui';
 
 export const StudentLayout: React.FC = () => {
-  const { user, clearUser } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const location = useLocation();
   const { data: profile } = useStudentProfile();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -41,7 +42,7 @@ export const StudentLayout: React.FC = () => {
       setIsLogoutModalOpen(false);
       queryClient.clear();
       queryClient.removeQueries();
-      clearUser();
+      await endAuthSession();
     }
   };
 

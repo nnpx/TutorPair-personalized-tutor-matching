@@ -17,236 +17,6 @@ import {
   AdminDocumentDto,
 } from '@tutorpair/shared';
 
-// In-memory mock store initialized with complete cases
-// Ensures full functionality locally even if PostgreSQL is not active
-let inMemoryTutors: AdminTutorDetailDto[] = [
-  {
-    user_id: '11111111-1111-4111-a111-111111111111',
-    email: 'somchai.math@tutorpair.local',
-    first_name: 'Somchai',
-    last_name: 'Prasert',
-    phone_number: '081-234-5678',
-    description:
-      'Chulalongkorn University graduate in Pure Mathematics. 5 years teaching Olympiad and secondary math.',
-    tutor_type: 'FREELANCE',
-    style_profile: [2, 3, 4, 2, 3],
-    personality_profile: [2, 1, 3, 2],
-    hourly_rate: 650,
-    verification_status: VerificationStatus.PENDING,
-    rejection_reason: null,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2).toISOString(),
-    subjects: [
-      {
-        variant_id: '11111111-0003-4111-a111-111111111111',
-        variant_name: 'Secondary School Mathematics',
-        subject_name: 'Mathematics',
-        category: 'GENERAL_LEARNING',
-        grade_levels: ['G7', 'G8', 'G9', 'G10', 'G11', 'G12'],
-        teaching_focus: 'Calculus, Trigonometry, and Exam Prep',
-        requires_proof: false,
-      },
-    ],
-    documents: [
-      {
-        id: '11111111-0001-4111-a111-111111111111',
-        tutor_id: '11111111-1111-4111-a111-111111111111',
-        document_type: DocumentType.CV,
-        variant_id: null,
-        variant_name: null,
-        file_key: 'tutors/11111111-1111-4111-a111-111111111111/cv-somchai.pdf',
-        file_size_kb: 1450,
-        uploaded_at: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(),
-      },
-      {
-        id: '11111111-0002-4111-a111-111111111111',
-        tutor_id: '11111111-1111-4111-a111-111111111111',
-        document_type: DocumentType.DEGREE_TRANSCRIPT,
-        variant_id: null,
-        variant_name: null,
-        file_key: 'tutors/11111111-1111-4111-a111-111111111111/degree-chula-math.pdf',
-        file_size_kb: 2800,
-        uploaded_at: new Date(Date.now() - 1000 * 60 * 60 * 46).toISOString(),
-      },
-    ],
-  },
-  {
-    user_id: '22222222-2222-4222-a222-222222222222',
-    email: 'natthida.ielts@tutorpair.local',
-    first_name: 'Natthida',
-    last_name: 'Wongsuwan',
-    phone_number: '089-876-5432',
-    description:
-      'Certified IELTS Academic Band 8.5 instructor. Specialized in Writing Task 2 and Speaking fluency.',
-    tutor_type: 'INSTITUTIONAL',
-    style_profile: [4, 2, 2, 4, 2],
-    personality_profile: [4, 2, 4, 3],
-    hourly_rate: 800,
-    verification_status: VerificationStatus.PENDING,
-    rejection_reason: null,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-    subjects: [
-      {
-        variant_id: '22222222-0004-4222-a222-222222222222',
-        variant_name: 'IELTS 7.0+ Target',
-        subject_name: 'IELTS',
-        category: 'LANGUAGE_TESTING',
-        grade_levels: ['G10', 'G11', 'G12'],
-        teaching_focus: 'Band 7.5+ Writing & Speaking Strategies',
-        requires_proof: true,
-      },
-    ],
-    documents: [
-      {
-        id: '22222222-0001-4222-a222-222222222222',
-        tutor_id: '22222222-2222-4222-a222-222222222222',
-        document_type: DocumentType.CV,
-        variant_id: null,
-        variant_name: null,
-        file_key: 'tutors/22222222-2222-4222-a222-222222222222/cv-natthida.pdf',
-        file_size_kb: 950,
-        uploaded_at: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
-      },
-      {
-        id: '22222222-0002-4222-a222-222222222222',
-        tutor_id: '22222222-2222-4222-a222-222222222222',
-        document_type: DocumentType.DEGREE_TRANSCRIPT,
-        variant_id: null,
-        variant_name: null,
-        file_key: 'tutors/22222222-2222-4222-a222-222222222222/transcript-arts.pdf',
-        file_size_kb: 2100,
-        uploaded_at: new Date(Date.now() - 1000 * 60 * 60 * 9).toISOString(),
-      },
-      {
-        id: '22222222-0003-4222-a222-222222222222',
-        tutor_id: '22222222-2222-4222-a222-222222222222',
-        document_type: DocumentType.SUBJECT_QUALIFICATION,
-        variant_id: '22222222-0004-4222-a222-222222222222',
-        variant_name: 'IELTS 7.0+ Target',
-        file_key: 'tutors/22222222-2222-4222-a222-222222222222/ielts-official-score-8.5.pdf',
-        file_size_kb: 3200,
-        uploaded_at: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-      },
-    ],
-  },
-  {
-    user_id: '33333333-3333-4333-a333-333333333333',
-    email: 'chatchai.sat@tutorpair.local',
-    first_name: 'Chatchai',
-    last_name: 'Siriporn',
-    phone_number: '085-555-1234',
-    description:
-      'Engineering undergrad at Thammasat with 800/800 SAT Math score. Friendly and step-by-step guidance.',
-    tutor_type: 'UNDERGRADUATE',
-    style_profile: [1, 5, 2, 1, 4],
-    personality_profile: [3, 2, 4, 4],
-    hourly_rate: 500,
-    verification_status: VerificationStatus.APPROVED,
-    rejection_reason: null,
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 7).toISOString(),
-    subjects: [
-      {
-        variant_id: '33333333-0003-4333-a333-333333333333',
-        variant_name: 'Digital SAT Math',
-        subject_name: 'Digital SAT',
-        category: 'UNIVERSITY_ENTRANCE',
-        grade_levels: ['G11', 'G12'],
-        teaching_focus: 'Digital SAT Speed & Calculator Shortcuts',
-        requires_proof: true,
-      },
-    ],
-    documents: [
-      {
-        id: '33333333-0001-4333-a333-333333333333',
-        tutor_id: '33333333-3333-4333-a333-333333333333',
-        document_type: DocumentType.CV,
-        variant_id: null,
-        variant_name: null,
-        file_key: 'tutors/33333333-3333-4333-a333-333333333333/cv-chatchai.pdf',
-        file_size_kb: 1100,
-        uploaded_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString(),
-      },
-      {
-        id: '33333333-0002-4333-a333-333333333333',
-        tutor_id: '33333333-3333-4333-a333-333333333333',
-        document_type: DocumentType.DEGREE_TRANSCRIPT,
-        variant_id: null,
-        variant_name: null,
-        file_key: 'tutors/33333333-3333-4333-a333-333333333333/transcript-eng.pdf',
-        file_size_kb: 1850,
-        uploaded_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 6).toISOString(),
-      },
-    ],
-  },
-  {
-    user_id: '44444444-4444-4444-a444-444444444444',
-    email: 'anong.biology@tutorpair.local',
-    first_name: 'Anong',
-    last_name: 'Sukhumvit',
-    phone_number: '082-999-8877',
-    description: 'Biology high school preparation tutor.',
-    tutor_type: 'FREELANCE',
-    style_profile: [3, 3, 3, 3, 3],
-    personality_profile: [3, 3, 3, 3],
-    hourly_rate: 450,
-    verification_status: VerificationStatus.REJECTED,
-    rejection_reason:
-      'The uploaded academic degree document is blurred and lacks official university seal or watermark. Please upload a clear scanned PDF.',
-    created_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-    subjects: [
-      {
-        variant_id: '44444444-0002-4444-a444-444444444444',
-        variant_name: 'Secondary Biology',
-        subject_name: 'Biology',
-        category: 'GENERAL_LEARNING',
-        grade_levels: ['G10', 'G11', 'G12'],
-        teaching_focus: 'Genetics, Ecology, Cell Biology',
-        requires_proof: false,
-      },
-    ],
-    documents: [
-      {
-        id: '44444444-0001-4444-a444-444444444444',
-        tutor_id: '44444444-4444-4444-a444-444444444444',
-        document_type: DocumentType.CV,
-        variant_id: null,
-        variant_name: null,
-        file_key: 'tutors/44444444-4444-4444-a444-444444444444/cv-anong.pdf',
-        file_size_kb: 600,
-        uploaded_at: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3).toISOString(),
-      },
-    ],
-  },
-];
-
-function toListItemDto(t: AdminTutorDetailDto): AdminTutorListItemDto {
-  const has_cv = t.documents.some((d) => d.document_type === DocumentType.CV);
-  const has_transcript = t.documents.some(
-    (d) => d.document_type === DocumentType.DEGREE_TRANSCRIPT
-  );
-  const has_subject_proof = t.documents.some(
-    (d) => d.document_type === DocumentType.SUBJECT_QUALIFICATION
-  );
-
-  return {
-    user_id: t.user_id,
-    email: t.email,
-    first_name: t.first_name,
-    last_name: t.last_name,
-    phone_number: t.phone_number,
-    tutor_type: t.tutor_type,
-    hourly_rate: t.hourly_rate,
-    verification_status: t.verification_status,
-    rejection_reason: t.rejection_reason,
-    created_at: t.created_at,
-    document_count: t.documents.length,
-    documents_summary: {
-      has_cv,
-      has_transcript,
-      has_subject_proof,
-    },
-  };
-}
-
 export const adminRepository = {
   transaction: <T>(work: (tx: DbExecutor) => Promise<T>) => db.transaction(work),
   lockTutor: async (tx: DbExecutor, tutorId: string) => {
@@ -363,24 +133,10 @@ export const adminRepository = {
           };
         });
       }
-    } catch {
-      // Fallback to inMemory store if database is not connected
+    } catch (error) {
+      throw error;
     }
-
-    // Return filtered inMemory mock store
-    let filtered = [...inMemoryTutors];
-    if (statusFilter && statusFilter !== 'ALL') {
-      filtered = filtered.filter((t) => t.verification_status === statusFilter);
-    }
-
-    // Apply FIFO sorting: PENDING is sorted oldest first (asc), others newest first (desc)
-    filtered.sort((a, b) => {
-      const timeA = new Date(a.created_at).getTime();
-      const timeB = new Date(b.created_at).getTime();
-      return statusFilter === VerificationStatus.PENDING ? timeA - timeB : timeB - timeA;
-    });
-
-    return filtered.map(toListItemDto);
+    return [];
   },
 
   findTutorById: async (tutorId: string): Promise<AdminTutorDetailDto | null> => {
@@ -475,12 +231,10 @@ export const adminRepository = {
           })),
         };
       }
-    } catch {
-      // Fallback to inMemory store
+    } catch (error) {
+      throw error;
     }
-
-    const found = inMemoryTutors.find((t) => t.user_id === tutorId);
-    return found || null;
+    return null;
   },
 
   findDocumentById: async (documentId: string, tutorId: string): Promise<AdminDocumentDto | null> => {
@@ -503,15 +257,8 @@ export const adminRepository = {
           uploaded_at: doc.uploaded_at.toISOString(),
         };
       }
-    } catch {
-      // Fallback
-    }
-
-    for (const t of inMemoryTutors) {
-      if (t.user_id === tutorId) {
-        const doc = t.documents.find((d) => d.id === documentId);
-        if (doc) return doc;
-      }
+    } catch (error) {
+      throw error;
     }
     return null;
   },
@@ -538,26 +285,9 @@ export const adminRepository = {
           rejection_reason: updated.rejection_reason,
         };
       }
-    } catch {
-      // Fallback
+    } catch (error) {
+      throw error;
     }
-
-    // Update inMemory store
-    const tutor = inMemoryTutors.find((t) => t.user_id === tutorId);
-    if (tutor) {
-      tutor.verification_status = status;
-      tutor.rejection_reason = status === VerificationStatus.REJECTED ? rejectionReason : null;
-      return {
-        user_id: tutor.user_id,
-        verification_status: tutor.verification_status,
-        rejection_reason: tutor.rejection_reason,
-      };
-    }
-
-    return {
-      user_id: tutorId,
-      verification_status: status,
-      rejection_reason: rejectionReason,
-    };
+    return null;
   },
 };

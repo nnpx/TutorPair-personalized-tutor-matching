@@ -9,6 +9,7 @@ import {
   UuidParamSchema,
 } from '@tutorpair/shared';
 import { documentsController } from './documents.controller.js';
+import { env } from '../../config/env.js';
 
 const router = Router();
 
@@ -41,11 +42,13 @@ router.delete(
 
 // 4. Mock S3 direct PUT handler for local development (no AWS credentials required)
 router.put('/mock-s3-upload/*', (_req, res) => {
+  if (env.NODE_ENV === 'production') return res.sendStatus(404);
   res.status(200).send('OK');
 });
 
 // 5. Mock S3 direct GET handler for local preview (simulates presigned GET)
 router.get('/mock-s3-view/*', (req, res) => {
+  if (env.NODE_ENV === 'production') return res.sendStatus(404);
   const fileKey = decodeURIComponent((req.params as Record<string, string>)[0] || 'tutor-document.pdf');
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.send(`<!DOCTYPE html>

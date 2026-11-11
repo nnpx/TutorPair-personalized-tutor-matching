@@ -15,7 +15,7 @@
     "test:notifications": "node --import tsx --test src/common/notifications/*.test.ts src/workers/email-dispatch.worker.test.ts src/modules/admin/admin.notifications.test.ts src/modules/matching/matching.confirm.service.test.ts"
   },
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "^7.1.1",
+    "@asteasolutions/zod-to-openapi": "^8.5.0",
     "@aws-sdk/client-s3": "^3.654.0",
     "@aws-sdk/client-ses": "^3.654.0",
     "@aws-sdk/s3-request-presigner": "^3.654.0",
@@ -27,7 +27,7 @@
     "express": "^4.19.2",
     "pg": "^8.12.0",
     "swagger-ui-express": "^5.0.1",
-    "zod": "^3.23.8"
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

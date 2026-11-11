@@ -1,4 +1,4 @@
-import { pgTable, uuid, integer, decimal, text, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, integer, decimal, text, timestamp, unique } from 'drizzle-orm/pg-core';
 import { students } from './students.schema.js';
 import { tutors } from './tutors.schema.js';
 import { matchRecommendations } from './matching.schema.js';
@@ -21,7 +21,7 @@ export const reviews = pgTable('reviews', {
   overall_rating: decimal('overall_rating', { precision: 3, scale: 2 }).notNull(),
   comment: text('comment'),
   created_at: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => ({ recommendationUnique: unique('reviews_recommendation_id_unique').on(table.recommendation_id) }));
 
 export type Review = typeof reviews.$inferSelect;
 export type NewReview = typeof reviews.$inferInsert;

@@ -86,14 +86,10 @@ describe('errorHandler: global error template', () => {
       assert.equal(run(wrapped('23503')).status, 400);
     });
 
-    it('still returns 500 for a wrapped error with an unmapped code', () => {
-      const originalError = console.error;
-      console.error = () => undefined;
-      try {
-        assert.equal(run(wrapped('ECONNREFUSED')).status, 500);
-      } finally {
-        console.error = originalError;
-      }
+    it('returns a bounded service error for a database connection failure', () => {
+      const out = run(wrapped('ECONNREFUSED'));
+      assert.equal(out.status, 503);
+      assert.match(String(out.body?.message), /database temporarily unavailable/i);
     });
   });
 

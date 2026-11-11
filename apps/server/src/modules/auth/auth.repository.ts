@@ -56,6 +56,19 @@ export const authRepository = {
     return newUser;
   },
 
+  async createUserIfMissing(data: {
+    cognito_sub: string;
+    email: string;
+    role: UserRole;
+  }): Promise<User | null> {
+    const [created] = await db
+      .insert(users)
+      .values(data)
+      .onConflictDoNothing()
+      .returning();
+    return created ?? null;
+  },
+
   async findUserWithProfileStatus(id: string): Promise<UserWithProfileStatus | null> {
     const user = await this.findById(id);
     if (!user) return null;

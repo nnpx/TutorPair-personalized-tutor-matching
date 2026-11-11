@@ -1,0 +1,37 @@
+{
+  "family": "tutorpair-pilot-db-migrate",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "256",
+  "memory": "512",
+  "runtimePlatform": {
+    "cpuArchitecture": "X86_64",
+    "operatingSystemFamily": "LINUX"
+  },
+  "executionRoleArn": "arn:aws:iam::528301714999:role/tutorpair-pilot-ecs-migration-execution-role",
+  "containerDefinitions": [
+    {
+      "name": "migrate",
+      "image": "528301714999.dkr.ecr.ap-southeast-1.amazonaws.com/tutorpair-pilot-api@sha256:71c1f3abe97bec7f3ac9924795d5a0420329007d3ddd2dbc7418192f29567010",
+      "essential": true,
+      "command": ["node", "apps/server/dist/db/migrate.js"],
+      "environment": [
+        { "name": "NODE_ENV", "value": "production" }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-southeast-1:528301714999:secret:tutorpair/pilot/migration/database-url-UZuBOp:tutorpair/pilot/migration/database-url::"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/tutorpair-pilot-api",
+          "awslogs-region": "ap-southeast-1",
+          "awslogs-stream-prefix": "migration"
+        }
+      }
+    }
+  ]
+}

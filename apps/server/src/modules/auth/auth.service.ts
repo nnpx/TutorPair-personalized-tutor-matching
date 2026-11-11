@@ -46,11 +46,26 @@ export const authService = {
     }
 
     // 4. Provision new user in PostgreSQL
-    const newUser = await authRepository.createUser({
+    const newUser = await authRepository.createUserIfMissing({
       cognito_sub: cognitoSub,
       email,
       role: requestedRole,
     });
+
+    // Unique constraints serialize simultaneous first logins. Resolve the winner
+    // after a conflict so retries return the established role without mutation.
+    if (!newUser) {
+      const concurrentUser = await authRepository.findByCognitoSub(cognitoSub);
+      if (concurrentUser) return { ...concurrentUser, is_new_user: false };
+      const emailOwner = await authRepository.findByEmail(email);
+      if (emailOwner) {
+        throw new ConflictError(
+          'An account with this email address already exists. Please sign in with your original provider.',
+          { email }
+        );
+      }
+      throw new ConflictError('Account synchronization conflicted. Please retry.');
+    }
 
     return {
       ...newUser,

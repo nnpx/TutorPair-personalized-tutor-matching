@@ -1,0 +1,13 @@
+{
+  "containerOverrides": [
+    {
+      "name": "migrate",
+      "command": [
+        "node",
+        "--input-type=module",
+        "-e",
+        "import pg from 'pg'; import { readFileSync } from 'node:fs'; import { createPoolConfig } from './apps/server/dist/db/client.config.js'; const pool = new pg.Pool(createPoolConfig(process.env.DATABASE_URL, 'production', readFileSync(process.env.RDS_CA_BUNDLE, 'utf8'), 1)); try { const tables = await pool.query(\"select count(*)::int as n from information_schema.tables where table_schema = 'public' and table_type = 'BASE TABLE'\"); const migrations = await pool.query('select count(*)::int as n from drizzle.__drizzle_migrations'); const access = await pool.query(\"select has_table_privilege('tutorpair_pilot_app', 'public.users', 'SELECT') as can_read_users\"); console.log(JSON.stringify({ publicTables: tables.rows[0].n, appliedMigrations: migrations.rows[0].n, appCanReadUsers: access.rows[0].can_read_users })); } finally { await pool.end(); }"
+      ]
+    }
+  ]
+}

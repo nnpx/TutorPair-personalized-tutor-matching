@@ -3,11 +3,12 @@ import { Outlet, Link } from 'react-router-dom';
 import { useAuthStore } from '../store/auth.store';
 import { queryClient } from '../services/query-client';
 import apiClient from '../services/api-client';
+import { endAuthSession } from '../services/auth-session';
 import { LogOut } from 'lucide-react';
 import { Modal } from '../components/ui';
 
 export const AdminLayout: React.FC = () => {
-  const { user, clearUser } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -22,7 +23,7 @@ export const AdminLayout: React.FC = () => {
       setIsLogoutModalOpen(false);
       queryClient.clear();
       queryClient.removeQueries();
-      clearUser();
+      await endAuthSession();
     }
   };
 

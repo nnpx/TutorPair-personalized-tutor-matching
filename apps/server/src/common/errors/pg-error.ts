@@ -13,4 +13,14 @@ export function getPgErrorCode(err: unknown): string | undefined {
   return undefined;
 }
 
+export function getPgErrorConstraint(err: unknown): string | undefined {
+  let current: unknown = err;
+  for (let depth = 0; depth < 5 && current && typeof current === 'object'; depth++) {
+    const { constraint, cause } = current as { constraint?: unknown; cause?: unknown };
+    if (typeof constraint === 'string') return constraint;
+    current = cause;
+  }
+  return undefined;
+}
+
 export const PG_FOREIGN_KEY_VIOLATION = '23503';

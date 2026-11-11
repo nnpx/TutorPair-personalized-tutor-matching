@@ -1,6 +1,6 @@
 # TutorPair cloud architecture alignment review
 
-Reviewed 2026-10-22. The authoritative component scope is now the user's replacement [Cloud Components table](./CLOUD_COMPONENTS.md), supplied directly in chat. It supersedes `TutorPair_Cloud.docx` and all embedded screenshots. Compared with PROJECT_CONTEXT.md, docs/ARCHITECTURE.md, the implementation guides, the repository inspected during this review, and AWS_SETUP_PLAN.md.
+Reviewed 2026-10-22; deployment networking decision updated 2026-11-09. The authoritative component scope is now the user's replacement [Cloud Components table](./CLOUD_COMPONENTS.md), supplied directly in chat. It supersedes `TutorPair_Cloud.docx` and all embedded screenshots. Compared with PROJECT_CONTEXT.md, docs/ARCHITECTURE.md, the implementation guides, the repository inspected during this review, and AWS_SETUP_PLAN.md. Implementation findings below are the October snapshot and require rechecking against the current repository before release.
 
 ## Finding
 
@@ -16,9 +16,9 @@ Paths below are relative to the repository root. “Partial” means code exists
 
 | Team decision | Current evidence | Alignment and remaining work |
 |---|---|---|
-| Amplify Hosting for React | React/Vite client and Amplify initialization in `apps/client/src/main.tsx` | Compatible. No Amplify build specification found; configure root workspace installation, shared build, artifact path, SPA fallback, and hosting environment. Auth SDK setup is not hosting setup. |
+| Amplify Hosting for React | React/Vite client, Amplify initialization, and root `amplify.yml` | Build configuration is present for root workspace installation, shared/client builds, and client artifacts; hosting environment, SPA fallback behavior, and cloud preview remain to be verified. Auth SDK setup is not hosting setup. |
 | Route 53 | Architecture docs describe frontend/API domains | Planned only in inspected repository. Configure hosted zone, domain records, and verification records; no deployed DNS was checked. |
-| ALB and ACM | Port 4000 and `/api/health` in `apps/server/src/app.ts`; Dockerfile health check | Compatible application target. Configure ALB, HTTPS listener, ACM certificate, IP target group, security groups, and ECS health checks. |
+| ALB and ACM | Port 4000; `/api/ready` database readiness and `/api/health` liveness in `apps/server/src/app.ts` | Configure the ALB IP target group's health check path as `/api/ready`; retain Docker/ECS container liveness at `/api/health`. Configure ALB, HTTPS listener, ACM certificate, and security groups. |
 | ECS Fargate | Root multi-stage `Dockerfile` | Container foundation only. ECS task/service definitions, deployment configuration, and operational checks are absent from inspected files. Package migrations and exclude local secrets from build context. |
 | ECR | Docker image build path exists | Planned only. Create repository, image retention/scanning policy, and authenticated image push/release workflow. |
 | RDS PostgreSQL | `apps/server/src/db/client.ts`, Drizzle schemas and SQL migration | Compatible database implementation. Current defaults point to local PostgreSQL. Configure private RDS, encryption, trusted TLS, pool limits, backups, and cloud migration execution. |
@@ -26,15 +26,15 @@ Paths below are relative to the repository root. “Partial” means code exists
 | Cognito with Google OAuth 2.0 | JWT verifier, session interceptor, conditional Amplify pool configuration | Partial. `features/auth/LoginPage.tsx` uses mock login; auth sync routes are TODOs; Google federation and redirect configuration are missing. Preserve development mock auth while implementing real cloud login. |
 | SES | SES SDK client and worker startup | Partial. `workers/email-dispatch.worker.ts` has a TODO instead of send logic. Configure sender identity and regional sending access; implement durable claiming, retries, and status updates. |
 | CloudWatch | Console logs and health endpoint | Compatible logging source. Configure ECS `awslogs`, log group/retention, metrics/alarms, and alert destination. Console output alone is not a configured CloudWatch integration. |
-| VPC and security groups | Agreed in project docs and replacement component table | Planned only in inspected repository. Private ECS and RDS are the baseline; keep ALB public. Allow ALB → ECS:4000 and ECS → RDS:5432 through security group references. |
+| VPC and security groups | Agreed in project docs and replacement component table | Planned only in inspected repository. The 2026-11-09 decision places ECS tasks with public IPs in public subnets; keep ALB public and RDS private. Allow ALB → ECS:4000 and ECS → RDS:5432 through security group references. Do not allow internet-wide ingress to ECS:4000. |
 | IAM | AWS SDK clients use the default credential provider chain | Compatible with task roles. Configure separate task execution, application, and deployment roles with resource-scoped permissions. No IAM policy definitions found. |
 | Secrets Manager | Environment-driven database connection; Dockerfile contains no explicit credential values | Compatible injection approach, not completed integration. Configure task-definition secret injection and execution-role permission. Production validation must reject local/mock defaults. |
 
 ## Plan corrections made
 
-The baseline preserves private ECS and RDS, consistent with the replacement table's private-networking intent, and includes outbound connectivity in the budget. Public-subnet ECS with ALB-only ingress was discussed as a possible demo cost reduction, but remains an unselected alternative. Specific subnet configuration is a deployment decision rather than a requirement inferred from the superseded screenshots.
+The initial plan proposed private ECS and RDS. On 2026-11-09, the user selected public-subnet ECS with public IPs and ALB-only ingress for the short test; RDS remains private. This changes subnet placement and outbound cost, not the agreed service list. Specific subnet configuration is a deployment decision rather than a requirement inferred from the superseded screenshots.
 
-The accepted regular deployment uses one private ECS task and Single-AZ RDS. The HA testing profile uses at least two private tasks across two AZs, Multi-AZ RDS, and resilient outbound connectivity. Short log retention and NAT/endpoint choices are deployment proposals to price before provisioning. Both profiles must use the same application code with concurrency and recovery protections enabled. One task, one zonal NAT gateway, and Single-AZ RDS remain regular-profile availability compromises.
+The accepted regular deployment uses one public-subnet ECS task with a public IP and Single-AZ private RDS. The HA testing profile uses at least two public-subnet tasks with public IPs across two AZs and Multi-AZ private RDS. Each task uses its public-subnet route for outbound access; no NAT gateway is planned for ECS. Price task public IPv4 addresses, short log retention, and data transfer before provisioning. Both profiles must use the same application code with concurrency and recovery protections enabled. One task and Single-AZ RDS remain regular-profile availability compromises.
 
 Region, database size, task CPU/memory, exact NAT/endpoint configuration, infrastructure tooling, and monthly cost remain deployment details to settle. Existing project requirements specify seven-day database backups in both profiles. The existing 99% availability target is unchanged. Do not present proposed sizing or unexecuted failure exercises as verified results.
 
@@ -43,7 +43,7 @@ Region, database size, task CPU/memory, exact NAT/endpoint configuration, infras
 The replacement component table defines service scope. The following are deployment considerations, not additional team-selected services:
 
 - A standard regional ALB uses subnets in two AZs even when the demo has one API task. Two subnets do not imply two API tasks or Multi-AZ RDS.
-- Private tasks need an outbound path to required AWS APIs and Cognito signing keys. Evaluate NAT and endpoint costs before choosing that path.
+- Public-subnet Fargate tasks need assigned public IPs and a default route to the internet gateway for required AWS APIs and Cognito signing keys. Restrict task ingress to the ALB security group; a public IP does not remove the need for backend authentication and authorization.
 - S3 remains a regional managed service; browser uploads use authorized presigned URLs directly. A VPC endpoint must not prevent the intended browser access.
 - Route 53 resolves frontend and API names. Browsers connect to Amplify or the ALB after DNS resolution.
 - Cognito authentication, application authorization, document storage, and SES delivery remain separate responsibilities.
@@ -51,7 +51,7 @@ The replacement component table defines service scope. The following are deploym
 
 ## Work order that preserves the agreement
 
-1. Record the agreed service list and private-network boundary; set a monthly ceiling and prepare a cost estimate.
+1. Record the agreed service list, selected public ECS/private RDS boundary, test window, and total budget; prepare a Singapore cost estimate.
 2. Prepare deployment basics: supported Node LTS, `.dockerignore`, strict production settings, packaged SQL migrations, RDS TLS, and actual test scripts.
 3. Configure the selected AWS resources and deploy the HTTPS health endpoint with CloudWatch logs.
 4. Complete Cognito sign-in, Google OAuth, and first-login database sync. Public sign-up may create STUDENT or TUTOR only; ADMIN provisioning must be privileged.

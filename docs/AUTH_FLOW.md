@@ -133,6 +133,8 @@ Cognito invalidates the token on the Cognito side. The backend does not need to 
 
 The Amplify Auth SDK handles token refresh automatically. When a token is near expiry, `fetchAuthSession()` returns a fresh token transparently.
 
+The hosted SPA configures Amplify from `VITE_AWS_REGION`, `VITE_COGNITO_USER_POOL_ID`, `VITE_COGNITO_CLIENT_ID`, and `VITE_COGNITO_DOMAIN`. It uses authorization-code flow with Google, `openid email profile`, and the current origin's `/login` callback and logout URL. The production API client requires an HTTPS `VITE_API_BASE_URL`, forces an Amplify session refresh before requests, and never falls back to persisted mock credentials. Once Amplify provides the hosted HTTPS hostname, configure that exact `https://<hostname>/login` URL for both Cognito callback and logout URLs.
+
 ---
 
 ## Role Reference

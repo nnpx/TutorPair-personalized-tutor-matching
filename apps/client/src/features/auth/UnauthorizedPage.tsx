@@ -7,10 +7,11 @@ import { useAuthStore } from '../../store/auth.store';
 import { UserRole } from '@tutorpair/shared';
 import { ShieldAlert, ArrowLeft, LogOut, LogIn } from 'lucide-react';
 import { queryClient } from '../../services/query-client';
+import { endAuthSession } from '../../services/auth-session';
 
 export const UnauthorizedPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user, clearUser } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
 
   const handleGoDashboard = () => {
@@ -30,11 +31,11 @@ export const UnauthorizedPage: React.FC = () => {
     }
   };
 
-  const handleLogoutConfirm = () => {
+  const handleLogoutConfirm = async () => {
     setIsLogoutModalOpen(false);
     queryClient.clear();
     queryClient.removeQueries();
-    clearUser();
+    await endAuthSession();
     navigate('/login');
   };
 
