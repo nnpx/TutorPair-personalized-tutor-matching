@@ -1,8 +1,8 @@
 import { apiClient } from '../../services/api-client';
 import { useQueryClient } from '@tanstack/react-query';
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Card, Button, Modal } from '../../components/ui';
+import { useNavigate } from 'react-router-dom';
+import { Card, Button, Modal, BackLink } from '../../components/ui';
 import { useStudentProfile, useStudentAvailability } from '../students/hooks/useStudents';
 import { StudentSubjectSelector } from '../students/components/StudentSubjectSelector';
 import { StudentAvailabilityGrid } from '../students/components/StudentAvailabilityGrid';
@@ -11,7 +11,6 @@ import { useRunMatch, useConfirmTutor } from './hooks/useMatching';
 import { TutorDetailModal } from '../tutors/components/TutorDetailModal';
 import {
   Sparkles,
-  ArrowLeft,
   Calendar,
   RotateCcw,
   CheckCircle2,
@@ -245,24 +244,17 @@ export const MatchRequestPage: React.FC = () => {
       <div style={{ maxWidth: '980px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
         {/* Results Header */}
         <div>
-          <button
-            onClick={() => runMatchMutation.reset()}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.375rem',
-              color: 'var(--color-primary)',
-              fontSize: '0.875rem',
-              fontWeight: 700,
-              padding: 0,
-              marginBottom: '0.75rem',
-            }}
-          >
-            <ArrowLeft size={16} strokeWidth={2.4} /> Back to Search Criteria
-          </button>
+          <div style={{ marginBottom: '0.75rem' }}>
+            <BackLink
+              to="/student/matching/request"
+              onClick={(e) => {
+                e.preventDefault();
+                runMatchMutation.reset();
+              }}
+            >
+              Back to Search Criteria
+            </BackLink>
+          </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
@@ -621,21 +613,9 @@ export const MatchRequestPage: React.FC = () => {
     <div style={{ maxWidth: '960px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       {/* Top Navigation & Breadcrumbs */}
       <div>
-        <Link
-          to="/student/matching"
-          style={{
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            color: 'var(--color-primary)',
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            marginBottom: '0.75rem',
-          }}
-        >
-          <ArrowLeft size={16} strokeWidth={2.4} /> Back to Matching Hub
-        </Link>
+        <div style={{ marginBottom: '0.75rem' }}>
+          <BackLink to="/student/matching">Back to Matching Hub</BackLink>
+        </div>
 
         <h1 style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--fg-main)', margin: '0 0 0.375rem 0' }}>
           Submit Tutor Matching Request
@@ -685,7 +665,7 @@ export const MatchRequestPage: React.FC = () => {
 
         {/* 3-Step Cascading Subject Selector */}
         <div>
-          <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 800, color: 'var(--fg-main)', marginBottom: '0.625rem' }}>
+          <label style={{ display: 'block', fontSize: '1.0625rem', fontWeight: 800, color: 'var(--fg-main)', marginBottom: '0.625rem' }}>
             Target Subject & Goal Variant *
           </label>
           <StudentSubjectSelector

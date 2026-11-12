@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { Card, Button, Modal } from '../../components/ui';
+import { Card, Button, Modal, BackLink } from '../../components/ui';
 import { useRecommendationReviewContext, useSubmitReview } from './hooks/useReviews';
 import {
   Star,
-  ArrowLeft,
   CheckCircle2,
   AlertCircle,
   Award,
@@ -202,21 +201,9 @@ export const ReviewSubmissionPage: React.FC = () => {
     <div style={{ maxWidth: '840px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       {/* Back Link & Header */}
       <div>
-        <Link
-          to="/student/history"
-          style={{
-            textDecoration: 'none',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.375rem',
-            color: 'var(--color-primary)',
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            marginBottom: '0.75rem',
-          }}
-        >
-          <ArrowLeft size={16} strokeWidth={2.4} /> Back to Matching History
-        </Link>
+        <div style={{ marginBottom: '0.75rem' }}>
+          <BackLink to="/student/history">Back to Matching History</BackLink>
+        </div>
 
         <h1 style={{ fontSize: '2rem', fontWeight: 900, color: 'var(--fg-main)', margin: '0 0 0.375rem 0' }}>
           Review Your Confirmed Tutor

@@ -3,7 +3,6 @@ import {
   type MatchRecommendationDto,
 } from '@tutorpair/shared';
 import {
-  ArrowLeft,
   BookOpen,
   Check,
   CheckCircle2,
@@ -15,10 +14,11 @@ import {
   PlusCircle,
   Sparkles,
   Star,
+  UserCheck,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Button, Card, Modal } from '../../components/ui';
+import { BackLink, Button, Card, Modal } from '../../components/ui';
 import { TutorDetailModal } from '../tutors/components/TutorDetailModal';
 import { useConfirmTutor, useMatchHistory } from './hooks/useMatching';
 
@@ -46,11 +46,16 @@ export const MatchHistoryPage: React.FC = () => {
   }, [searchParams]);
 
   // Inspection & Confirmation modals
-  const [inspectTutorId, setInspectTutorId] = useState<string | null>(null);
-  const [confirmingRec, setConfirmingRec] = useState<{
+  type ConfirmTarget = {
     matchRequestId: string;
     rec: MatchRecommendationDto;
+  };
+  // `pending` is set only for recommendations of a PENDING request (profile card shows Confirm)
+  const [inspect, setInspect] = useState<{
+    tutorId: string;
+    pending: ConfirmTarget | null;
   } | null>(null);
+  const [confirmingRec, setConfirmingRec] = useState<ConfirmTarget | null>(null);
 
   // Copy Line ID feedback state
   const [copiedLineId, setCopiedLineId] = useState<string | null>(null);
@@ -142,25 +147,7 @@ export const MatchHistoryPage: React.FC = () => {
     >
       {/* Back to Matching Hub Button */}
       <div>
-        <Link
-          to="/student/matching"
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            color: '#4b5563',
-            textDecoration: 'none',
-            padding: '0.45rem 0.875rem',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: '#ffffff',
-            border: '2px solid var(--color-border)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <ArrowLeft size={16} strokeWidth={2.4} /> Back to Matching Hub
-        </Link>
+        <BackLink to="/student/matching">Back to Matching Hub</BackLink>
       </div>
 
       {/* Header with New Request CTA */}
@@ -796,7 +783,7 @@ export const MatchHistoryPage: React.FC = () => {
                             padding: '0.375rem 0.75rem',
                             height: 'auto',
                           }}
-                          onClick={() => setInspectTutorId(selected.tutor_id)}
+                          onClick={() => setInspect({ tutorId: selected.tutor_id, pending: null })}
                         >
                           Inspect Full Profile & All Reviews
                         </Button>
@@ -1040,7 +1027,10 @@ export const MatchHistoryPage: React.FC = () => {
                                         height: 'auto',
                                       }}
                                       onClick={() =>
-                                        setInspectTutorId(rec.tutor.tutor_id)
+                                        setInspect({
+                                          tutorId: rec.tutor.tutor_id,
+                                          pending: null,
+                                        })
                                       }
                                     >
                                       View Full Profile
@@ -1197,7 +1187,13 @@ export const MatchHistoryPage: React.FC = () => {
                                 height: 'auto',
                               }}
                               onClick={() =>
-                                setInspectTutorId(rec.tutor.tutor_id)
+                                setInspect({
+                                  tutorId: rec.tutor.tutor_id,
+                                  pending: {
+                                    matchRequestId: item.match_request_id,
+                                    rec,
+                                  },
+                                })
                               }
                             >
                               Profile
@@ -1217,6 +1213,11 @@ export const MatchHistoryPage: React.FC = () => {
                                 })
                               }
                             >
+                              <UserCheck
+                                size={18}
+                                strokeWidth={2.4}
+                                style={{ marginRight: '0.375rem' }}
+                              />
                               Confirm
                             </Button>
                           </div>
@@ -1233,9 +1234,14 @@ export const MatchHistoryPage: React.FC = () => {
 
       {/* Detailed Tutor Profile Modal (TP-35 + TP-19) */}
       <TutorDetailModal
-        isOpen={Boolean(inspectTutorId)}
-        tutorId={inspectTutorId}
-        onClose={() => setInspectTutorId(null)}
+        isOpen={Boolean(inspect)}
+        tutorId={inspect?.tutorId ?? null}
+        onClose={() => setInspect(null)}
+        onConfirmSelection={
+          inspect?.pending
+            ? () => setConfirmingRec(inspect.pending)
+            : undefined
+        }
       />
 
       {/* Confirm Tutor Modal Prompt */}

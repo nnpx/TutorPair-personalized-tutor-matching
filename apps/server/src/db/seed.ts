@@ -321,6 +321,8 @@ async function seed() {
             style_profile: params.styleProfile,
             personality_profile: params.personalityProfile,
             tutor_type: params.tutorType,
+            average_rating: params.averageRating,
+            review_count: params.reviewCount,
           },
         });
 
@@ -934,6 +936,201 @@ async function seed() {
       });
     }
 
+    // =========================================================================
+    // 5. EXTRA TUTORS + PRIMARY STUDENT — every demo variant gets >= 3 approved tutors
+    //    (hard-filter safe: demo G10 student = Mon 17-19, Sat/Sun 13-17; primary student G4 = Sat 09-12, Wed 16-18)
+    // =========================================================================
+    const G = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => `G${from + i}`);
+    const WE = (s: string, e: string) => [
+      { day: DayOfWeek.SATURDAY, start: s, end: e },
+      { day: DayOfWeek.SUNDAY, start: s, end: e },
+    ];
+    const subj = (v: { id: string }, rate: string, grades: string[], focus: string) => ({
+      variantId: v.id, hourlyRate: rate, gradeLevels: grades, teachingFocus: focus,
+    });
+    const extraTutors: Array<Parameters<typeof upsertVerifiedTutor>[0]> = [
+      {
+        cognitoSub: 'seed-tutor-warin', email: 'warin.stem@tutorpair.local', firstName: 'Warin', lastName: 'Thongdee',
+        phoneNumber: '0871110001', lineId: 'warin_stem', tutorType: TutorType.FREELANCE,
+        description: 'Medicine student and POSN medalist coaching Olympiad math, chemistry, biology and TPAT 1.',
+        styleProfile: [5, 3, 4, 2, 4], personalityProfile: [4, 3, 2, 4], averageRating: '4.80', reviewCount: 12,
+        subjects: [
+          subj(mathComp, '550.00', G(9, 12), 'Olympiad Problem Solving'),
+          subj(satMath, '500.00', G(10, 12), 'SAT Math Fundamentals'),
+          subj(chemOly, '600.00', G(10, 12), 'POSN Chemistry Drills'),
+          subj(bioMed, '600.00', G(10, 12), 'Medical Biology Essentials'),
+          subj(tpatDoctor, '650.00', G(11, 12), 'TPAT 1 Reasoning Practice'),
+        ],
+        slots: [...WE('13:00', '18:00'), { day: DayOfWeek.MONDAY, start: '17:00', end: '20:00' }],
+      },
+      {
+        cognitoSub: 'seed-tutor-krit', email: 'krit.stem@tutorpair.local', firstName: 'Krit', lastName: 'Boonmee',
+        phoneNumber: '0871110002', lineId: 'krit_stem', tutorType: TutorType.UNDERGRADUATE,
+        description: 'Engineering undergraduate who loves exam strategy for math, sciences and TPAT.',
+        styleProfile: [2, 4, 5, 5, 2], personalityProfile: [2, 5, 4, 2], averageRating: '4.60', reviewCount: 8,
+        subjects: [
+          subj(mathComp, '350.00', G(9, 12), 'Competition Shortcuts'),
+          subj(satMath, '400.00', G(10, 12), 'SAT Math Speed Drills'),
+          subj(chemOly, '450.00', G(10, 12), 'Chemistry Calculation Practice'),
+          subj(bioMed, '450.00', G(10, 12), 'Biology Exam Recall Methods'),
+          subj(tpatDoctor, '500.00', G(11, 12), 'TPAT 1 Timed Practice'),
+        ],
+        slots: [...WE('14:00', '19:00'), { day: DayOfWeek.MONDAY, start: '17:30', end: '21:00' }],
+      },
+      {
+        cognitoSub: 'seed-tutor-emma', email: 'emma.english@tutorpair.local', firstName: 'Emma', lastName: 'Clarke',
+        phoneNumber: '0871110003', lineId: 'emma_english', tutorType: TutorType.INSTITUTIONAL,
+        description: 'Native-speaker English teacher at an international school; IELTS and SAT verbal coach.',
+        styleProfile: [4, 2, 3, 3, 4], personalityProfile: [4, 3, 3, 3], averageRating: '4.75', reviewCount: 20,
+        subjects: [
+          subj(engSchool, '650.00', G(7, 12), 'Essay Structure and Grammar'),
+          subj(satRw, '680.00', G(10, 12), 'SAT Reading Strategies'),
+          subj(ieltsAcademic, '700.00', G(9, 12), 'IELTS Academic Writing'),
+        ],
+        slots: [...WE('13:00', '17:00'), { day: DayOfWeek.MONDAY, start: '17:00', end: '19:00' }],
+      },
+      {
+        cognitoSub: 'seed-tutor-ben', email: 'ben.english@tutorpair.local', firstName: 'Ben', lastName: 'Rattanakul',
+        phoneNumber: '0871110004', lineId: 'ben_english', tutorType: TutorType.UNDERGRADUATE,
+        description: 'Arts undergraduate (IELTS 8.0) offering relaxed, conversation-led English coaching.',
+        styleProfile: [1, 5, 1, 2, 1], personalityProfile: [1, 1, 5, 1], averageRating: '4.55', reviewCount: 6,
+        subjects: [
+          subj(engSchool, '300.00', G(7, 12), 'Conversation-led Grammar'),
+          subj(satRw, '350.00', G(10, 12), 'SAT Grammar Basics'),
+          subj(ieltsAcademic, '400.00', G(9, 12), 'IELTS Speaking Practice'),
+        ],
+        slots: [...WE('13:30', '17:30'), { day: DayOfWeek.MONDAY, start: '17:00', end: '19:00' }],
+      },
+      {
+        cognitoSub: 'seed-tutor-noi', email: 'noi.primary@tutorpair.local', firstName: 'Noi', lastName: 'Jaidee',
+        phoneNumber: '0871110005', lineId: 'kru_noi', tutorType: TutorType.FREELANCE,
+        description: 'Primary teacher using games and stories to teach core subjects (G1-G6).',
+        styleProfile: [2, 4, 2, 2, 3], personalityProfile: [2, 2, 2, 3], averageRating: '4.70', reviewCount: 18,
+        subjects: [
+          subj(primaryMath, '400.00', G(1, 6), 'Math Games'),
+          subj(primaryEnglish, '400.00', G(1, 6), 'Story-based English'),
+          subj(primaryScience, '420.00', G(1, 6), 'Kitchen Science'),
+          subj(primaryThai, '350.00', G(1, 6), 'Thai Reading Stories'),
+        ],
+        slots: [{ day: DayOfWeek.SATURDAY, start: '09:00', end: '13:00' }, { day: DayOfWeek.WEDNESDAY, start: '16:00', end: '19:00' }],
+      },
+      {
+        cognitoSub: 'seed-tutor-boon', email: 'boon.primary@tutorpair.local', firstName: 'Boonyarat', lastName: 'Saeng',
+        phoneNumber: '0871110006', lineId: 'kru_boon', tutorType: TutorType.UNDERGRADUATE,
+        description: 'Education undergraduate; energetic, exam-focused primary tutor (G1-G6).',
+        styleProfile: [4, 1, 4, 5, 2], personalityProfile: [5, 4, 2, 1], averageRating: '4.40', reviewCount: 5,
+        subjects: [
+          subj(primaryMath, '250.00', G(1, 6), 'Worksheet Practice'),
+          subj(primaryEnglish, '250.00', G(1, 6), 'Vocabulary Drills'),
+          subj(primaryScience, '280.00', G(1, 6), 'Experiment Review'),
+          subj(primaryThai, '250.00', G(1, 6), 'Spelling and Grammar Drills'),
+        ],
+        slots: [{ day: DayOfWeek.SATURDAY, start: '10:00', end: '14:00' }, { day: DayOfWeek.WEDNESDAY, start: '16:30', end: '19:00' }],
+      },
+      {
+        cognitoSub: 'seed-tutor-dev', email: 'dev.coding@tutorpair.local', firstName: 'Devon', lastName: 'Pruet',
+        phoneNumber: '0871110007', lineId: 'dev_codes', tutorType: TutorType.FREELANCE,
+        description: 'Software engineer teaching Python and Scratch through real mini projects.',
+        styleProfile: [5, 2, 3, 4, 3], personalityProfile: [4, 3, 3, 5], averageRating: '4.85', reviewCount: 22,
+        subjects: [
+          subj(codingScratch, '500.00', G(1, 6), 'Scratch Project Building'),
+          subj(codingPython, '650.00', G(7, 12), 'Python for Problem Solving'),
+        ],
+        slots: [{ day: DayOfWeek.SATURDAY, start: '09:00', end: '17:00' }, { day: DayOfWeek.SUNDAY, start: '13:00', end: '17:00' }, { day: DayOfWeek.MONDAY, start: '17:00', end: '19:30' }, { day: DayOfWeek.WEDNESDAY, start: '16:00', end: '19:00' }],
+      },
+      {
+        cognitoSub: 'seed-tutor-ploy', email: 'ploy.coding@tutorpair.local', firstName: 'Ploy', lastName: 'Anan',
+        phoneNumber: '0871110008', lineId: 'ploy_codes', tutorType: TutorType.UNDERGRADUATE,
+        description: 'Computer science undergraduate; gentle, step-by-step coding lessons.',
+        styleProfile: [1, 5, 2, 1, 5], personalityProfile: [2, 1, 5, 2], averageRating: '4.50', reviewCount: 7,
+        subjects: [
+          subj(codingScratch, '300.00', G(1, 6), 'Gentle Block Coding'),
+          subj(codingPython, '350.00', G(7, 12), 'Python Basics Step by Step'),
+        ],
+        slots: [{ day: DayOfWeek.SATURDAY, start: '09:00', end: '17:00' }, { day: DayOfWeek.SUNDAY, start: '13:30', end: '17:00' }, { day: DayOfWeek.MONDAY, start: '17:00', end: '19:00' }, { day: DayOfWeek.WEDNESDAY, start: '16:00', end: '18:30' }],
+      },
+    ];
+    for (const t of extraTutors) await upsertVerifiedTutor(t);
+
+    // Seeded grade-specific students (the G10 demo student cannot match G1-G6 / G7-G9 variants).
+    async function upsertSeedStudent(
+      sub: string,
+      email: string,
+      profile: Omit<typeof students.$inferInsert, 'user_id'>,
+      slots: Array<{ day: DayOfWeek; start: string; end: string }>,
+    ) {
+      const [existingUser] = await db.select().from(users).where(or(eq(users.cognito_sub, sub), eq(users.email, email))).limit(1);
+      const [user] = existingUser
+        ? [existingUser]
+        : await db.insert(users).values({ cognito_sub: sub, email, role: UserRole.STUDENT }).returning();
+      await db.insert(students).values({ ...profile, user_id: user.id }).onConflictDoNothing();
+      await db.delete(availabilities).where(eq(availabilities.user_id, user.id));
+      await db.insert(availabilities).values(
+        slots.map((s) => ({ user_id: user.id, day_of_week: s.day, start_time: s.start, end_time: s.end })),
+      );
+    }
+    await upsertSeedStudent('seed-student-mina', 'mina.primary@tutorpair.local', {
+      first_name: 'Mina', last_name: 'Kaewjai', phone_number: '0881110001', line_id: 'mina_parent',
+      grade_level: 'G4', tutor_type_pref: 'ANY', budget_max: '500.00',
+      style_profile: [2, 4, 2, 2, 3], personality_profile: [2, 2, 3, 3],
+    }, [
+      { day: DayOfWeek.SATURDAY, start: '09:00', end: '12:00' },
+      { day: DayOfWeek.WEDNESDAY, start: '16:00', end: '18:00' },
+    ]);
+    await upsertSeedStudent('seed-student-nara', 'nara.lower@tutorpair.local', {
+      first_name: 'Nara', last_name: 'Lertsiri', phone_number: '0881110002', line_id: 'nara_lower',
+      grade_level: 'G8', tutor_type_pref: 'ANY', budget_max: '600.00',
+      style_profile: [3, 3, 4, 2, 4], personality_profile: [3, 2, 4, 3],
+    }, [
+      { day: DayOfWeek.TUESDAY, start: '17:00', end: '19:00' },
+      { day: DayOfWeek.SUNDAY, start: '10:00', end: '13:00' },
+    ]);
+
+    // =========================================================================
+    // 6. GENERALIST TUTORS — every subject variant in the DB gets >= 3 approved tutors.
+    //    3 tutors per subject category, each teaching every variant of that category. Grade levels come from
+    //    the "(Gx–Gy)" in the variant name (else G1–G12). Rates <= 450 so they fit the demo (700), Mina (500)
+    //    and Nara (600) budgets. Slots cover demo (Mon 17-19, Sat/Sun 13-17), Mina (Sat 9-12, Wed 16-18)
+    //    and Nara (Tue 17-19, Sun 10-13).
+    // =========================================================================
+    const allVariants = await db
+      .select({ id: subjectVariants.id, name: subjectVariants.name, category: subjects.category })
+      .from(subjectVariants)
+      .innerJoin(subjects, eq(subjects.id, subjectVariants.subject_id));
+    const gradesFor = (name: string) => {
+      const m = name.match(/\(G(\d+)–G(\d+)\)/);
+      return m ? G(Number(m[1]), Number(m[2])) : G(1, 12);
+    };
+    const generalistSlots = [
+      { day: DayOfWeek.MONDAY, start: '17:00', end: '20:00' },
+      { day: DayOfWeek.TUESDAY, start: '17:00', end: '20:00' },
+      { day: DayOfWeek.WEDNESDAY, start: '16:00', end: '19:00' },
+      { day: DayOfWeek.SATURDAY, start: '09:00', end: '18:00' },
+      { day: DayOfWeek.SUNDAY, start: '09:00', end: '18:00' },
+    ];
+    const generalists: Array<{ slug: string; first: string; last: string; category: SubjectCategory; type: TutorType; rate: string; style: number[]; pers: number[]; rating: string }> = [
+      { slug: 'gen-learn-aom', first: 'Aom', last: 'Chaiyo', category: SubjectCategory.GENERAL_LEARNING, type: TutorType.INSTITUTIONAL, rate: '300.00', style: [3, 4, 2, 3, 4], pers: [2, 2, 4, 3], rating: '4.50' },
+      { slug: 'gen-learn-bank', first: 'Bank', last: 'Direk', category: SubjectCategory.GENERAL_LEARNING, type: TutorType.UNDERGRADUATE, rate: '380.00', style: [5, 2, 4, 4, 2], pers: [4, 4, 2, 5], rating: '4.60' },
+      { slug: 'gen-learn-cherry', first: 'Cherry', last: 'Eksit', category: SubjectCategory.GENERAL_LEARNING, type: TutorType.FREELANCE, rate: '450.00', style: [2, 5, 3, 1, 3], pers: [3, 1, 5, 2], rating: '4.70' },
+      { slug: 'gen-lang-dao', first: 'Dao', last: 'Fahsai', category: SubjectCategory.LANGUAGE_TESTING, type: TutorType.FREELANCE, rate: '320.00', style: [4, 3, 3, 3, 3], pers: [3, 3, 3, 4], rating: '4.55' },
+      { slug: 'gen-lang-ek', first: 'Ek', last: 'Gunthon', category: SubjectCategory.LANGUAGE_TESTING, type: TutorType.INSTITUTIONAL, rate: '400.00', style: [2, 4, 5, 2, 5], pers: [5, 2, 2, 3], rating: '4.65' },
+      { slug: 'gen-lang-fon', first: 'Fon', last: 'Hirun', category: SubjectCategory.LANGUAGE_TESTING, type: TutorType.UNDERGRADUATE, rate: '450.00', style: [1, 3, 2, 5, 1], pers: [2, 5, 3, 1], rating: '4.75' },
+      { slug: 'gen-uni-gun', first: 'Gun', last: 'Intarat', category: SubjectCategory.UNIVERSITY_ENTRANCE, type: TutorType.UNDERGRADUATE, rate: '350.00', style: [5, 3, 1, 4, 2], pers: [4, 3, 3, 4], rating: '4.45' },
+      { slug: 'gen-uni-hana', first: 'Hana', last: 'Jirawat', category: SubjectCategory.UNIVERSITY_ENTRANCE, type: TutorType.FREELANCE, rate: '420.00', style: [3, 2, 4, 2, 5], pers: [1, 4, 5, 2], rating: '4.80' },
+      { slug: 'gen-uni-ice', first: 'Ice', last: 'Kiattisak', category: SubjectCategory.UNIVERSITY_ENTRANCE, type: TutorType.INSTITUTIONAL, rate: '450.00', style: [4, 4, 4, 1, 3], pers: [3, 3, 1, 5], rating: '4.90' },
+    ];
+    for (const g of generalists) {
+      await upsertVerifiedTutor({
+        cognitoSub: `seed-tutor-${g.slug}`, email: `${g.slug}@tutorpair.local`, firstName: g.first, lastName: g.last,
+        phoneNumber: '0872220000', lineId: g.slug.replace(/-/g, '_'), tutorType: g.type,
+        description: `Generalist ${g.category.toLowerCase().replace(/_/g, ' ')} tutor covering every variant in the catalogue (sample data).`,
+        styleProfile: g.style, personalityProfile: g.pers, averageRating: g.rating, reviewCount: 10,
+        subjects: allVariants
+          .filter((v) => v.category === g.category)
+          .map((v) => subj(v, g.rate, gradesFor(v.name), 'Exam-focused practice and concept clarity')),
+        slots: generalistSlots,
+      });
+    }
     }
     console.log('✅ Reference subjects seeded; mock fixtures are opt-in.');
   } catch (error) {
