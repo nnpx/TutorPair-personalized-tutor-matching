@@ -1049,8 +1049,8 @@ export const MatchingPage: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                <CheckCircle2 size={14} color="#059669" strokeWidth={2.5} /> 9
-                Learning Sliders
+                <CheckCircle2 size={14} color="#059669" strokeWidth={2.5} />{' '}
+                Learning Preferences Complete
               </span>
               <span style={{ color: '#d1d5db' }}>•</span>
               <span
@@ -1062,7 +1062,7 @@ export const MatchingPage: React.FC = () => {
                 }}
               >
                 <CheckCircle2 size={14} color="#059669" strokeWidth={2.5} />{' '}
-                Contact Channels Set
+                Contact Info Added
               </span>
               {profile?.budget_max && (
                 <>

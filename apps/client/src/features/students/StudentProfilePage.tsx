@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Card, Button, Alert, Modal } from '../../components/ui';
+import { useNavigate } from 'react-router-dom';
+import { Card, Button, Alert, Modal, BackLink } from '../../components/ui';
 import { InputField, SelectField } from '../../components/forms';
 import { useAuthStore } from '../../store/auth.store';
 import {
@@ -17,7 +17,6 @@ import {
   Sliders,
   Calendar,
   Save,
-  ArrowLeft,
   AlertTriangle,
 } from 'lucide-react';
 
@@ -397,26 +396,7 @@ export const StudentProfilePage: React.FC = () => {
     <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       {/* Option 1: Back to Matching Hub Button */}
       <div>
-        <Link
-          to="/student/matching"
-          onClick={handleBackToHub}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            color: '#4b5563',
-            textDecoration: 'none',
-            padding: '0.45rem 0.875rem',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: '#ffffff',
-            border: '2px solid var(--color-border)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <ArrowLeft size={16} strokeWidth={2.4} /> Back to Matching Hub
-        </Link>
+        <BackLink to="/student/matching" onClick={handleBackToHub}>Back to Matching Hub</BackLink>
       </div>
 
       {/* Header */}
