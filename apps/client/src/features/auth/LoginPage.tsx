@@ -97,13 +97,13 @@ export const LoginPage: React.FC = () => {
 
   const routeByRole = (role: UserRole) => {
     if (role === UserRole.STUDENT) {
-      navigate('/student/matching');
+      navigate('/student/matching', { replace: true });
     } else if (role === UserRole.TUTOR) {
-      navigate('/tutor/profile');
+      navigate('/tutor/profile', { replace: true });
     } else if (role === UserRole.ADMIN) {
-      navigate('/admin/verifications');
+      navigate('/admin/verifications', { replace: true });
     } else {
-      navigate('/');
+      navigate('/', { replace: true });
     }
   };
 
@@ -158,18 +158,7 @@ export const LoginPage: React.FC = () => {
       const sub = `google-user-${email.replace(/[^a-zA-Z0-9]/g, '-')}`;
       const mockToken = `mock-token-${sub}`;
 
-      // Temporarily store user state so api client attaches mock token
-      setUser(
-        {
-          id: sub,
-          email,
-          role: selectedRole,
-          cognito_sub: sub,
-        },
-        mockToken,
-      );
-
-      // 2. Synchronize account with backend
+      // 2. Synchronize account with backend first before setting authenticated store state
       const syncRes = await apiClient.post<
         ApiResponse<{
           id: string;
@@ -178,7 +167,16 @@ export const LoginPage: React.FC = () => {
           cognito_sub?: string;
           is_new_user: boolean;
         }>
-      >('/api/auth/sync', { role: selectedRole });
+      >(
+        '/api/auth/sync',
+        { role: selectedRole },
+        {
+          headers: {
+            Authorization: `Bearer ${mockToken}`,
+            'X-Mock-Email': email,
+          },
+        },
+      );
 
       if (syncRes.data.data) {
         const syncedUser = syncRes.data.data;

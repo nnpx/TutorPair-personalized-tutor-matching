@@ -85,6 +85,11 @@ export const reviewsRepository = {
         status: matchRequests.status,
         is_selected: matchRecommendations.is_selected,
         existing_review_id: reviews.id,
+        existing_rating_knowledge: reviews.rating_knowledge,
+        existing_rating_preparation: reviews.rating_preparation,
+        existing_rating_clarity: reviews.rating_clarity,
+        existing_rating_punctuality: reviews.rating_punctuality,
+        existing_comment: reviews.comment,
       })
       .from(matchRecommendations)
       .innerJoin(matchRequests, eq(matchRecommendations.match_request_id, matchRequests.id))
@@ -168,6 +173,60 @@ export const reviewsRepository = {
       }
       throw error;
     }
+  },
+
+  /**
+   * Updates an existing review and recalculates average_rating and review_count in one transaction.
+   */
+  async updateReview(params: InsertReviewParams): Promise<Review> {
+    return await db.transaction(async (tx: DbExecutor) => {
+      await tx
+        .select({ user_id: tutors.user_id })
+        .from(tutors)
+        .where(eq(tutors.user_id, params.tutor_id))
+        .for('update');
+
+      const [updatedReview] = await tx
+        .update(reviews)
+        .set({
+          rating_knowledge: params.rating_knowledge,
+          rating_preparation: params.rating_preparation,
+          rating_clarity: params.rating_clarity,
+          rating_punctuality: params.rating_punctuality,
+          overall_rating: params.overall_rating.toFixed(2),
+          comment: params.comment ?? null,
+        })
+        .where(
+          and(
+            eq(reviews.recommendation_id, params.recommendation_id),
+            eq(reviews.student_id, params.student_id)
+          )
+        )
+        .returning();
+
+      if (!updatedReview) {
+        throw new NotFoundError('Existing review not found for this recommendation');
+      }
+
+      const allTutorReviews = await tx
+        .select({ overall: reviews.overall_rating })
+        .from(reviews)
+        .where(eq(reviews.tutor_id, params.tutor_id));
+
+      const reviewCount = allTutorReviews.length;
+      const sum = allTutorReviews.reduce((acc, r) => acc + Number(r.overall), 0);
+      const avgRating = reviewCount > 0 ? (sum / reviewCount).toFixed(2) : '0.00';
+
+      await tx
+        .update(tutors)
+        .set({
+          average_rating: avgRating,
+          review_count: reviewCount,
+        })
+        .where(eq(tutors.user_id, params.tutor_id));
+
+      return updatedReview;
+    });
   },
 
   /**

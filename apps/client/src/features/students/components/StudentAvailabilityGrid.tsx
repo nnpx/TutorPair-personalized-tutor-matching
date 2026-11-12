@@ -35,7 +35,7 @@ export const StudentAvailabilityGrid: React.FC<StudentAvailabilityGridProps> = (
   onSaveSuccess,
   hideHeader = false,
 }) => {
-  const { data: serverSlots = [] } = useStudentAvailability();
+  const { data: serverSlots = [], isFetched } = useStudentAvailability();
   const setAvailabilityMutation = useSetStudentAvailability();
 
   const [internalSlots, setInternalSlots] = useState<StudentAvailabilitySlotDto[]>([]);
@@ -43,6 +43,7 @@ export const StudentAvailabilityGrid: React.FC<StudentAvailabilityGridProps> = (
   const hasInitSlots = useRef(false);
 
   const updateSlots = (newSlots: StudentAvailabilitySlotDto[]) => {
+    hasInitSlots.current = true;
     if (value === undefined) {
       setInternalSlots(newSlots);
     }
@@ -58,11 +59,13 @@ export const StudentAvailabilityGrid: React.FC<StudentAvailabilityGridProps> = (
 
   // Sync slots from server if not controlled by parent (once on initial load)
   useEffect(() => {
-    if (value === undefined && serverSlots && serverSlots.length > 0 && !hasInitSlots.current) {
+    if (value === undefined && isFetched && !hasInitSlots.current) {
       hasInitSlots.current = true;
-      setInternalSlots(serverSlots);
+      if (serverSlots && serverSlots.length > 0) {
+        setInternalSlots(serverSlots);
+      }
     }
-  }, [serverSlots, value]);
+  }, [serverSlots, isFetched, value]);
 
   const getDurationMinutes = (start: string, end: string): number => {
     if (!start || !end) return 0;
@@ -385,25 +388,35 @@ export const StudentAvailabilityGrid: React.FC<StudentAvailabilityGridProps> = (
       {/* Save Button */}
       {showSaveButton && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-          {saveSuccess && (
-            <Alert variant="success">
-              Availability schedule saved successfully.
-            </Alert>
-          )}
-
           {saveError && (
             <Alert variant="error">
               {saveError}
             </Alert>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            {saveSuccess && (
+              <Alert
+                variant="success"
+                style={{ padding: '0.625rem 1rem', margin: 0 }}
+              >
+                Availability schedule saved successfully.
+              </Alert>
+            )}
             <SaveButton
               label="Save Availability Schedule"
               isLoading={setAvailabilityMutation.isPending}
               onClick={handleSave}
               fullWidth={false}
-              style={{ padding: '0 2rem', height: '3.25rem', fontSize: '1rem' }}
+              style={{ padding: '0 2rem', height: '3.25rem', fontSize: '1rem', flexShrink: 0 }}
             />
           </div>
         </div>

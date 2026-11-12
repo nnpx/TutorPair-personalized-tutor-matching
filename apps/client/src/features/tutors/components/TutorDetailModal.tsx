@@ -10,6 +10,7 @@ import {
   Phone,
   Sparkles,
   Star,
+  UserCheck,
 } from 'lucide-react';
 import React from 'react';
 import { Link } from 'react-router-dom';
@@ -73,8 +74,8 @@ export const TutorDetailModal: React.FC<TutorDetailModalProps> = ({
                 onConfirmSelection(tutor.tutor_id);
               }}
             >
-              <Sparkles
-                size={16}
+              <UserCheck
+                size={18}
                 strokeWidth={2.4}
                 style={{ marginRight: '0.375rem' }}
               />

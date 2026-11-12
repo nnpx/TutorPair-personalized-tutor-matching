@@ -16,6 +16,15 @@ router.post(
   reviewsController.submitReview
 );
 
+// Update an existing review for a confirmed match
+router.put(
+  '/',
+  authenticate,
+  requireRole([UserRole.STUDENT]),
+  validateRequest(CreateReviewSchema),
+  reviewsController.updateReview
+);
+
 // Pre-fetch recommendation context for review submission form
 router.get(
   '/recommendation/:recommendationId',
