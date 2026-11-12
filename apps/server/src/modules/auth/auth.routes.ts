@@ -3,6 +3,7 @@ import { authenticate } from '../../common/middlewares/authenticate-jwt.js';
 import { validateRequest } from '../../common/middlewares/validate-request.js';
 import { SyncUserSchema, MockLoginSchema } from '@tutorpair/shared';
 import { authController } from './auth.controller.js';
+import { env } from '../../config/env.js';
 
 const router = Router();
 
@@ -32,11 +33,14 @@ router.get(
  * POST /api/auth/mock-login
  * Development utility for fast testing with mock accounts (disabled in production).
  */
-router.post(
-  '/mock-login',
-  validateRequest(MockLoginSchema),
-  authController.mockLogin
-);
+// Not registered at all in production (the service also rejects it: defence in depth).
+if (env.NODE_ENV !== 'production') {
+  router.post(
+    '/mock-login',
+    validateRequest(MockLoginSchema),
+    authController.mockLogin
+  );
+}
 
 /**
  * POST /api/auth/logout

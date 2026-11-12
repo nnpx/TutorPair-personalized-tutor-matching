@@ -258,6 +258,10 @@ async function seed() {
       personalityProfile: number[];
       averageRating: string;
       reviewCount: number;
+      // Admin-queue fixtures: default is an APPROVED tutor created now.
+      status?: VerificationStatus;
+      rejectionReason?: string;
+      createdAt?: Date;
       subjects: Array<{
         variantId: string;
         hourlyRate: string;
@@ -283,12 +287,18 @@ async function seed() {
             cognito_sub: params.cognitoSub,
             email: params.email,
             role: UserRole.TUTOR,
+            ...(params.createdAt && { created_at: params.createdAt }),
           })
           .returning();
       } else if (user.cognito_sub !== params.cognitoSub || user.role !== UserRole.TUTOR) {
         [user] = await db
           .update(users)
-          .set({ cognito_sub: params.cognitoSub, email: params.email, role: UserRole.TUTOR })
+          .set({
+            cognito_sub: params.cognitoSub,
+            email: params.email,
+            role: UserRole.TUTOR,
+            ...(params.createdAt && { created_at: params.createdAt }),
+          })
           .where(eq(users.id, user.id))
           .returning();
       }
@@ -305,7 +315,8 @@ async function seed() {
           tutor_type: params.tutorType,
           style_profile: params.styleProfile,
           personality_profile: params.personalityProfile,
-          verification_status: VerificationStatus.APPROVED,
+          verification_status: params.status ?? VerificationStatus.APPROVED,
+          rejection_reason: params.rejectionReason ?? null,
           average_rating: params.averageRating,
           review_count: params.reviewCount,
         })
@@ -317,7 +328,8 @@ async function seed() {
             phone_number: params.phoneNumber,
             line_id: params.lineId,
             description: params.description,
-            verification_status: VerificationStatus.APPROVED,
+            verification_status: params.status ?? VerificationStatus.APPROVED,
+            rejection_reason: params.rejectionReason ?? null,
             style_profile: params.styleProfile,
             personality_profile: params.personalityProfile,
             tutor_type: params.tutorType,
@@ -934,6 +946,40 @@ async function seed() {
           { day: DayOfWeek.SUNDAY, start: '10:00', end: '18:00' },
         ],
       });
+    }
+
+    // Admin verification queue fixtures: 3 PENDING + 2 REJECTED with distinct created_at (days apart)
+    // so Pending (oldest first) and the other tabs (newest first) are observable.
+    const daysAgo = (n: number) => new Date(Date.now() - n * 86400000);
+    const queue = [
+      { key: 'pending-a', first: 'Napat', last: 'Queue-Oldest', status: VerificationStatus.PENDING, age: 9 },
+      { key: 'pending-b', first: 'Orawan', last: 'Queue-Middle', status: VerificationStatus.PENDING, age: 5 },
+      { key: 'pending-c', first: 'Piyawat', last: 'Queue-Newest', status: VerificationStatus.PENDING, age: 2 },
+      { key: 'rejected-a', first: 'Rattana', last: 'Rejected-Older', status: VerificationStatus.REJECTED, age: 12, reason: 'Uploaded CV is unreadable. Please re-upload a clear PDF.' },
+      { key: 'rejected-b', first: 'Surasak', last: 'Rejected-Newer', status: VerificationStatus.REJECTED, age: 3, reason: 'Degree transcript does not match the subjects offered.' },
+    ];
+    if (mathSchool) {
+      for (const q of queue) {
+        await upsertVerifiedTutor({
+          cognitoSub: `seed-tutor-${q.key}`,
+          email: `${q.key}@tutorpair.local`,
+          firstName: q.first,
+          lastName: q.last,
+          phoneNumber: '0800000000',
+          lineId: q.key,
+          description: `Sample ${q.status.toLowerCase()} tutor application for the admin verification queue.`,
+          tutorType: TutorType.FREELANCE,
+          styleProfile: [3, 3, 3, 3, 3],
+          personalityProfile: [3, 3, 3, 3],
+          averageRating: '0.00',
+          reviewCount: 0,
+          status: q.status,
+          rejectionReason: q.reason,
+          createdAt: daysAgo(q.age),
+          subjects: [{ variantId: mathSchool.id, hourlyRate: '400.00', gradeLevels: ['G7', 'G8', 'G9'], teachingFocus: 'School Mathematics' }],
+          slots: [{ day: DayOfWeek.SATURDAY, start: '09:00', end: '12:00' }],
+        });
+      }
     }
 
     // =========================================================================
