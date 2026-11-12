@@ -27,7 +27,7 @@ import {
 
 const STEPS = [
   { id: 1, title: 'Profile & Contact' },
-  { id: 2, title: 'Sliders & Schedule' },
+  { id: 2, title: 'Learning Style & Schedule' },
   { id: 3, title: 'Ready to Match' },
 ];
 
@@ -62,17 +62,31 @@ export const StudentOnboardingPage: React.FC = () => {
   const createProfileMutation = useCreateStudentProfile();
   const updateProfileMutation = useUpdateStudentProfile();
 
-  const { data: serverAvailability = [] } = useStudentAvailability();
+  const {
+    data: serverAvailability = [],
+    isLoading: loadingAvailability,
+    isFetched: isAvailabilityFetched,
+  } = useStudentAvailability();
   const setAvailabilityMutation = useSetStudentAvailability();
   const [availabilitySlots, setAvailabilitySlots] = useState<StudentAvailabilitySlotDto[]>([]);
   const hasInitSlots = useRef(false);
 
   useEffect(() => {
-    if (serverAvailability && serverAvailability.length > 0 && !hasInitSlots.current) {
-      setAvailabilitySlots(serverAvailability);
+    if (isAvailabilityFetched && !hasInitSlots.current) {
       hasInitSlots.current = true;
+      if (serverAvailability && serverAvailability.length > 0) {
+        setAvailabilitySlots(serverAvailability);
+      }
     }
-  }, [serverAvailability]);
+  }, [isAvailabilityFetched, serverAvailability]);
+
+  const handleAvailabilityChange = (newSlots: StudentAvailabilitySlotDto[]) => {
+    hasInitSlots.current = true;
+    setAvailabilitySlots(newSlots);
+    if (errorMsg && newSlots.length > 0) {
+      setErrorMsg(null);
+    }
+  };
 
   const [step1Saved, setStep1Saved] = useState<boolean>(false);
   const [step2Saved, setStep2Saved] = useState<boolean>(false);
@@ -103,17 +117,23 @@ export const StudentOnboardingPage: React.FC = () => {
 
   // Derive step completion strictly from server state and in-session saves
   const isStep1Done = Boolean(profile?.first_name && profile?.grade_level) || step1Saved;
+  const hasSavedSchedule = Boolean(serverAvailability && serverAvailability.length > 0) || step2Saved;
   const isStep2Done =
     Boolean(
-      profile?.style_profile &&
-      profile?.style_profile.length === 5 &&
-      profile?.personality_profile &&
-      profile?.personality_profile.length === 4
-    ) || step2Saved;
+      isStep1Done &&
+      hasSavedSchedule &&
+      availabilitySlots.length > 0 &&
+      ((profile?.style_profile &&
+        profile?.style_profile.length === 5 &&
+        profile?.personality_profile &&
+        profile?.personality_profile.length === 4) ||
+        step2Saved)
+    );
 
   const maxReachableStep = isStep2Done ? 3 : isStep1Done ? 2 : 1;
 
-  const initialStepParam = parseInt(searchParams.get('step') || '1', 10);
+  const stepParam = searchParams.get('step');
+  const initialStepParam = parseInt(stepParam || '1', 10);
   const validInitialStep = initialStepParam >= 1 && initialStepParam <= 3 ? initialStepParam : 1;
   const [currentStep, setCurrentStep] = useState<number>(Math.min(validInitialStep, maxReachableStep));
 
@@ -136,13 +156,18 @@ export const StudentOnboardingPage: React.FC = () => {
     }
   }, [profile]);
 
-  // Guard against direct URL tampering (?step=3 when step 1 is not done)
+  // Keep currentStep in sync with URL ?step= query parameter (including Browser Back/Forward)
+  // and guard against direct URL tampering (?step=3 when step 2 is not done)
   useEffect(() => {
-    if (!loadingProfile && currentStep > maxReachableStep) {
-      setCurrentStep(maxReachableStep);
-      setSearchParams({ step: String(maxReachableStep) });
+    if (loadingProfile || loadingAvailability) return;
+    const parsed = parseInt(stepParam || '1', 10);
+    const validStep = parsed >= 1 && parsed <= 3 ? parsed : 1;
+    const clampedStep = Math.min(validStep, maxReachableStep);
+    setCurrentStep(clampedStep);
+    if (stepParam && String(clampedStep) !== stepParam) {
+      setSearchParams({ step: String(clampedStep) }, { replace: true });
     }
-  }, [loadingProfile, currentStep, maxReachableStep, setSearchParams]);
+  }, [loadingProfile, loadingAvailability, stepParam, maxReachableStep, setSearchParams]);
 
   const setStep = (step: number) => {
     setErrorMsg(null);
@@ -277,7 +302,7 @@ export const StudentOnboardingPage: React.FC = () => {
     }
   };
 
-  if (loadingProfile) {
+  if (loadingProfile || loadingAvailability) {
     return (
       <Card style={{ textAlign: 'center', padding: '4rem 2rem' }}>
         <p style={{ fontWeight: 700, fontSize: '1.125rem', color: '#6b7280' }}>
@@ -646,10 +671,10 @@ export const StudentOnboardingPage: React.FC = () => {
               </span>
               <div>
                 <h2 style={{ fontSize: '1.375rem', fontWeight: 800, color: 'var(--fg-main)', margin: 0 }}>
-                  9 Learning Preferences &amp; Habits Sliders
+                  Learning Style &amp; Study Preferences
                 </h2>
                 <p style={{ fontSize: '0.875rem', color: '#6b7280', margin: 0 }}>
-                  Adjust each 1–5 slider to reflect how you study best. Our matchmaking algorithm uses these 9 dimensions to find the perfect tutor compatibility.
+                  Choose how you prefer to learn across each 1–5 scale so our matchmaking system can pair you with the most compatible tutors.
                 </p>
               </div>
             </div>
@@ -711,7 +736,7 @@ export const StudentOnboardingPage: React.FC = () => {
 
               <StudentAvailabilityGrid
                 value={availabilitySlots}
-                onChange={setAvailabilitySlots}
+                onChange={handleAvailabilityChange}
                 showSaveButton={false}
               />
             </div>
@@ -762,7 +787,7 @@ export const StudentOnboardingPage: React.FC = () => {
                     fontWeight: 800,
                   }}
                 >
-                  {isSubmitting ? 'Saving...' : 'Save Sliders & Schedule →'}
+                  {isSubmitting ? 'Saving...' : 'Save Preferences & Schedule →'}
                   <ArrowRight size={18} strokeWidth={2.4} />
                 </Button>
               </div>
@@ -835,7 +860,7 @@ export const StudentOnboardingPage: React.FC = () => {
 
             <div style={{ padding: '1rem', backgroundColor: 'var(--color-muted)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', color: '#6b7280', marginBottom: '0.25rem' }}>
-                <Compass size={14} /> Sliders Configured
+                <Compass size={14} /> Learning Style
               </div>
               <div style={{ fontSize: '1.0625rem', fontWeight: 800, color: 'var(--fg-main)' }}>
                 9 / 9 Calibrated
@@ -854,6 +879,21 @@ export const StudentOnboardingPage: React.FC = () => {
 
           {/* Action CTAs */}
           <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setStep(2)}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontWeight: 700,
+                padding: '0.875rem 1.5rem',
+              }}
+            >
+              <ArrowLeft size={16} strokeWidth={2.4} />
+              Previous Step
+            </Button>
             <Button
               type="button"
               variant="outline"

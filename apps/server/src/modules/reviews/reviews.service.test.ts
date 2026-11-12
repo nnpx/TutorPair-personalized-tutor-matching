@@ -21,6 +21,7 @@ describe('ReviewsService (TP-30 & TP-19)', () => {
     findReview: reviewsRepository.findReviewByRecommendationId,
     findRecDetails: reviewsRepository.findRecommendationForReview,
     createReview: reviewsRepository.createReview,
+    updateReview: reviewsRepository.updateReview,
     getSummary: reviewsRepository.getTutorReviewsSummary,
   };
 
@@ -64,6 +65,7 @@ describe('ReviewsService (TP-30 & TP-19)', () => {
         created_at: new Date('2026-11-01T12:00:00Z'),
       };
     }) as any;
+    reviewsRepository.updateReview = reviewsRepository.createReview;
   });
 
   afterEach(() => {
@@ -71,6 +73,7 @@ describe('ReviewsService (TP-30 & TP-19)', () => {
     reviewsRepository.findReviewByRecommendationId = orig.findReview;
     reviewsRepository.findRecommendationForReview = orig.findRecDetails;
     reviewsRepository.createReview = orig.createReview;
+    reviewsRepository.updateReview = orig.updateReview;
     reviewsRepository.getTutorReviewsSummary = orig.getSummary;
   });
 
@@ -160,6 +163,28 @@ describe('ReviewsService (TP-30 & TP-19)', () => {
         review_id: REVIEW_ID,
         tutor_id: TUTOR_ID,
         overall_rating: 4.5,
+        created_at: '2026-11-01T12:00:00.000Z',
+      });
+    });
+
+    it('updates an existing review via updateReview and recomputes overall rating', async () => {
+      existingReview = { id: REVIEW_ID };
+      const updatedInput = {
+        ...validReviewInput,
+        rating_knowledge: 4,
+        rating_preparation: 4,
+        rating_clarity: 4,
+        rating_punctuality: 4,
+        comment: 'Updated comment after editing review.',
+      };
+
+      const result = await reviewsService.updateReview(STUDENT_ID, updatedInput);
+      assert.equal(createdParams.overall_rating, 4);
+      assert.equal(createdParams.comment, 'Updated comment after editing review.');
+      assert.deepEqual(result, {
+        review_id: REVIEW_ID,
+        tutor_id: TUTOR_ID,
+        overall_rating: 4,
         created_at: '2026-11-01T12:00:00.000Z',
       });
     });

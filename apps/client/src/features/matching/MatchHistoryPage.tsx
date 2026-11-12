@@ -216,7 +216,7 @@ export const MatchHistoryPage: React.FC = () => {
             transition: 'all 0.2s ease',
           }}
         >
-          All Requests ({history.length})
+          All History ({history.length})
         </button>
         <button
           onClick={() => setActiveTab('CONFIRMED')}
@@ -563,18 +563,39 @@ export const MatchHistoryPage: React.FC = () => {
                               style={{
                                 display: 'inline-flex',
                                 alignItems: 'center',
-                                gap: '0.375rem',
-                                padding: '0.5rem 1rem',
-                                backgroundColor: '#ffffff',
-                                border: '2px solid var(--color-secondary)',
-                                borderRadius: 'var(--radius-md)',
-                                color: 'var(--color-secondary)',
-                                fontWeight: 800,
-                                fontSize: '0.875rem',
+                                gap: '0.75rem',
+                                flexWrap: 'wrap',
                               }}
                             >
-                              <CheckCircle2 size={16} strokeWidth={2.6} />
-                              Review Submitted
+                              <div
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.375rem',
+                                  padding: '0.5rem 1rem',
+                                  backgroundColor: '#ffffff',
+                                  border: '2px solid var(--color-secondary)',
+                                  borderRadius: 'var(--radius-md)',
+                                  color: 'var(--color-secondary)',
+                                  fontWeight: 800,
+                                  fontSize: '0.875rem',
+                                }}
+                              >
+                                <CheckCircle2 size={16} strokeWidth={2.6} />
+                                Review Submitted
+                              </div>
+                              <Link
+                                to={`/student/review/${selected.recommendation_id}`}
+                                style={{
+                                  color: 'var(--color-primary)',
+                                  fontWeight: 800,
+                                  fontSize: '0.875rem',
+                                  textDecoration: 'underline',
+                                  textUnderlineOffset: '3px',
+                                }}
+                              >
+                                Edit Review
+                              </Link>
                             </div>
                           ) : (
                             <Link

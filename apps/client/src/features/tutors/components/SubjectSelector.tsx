@@ -65,7 +65,7 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
   onChange,
   showSaveButton = true,
 }) => {
-  const { data: currentSubjects = [] } = useTutorSubjects();
+  const { data: currentSubjects = [], isFetched } = useTutorSubjects();
   const setSubjectsMutation = useSetTutorSubjects();
 
   // Local state for subjects being configured
@@ -74,7 +74,10 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
   >([]);
   const configuredSubjects = value !== undefined ? value : internalSubjects;
 
+  const hasInitServer = useRef<boolean>(false);
+
   const updateConfiguredSubjects = (newList: ConfiguredSubjectItem[]) => {
+    hasInitServer.current = true;
     if (value === undefined) {
       setInternalSubjects(newList);
     }
@@ -92,32 +95,31 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
   const [formError, setFormError] = useState<string | null>(null);
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
 
-  const hasInitServer = useRef<boolean>(false);
-
   // Sync configuredSubjects from server on initial load if not controlled (once on initial load)
   useEffect(() => {
     if (
       value === undefined &&
-      currentSubjects &&
-      currentSubjects.length > 0 &&
+      isFetched &&
       !hasInitServer.current
     ) {
       hasInitServer.current = true;
-      const mapped = currentSubjects.map((s) => ({
-        variant_id: s.variant_id,
-        subject_name: s.subject_name,
-        variant_name: s.variant_name,
-        category: s.category,
-        learning_goal: s.learning_goal,
-        requires_proof: s.requires_proof,
-        hourly_rate: s.hourly_rate ?? 500,
-        grade_levels: s.grade_levels ?? [],
-        teaching_focus: s.teaching_focus ?? '',
-      }));
-      setInternalSubjects(mapped);
-      onChange?.(mapped);
+      if (currentSubjects && currentSubjects.length > 0) {
+        const mapped = currentSubjects.map((s) => ({
+          variant_id: s.variant_id,
+          subject_name: s.subject_name,
+          variant_name: s.variant_name,
+          category: s.category,
+          learning_goal: s.learning_goal,
+          requires_proof: s.requires_proof,
+          hourly_rate: s.hourly_rate ?? 500,
+          grade_levels: s.grade_levels ?? [],
+          teaching_focus: s.teaching_focus ?? '',
+        }));
+        setInternalSubjects(mapped);
+        onChange?.(mapped);
+      }
     }
-  }, [currentSubjects, value, onChange]);
+  }, [currentSubjects, isFetched, value, onChange]);
 
   // Fetch subjects catalog for currently selected category
   const { data: catalog = [], isLoading: loadingCatalog } =
@@ -1055,13 +1057,18 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
         <div
           style={{
             display: 'flex',
-            flexDirection: 'column',
-            gap: '0.75rem',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: '1rem',
+            flexWrap: 'wrap',
             marginTop: '0.5rem',
           }}
         >
           {saveSuccess && (
-            <Alert variant="success">
+            <Alert
+              variant="success"
+              style={{ padding: '0.625rem 1rem', margin: 0 }}
+            >
               Subjects and hourly rates updated successfully!
             </Alert>
           )}
@@ -1071,6 +1078,8 @@ export const SubjectSelector: React.FC<SubjectSelectorProps> = ({
             onClick={handleSaveToBackend}
             disabled={setSubjectsMutation.isPending}
             isLoading={setSubjectsMutation.isPending}
+            fullWidth={false}
+            style={{ padding: '0 2rem', height: '3.25rem', fontSize: '1rem', flexShrink: 0 }}
             label="Save Subject Changes"
           />
         </div>

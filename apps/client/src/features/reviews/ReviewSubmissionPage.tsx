@@ -1,10 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Card, Button, Modal, BackLink } from '../../components/ui';
-import { useRecommendationReviewContext, useSubmitReview } from './hooks/useReviews';
+import { useRecommendationReviewContext, useSubmitReview, useUpdateReview } from './hooks/useReviews';
 import {
   Star,
-  CheckCircle2,
   AlertCircle,
   Award,
 } from 'lucide-react';
@@ -58,6 +57,8 @@ export const ReviewSubmissionPage: React.FC = () => {
   } = useRecommendationReviewContext(recommendationId || '');
 
   const submitMutation = useSubmitReview();
+  const updateMutation = useUpdateReview();
+  const hasPrefilledExisting = useRef(false);
 
   // Ratings state (1 to 5)
   const [ratings, setRatings] = useState<{
@@ -76,6 +77,20 @@ export const ReviewSubmissionPage: React.FC = () => {
   const [validationError, setValidationError] = useState<string | null>(null);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
+  // Pre-fill existing review values when editing a previously submitted review
+  useEffect(() => {
+    if (context?.existing_review && !hasPrefilledExisting.current) {
+      hasPrefilledExisting.current = true;
+      setRatings({
+        rating_knowledge: context.existing_review.rating_knowledge,
+        rating_preparation: context.existing_review.rating_preparation,
+        rating_clarity: context.existing_review.rating_clarity,
+        rating_punctuality: context.existing_review.rating_punctuality,
+      });
+      setComment(context.existing_review.comment ?? '');
+    }
+  }, [context]);
+
   // Dynamic arithmetic mean of 4 metrics
   const overallRating =
     (ratings.rating_knowledge +
@@ -91,33 +106,36 @@ export const ReviewSubmissionPage: React.FC = () => {
     setRatings((prev) => ({ ...prev, [key]: score }));
   };
 
+  const isMutating = submitMutation.isPending || updateMutation.isPending;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
 
     if (!context || !recommendationId) return;
 
-    submitMutation.mutate(
-      {
-        tutor_id: context.tutor_id,
-        recommendation_id: recommendationId,
-        rating_knowledge: ratings.rating_knowledge,
-        rating_preparation: ratings.rating_preparation,
-        rating_clarity: ratings.rating_clarity,
-        rating_punctuality: ratings.rating_punctuality,
-        comment: comment.trim() || undefined,
+    const payload = {
+      tutor_id: context.tutor_id,
+      recommendation_id: recommendationId,
+      rating_knowledge: ratings.rating_knowledge,
+      rating_preparation: ratings.rating_preparation,
+      rating_clarity: ratings.rating_clarity,
+      rating_punctuality: ratings.rating_punctuality,
+      comment: comment.trim() || undefined,
+    };
+
+    const activeMutation = context.already_reviewed ? updateMutation : submitMutation;
+
+    activeMutation.mutate(payload, {
+      onSuccess: () => {
+        setIsSuccessModalOpen(true);
       },
-      {
-        onSuccess: () => {
-          setIsSuccessModalOpen(true);
-        },
-        onError: (err: any) => {
-          setValidationError(
-            err.response?.data?.message || err.message || 'Failed to submit review'
-          );
-        },
-      }
-    );
+      onError: (err: any) => {
+        setValidationError(
+          err.response?.data?.message || err.message || 'Failed to submit review'
+        );
+      },
+    });
   };
 
   if (isLoading) {
@@ -155,39 +173,6 @@ export const ReviewSubmissionPage: React.FC = () => {
           <p style={{ fontSize: '0.9375rem', color: '#6b7280', margin: '0 auto 1.5rem auto', maxWidth: '480px', lineHeight: 1.5 }}>
             {(error as any)?.response?.data?.message ||
               'To prevent fraudulent reviews, TutorPair strictly allows reviews only for the tutor you have chosen and confirmed for your lesson.'}
-          </p>
-          <Link to="/student/history" style={{ textDecoration: 'none' }}>
-            <Button variant="primary">Return to Matching History</Button>
-          </Link>
-        </Card>
-      </div>
-    );
-  }
-
-  if (context.already_reviewed) {
-    return (
-      <div style={{ maxWidth: '800px', margin: '3rem auto' }}>
-        <Card style={{ padding: '3rem', textAlign: 'center', border: '2px solid var(--color-secondary)' }}>
-          <div
-            style={{
-              width: '3.5rem',
-              height: '3.5rem',
-              margin: '0 auto 1rem auto',
-              borderRadius: 'var(--radius-md)',
-              backgroundColor: 'var(--color-secondary-tint)',
-              color: 'var(--color-secondary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}
-          >
-            <CheckCircle2 size={32} strokeWidth={2.6} />
-          </div>
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 900, color: 'var(--fg-main)', margin: '0 0 0.5rem 0' }}>
-            Review Already Submitted
-          </h2>
-          <p style={{ fontSize: '0.9375rem', color: '#6b7280', margin: '0 auto 1.5rem auto', maxWidth: '480px', lineHeight: 1.5 }}>
-            You have already submitted a verified 4-metric review for <strong>{context.tutor_name}</strong> on <strong>{context.subject_name} — {context.variant_name}</strong>. Thank you for your feedback!
           </p>
           <Link to="/student/history" style={{ textDecoration: 'none' }}>
             <Button variant="primary">Return to Matching History</Button>
@@ -426,11 +411,11 @@ export const ReviewSubmissionPage: React.FC = () => {
           <Button
             variant="primary"
             type="submit"
-            disabled={submitMutation.isPending}
+            disabled={isMutating}
             style={{ minWidth: '220px', height: '3.5rem', fontSize: '1rem', fontWeight: 800 }}
           >
             <Award size={18} strokeWidth={2.4} style={{ marginRight: '0.5rem' }} />
-            {submitMutation.isPending ? 'Submitting Review...' : 'Submit Verified Review'}
+            {isMutating ? 'Submitting Review...' : 'Submit Verified Review'}
           </Button>
         </div>
       </form>
