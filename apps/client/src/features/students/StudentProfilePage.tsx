@@ -17,7 +17,6 @@ import {
   Sliders,
   Calendar,
   Save,
-  CheckCircle2,
   ArrowLeft,
   AlertTriangle,
 } from 'lucide-react';
@@ -490,14 +489,6 @@ export const StudentProfilePage: React.FC = () => {
           <strong>Error:</strong> {errorMessage}
         </Alert>
       )}
-      {successMessage && (
-        <Alert variant="success">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <CheckCircle2 size={18} strokeWidth={2.4} />
-            <span>{successMessage}</span>
-          </div>
-        </Alert>
-      )}
 
       {/* Unsaved Changes Banner */}
       {isCurrentTabDirty && !errorMessage && !successMessage && (
@@ -671,9 +662,20 @@ export const StudentProfilePage: React.FC = () => {
                 paddingTop: '1.5rem',
                 borderTop: '2px solid var(--color-border)',
                 display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'flex-end',
+                gap: '1rem',
+                flexWrap: 'wrap',
               }}
             >
+              {successMessage && (
+                <Alert
+                  variant="success"
+                  style={{ padding: '0.625rem 1rem', margin: 0 }}
+                >
+                  {successMessage}
+                </Alert>
+              )}
               <Button
                 type="submit"
                 variant="primary"
@@ -684,6 +686,7 @@ export const StudentProfilePage: React.FC = () => {
                   gap: '0.5rem',
                   fontWeight: 800,
                   padding: '0.75rem 2rem',
+                  flexShrink: 0,
                 }}
               >
                 <Save size={18} strokeWidth={2.4} />
@@ -751,9 +754,20 @@ export const StudentProfilePage: React.FC = () => {
                 paddingTop: '1.5rem',
                 borderTop: '2px solid var(--color-border)',
                 display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'flex-end',
+                gap: '1rem',
+                flexWrap: 'wrap',
               }}
             >
+              {successMessage && (
+                <Alert
+                  variant="success"
+                  style={{ padding: '0.625rem 1rem', margin: 0 }}
+                >
+                  {successMessage}
+                </Alert>
+              )}
               <Button
                 type="submit"
                 variant="primary"
@@ -764,10 +778,11 @@ export const StudentProfilePage: React.FC = () => {
                   gap: '0.5rem',
                   fontWeight: 800,
                   padding: '0.75rem 2rem',
+                  flexShrink: 0,
                 }}
               >
                 <Save size={18} strokeWidth={2.4} />
-                {isSaving ? 'Saving Changes...' : 'Save Sliders'}
+                {isSaving ? 'Saving Changes...' : 'Save Preferences'}
               </Button>
             </div>
           </Card>

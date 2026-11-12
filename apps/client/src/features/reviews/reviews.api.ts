@@ -15,6 +15,13 @@ export interface RecommendationReviewContextDto {
   variant_name: string;
   already_reviewed: boolean;
   existing_review_id: string | null;
+  existing_review: {
+    rating_knowledge: number;
+    rating_preparation: number;
+    rating_clarity: number;
+    rating_punctuality: number;
+    comment: string | null;
+  } | null;
 }
 
 export const reviewsApi = {
@@ -28,6 +35,20 @@ export const reviewsApi = {
     );
     if (!res.data.success || !res.data.data) {
       throw new Error(res.data.message || 'Failed to submit tutor review');
+    }
+    return res.data.data;
+  },
+
+  /**
+   * Updates an existing 4-category review with written feedback.
+   */
+  async updateReview(data: CreateReviewInput): Promise<{ review_id: string; overall_rating: number }> {
+    const res = await apiClient.put<ApiResponse<{ review_id: string; overall_rating: number }>>(
+      '/api/reviews',
+      data
+    );
+    if (!res.data.success || !res.data.data) {
+      throw new Error(res.data.message || 'Failed to update tutor review');
     }
     return res.data.data;
   },

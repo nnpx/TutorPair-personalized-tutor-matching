@@ -30,7 +30,7 @@ export const MatchRequestPage: React.FC = () => {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const { data: profile, isLoading } = useStudentProfile();
-  const { data: serverAvailability } = useStudentAvailability();
+  const { data: serverAvailability, isLoading: isAvailabilityLoading } = useStudentAvailability();
 
   // Scroll to top on load
   useEffect(() => {
@@ -46,7 +46,9 @@ export const MatchRequestPage: React.FC = () => {
     profile.style_profile &&
     profile.style_profile.length === 5 &&
     profile.personality_profile &&
-    profile.personality_profile.length === 4
+    profile.personality_profile.length === 4 &&
+    serverAvailability &&
+    serverAvailability.length > 0
   );
 
   // Form states
@@ -183,7 +185,7 @@ export const MatchRequestPage: React.FC = () => {
     );
   };
 
-  if (isLoading) {
+  if (isLoading || isAvailabilityLoading) {
     return (
       <div style={{ maxWidth: '960px', margin: '3rem auto', textAlign: 'center' }}>
         <Card style={{ padding: '3rem' }}>

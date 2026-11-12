@@ -31,6 +31,20 @@ export function useSubmitReview() {
     onSuccess: (_data, variables) => {
       queryClient.invalidateQueries({ queryKey: MATCHING_QUERY_KEYS.history });
       queryClient.invalidateQueries({ queryKey: REVIEWS_QUERY_KEYS.tutor(variables.tutor_id) });
+      queryClient.invalidateQueries({ queryKey: REVIEWS_QUERY_KEYS.recommendation(variables.recommendation_id) });
+      queryClient.invalidateQueries({ queryKey: ['tutors', variables.tutor_id] });
+    },
+  });
+}
+
+export function useUpdateReview() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (data: CreateReviewInput) => reviewsApi.updateReview(data),
+    onSuccess: (_data, variables) => {
+      queryClient.invalidateQueries({ queryKey: MATCHING_QUERY_KEYS.history });
+      queryClient.invalidateQueries({ queryKey: REVIEWS_QUERY_KEYS.tutor(variables.tutor_id) });
+      queryClient.invalidateQueries({ queryKey: REVIEWS_QUERY_KEYS.recommendation(variables.recommendation_id) });
       queryClient.invalidateQueries({ queryKey: ['tutors', variables.tutor_id] });
     },
   });

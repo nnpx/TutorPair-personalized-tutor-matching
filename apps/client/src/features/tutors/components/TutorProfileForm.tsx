@@ -421,20 +421,39 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
         <Alert variant="error">{formError}</Alert>
       )}
 
-      {showSuccessMessage && saveSuccess && (
-        <Alert variant="success">
-          {mode === 'create'
-            ? 'Profile created successfully!'
-            : 'Tutor profile updated successfully!'}
-        </Alert>
-      )}
-
       {/* Submit Button */}
-      <SaveButton
-        isLoading={isPending}
-        disabled={isPending}
-        label={submitLabel || (mode === 'create' ? 'Save Profile & Continue' : 'Save Profile Changes')}
-      />
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'flex-end',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        {showSuccessMessage && saveSuccess && (
+          <Alert
+            variant="success"
+            style={{ padding: '0.625rem 1rem', margin: 0 }}
+          >
+            {mode === 'create'
+              ? 'Profile created successfully!'
+              : 'Tutor profile updated successfully!'}
+          </Alert>
+        )}
+
+        <SaveButton
+          isLoading={isPending}
+          disabled={isPending}
+          fullWidth={!showSuccessMessage}
+          style={
+            showSuccessMessage
+              ? { padding: '0 2rem', height: '3.25rem', fontSize: '1rem', flexShrink: 0 }
+              : undefined
+          }
+          label={submitLabel || (mode === 'create' ? 'Save Profile & Continue' : 'Save Profile Changes')}
+        />
+      </div>
     </form>
   );
 };
