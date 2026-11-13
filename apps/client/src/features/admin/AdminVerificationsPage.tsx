@@ -383,7 +383,7 @@ export const AdminVerificationsPage: React.FC = () => {
                       flexWrap: 'wrap',
                     }}
                   >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', minWidth: 0, flex: 1 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
                         {isFifoPending && (
                           <span
@@ -425,7 +425,7 @@ export const AdminVerificationsPage: React.FC = () => {
                           border: '1px solid var(--color-border)',
                         }}
                       >
-                        <div>
+                        <div style={{ gridColumn: '1 / -1', minWidth: 0 }}>
                           <span
                             style={{
                               fontSize: '0.7rem',
@@ -444,7 +444,7 @@ export const AdminVerificationsPage: React.FC = () => {
                               fontSize: '0.875rem',
                               color: 'var(--fg-main)',
                               marginTop: '0.15rem',
-                              wordBreak: 'break-all',
+                              overflowWrap: 'anywhere',
                             }}
                           >
                             {tutor.email}

@@ -5,7 +5,7 @@ import { createApp } from '../../app.js';
 import { db } from '../../db/client.js';
 import { users, subjectVariants } from '../../db/schema/index.js';
 import { eq } from 'drizzle-orm';
-import { UserRole, DayOfWeek, TutorType, ApiResponse } from '@tutorpair/shared';
+import { UserRole, DayOfWeek, TutorType, DocumentType, ApiResponse } from '@tutorpair/shared';
 
 // Type-safe JSON parser for test responses
 async function getJson<T = Record<string, unknown>>(res: Response): Promise<ApiResponse<T>> {
@@ -18,6 +18,7 @@ interface TutorProfileDto {
   last_name: string;
   phone_number: string;
   description: string | null;
+  consent_display_cv: boolean;
   tutor_type: TutorType;
   style_profile: number[];
   personality_profile: number[];
@@ -198,6 +199,7 @@ describe('Tutors Module — Integration Tests', () => {
     assert.ok(body.data);
     assert.strictEqual(body.data.first_name, 'Somchai');
     assert.strictEqual(body.data.verification_status, 'PENDING');
+    assert.strictEqual(body.data.consent_display_cv, false);
   });
 
   it('5. GET /api/tutors/profile — fetches the created profile (200 OK)', async () => {
@@ -226,6 +228,7 @@ describe('Tutors Module — Integration Tests', () => {
       body: JSON.stringify({
         phone_number: '0899999999',
         description: 'Updated description with new credentials',
+        consent_display_cv: true,
       }),
     });
 
@@ -235,6 +238,22 @@ describe('Tutors Module — Integration Tests', () => {
     assert.ok(body.data);
     assert.strictEqual(body.data.phone_number, '0899999999');
     assert.strictEqual(body.data.description, 'Updated description with new credentials');
+    assert.strictEqual(body.data.consent_display_cv, true);
+  });
+
+  it('rejects confirmation of a document key belonging to another tutor', async () => {
+    const res = await fetch(`${baseUrl}/api/documents/confirm`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer mock-token-${tutorSub}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        file_key: 'tutors/00000000-0000-4000-8000-000000000000/cv-22222222-2222-4222-8222-222222222222.pdf',
+        file_size_kb: 1,
+        document_type: DocumentType.CV,
+      }),
+    });
+    assert.strictEqual(res.status, 400);
+    const body = await getJson(res);
+    assert.match(body.message ?? '', /Document key/);
   });
 
   it('7. PUT & GET /api/tutors/subjects — replaces and fetches subjects', async () => {

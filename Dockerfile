@@ -59,7 +59,8 @@ COPY --from=builder /app/apps/server/src/db/migrations ./apps/server/dist/db/mig
 # node apps/server/dist/db/migrate.js
 RUN test -f apps/server/dist/db/migrate.js \
   && test -f apps/server/dist/db/migrations/meta/_journal.json \
-  && test -f apps/server/dist/db/migrations/0003_unique_review_recommendation.sql
+  && test -f apps/server/dist/db/migrations/0003_unique_review_recommendation.sql \
+  && test -f apps/server/dist/db/migrations/0004_yummy_ender_wiggin.sql
 
 # Expose backend port
 EXPOSE 4000

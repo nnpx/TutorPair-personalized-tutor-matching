@@ -16,6 +16,7 @@ describe('TutorsService Unit Tests', () => {
       phone_number: '0812345678',
       line_id: null,
       description: null,
+      consent_display_cv: false,
       tutor_type: TutorType.UNDERGRADUATE,
       style_profile: [3, 3, 3, 3, 3],
       personality_profile: [3, 3, 3, 3],
@@ -54,6 +55,7 @@ describe('TutorsService Unit Tests', () => {
       phone_number: '0812345678',
       line_id: null,
       description: null,
+      consent_display_cv: false,
       tutor_type: TutorType.UNDERGRADUATE,
       style_profile: [3, 3, 3, 3, 3],
       personality_profile: [3, 3, 3, 3],
@@ -97,6 +99,7 @@ describe('TutorsService Unit Tests', () => {
       phone_number: '0812345678',
       line_id: null,
       description: null,
+      consent_display_cv: false,
       tutor_type: TutorType.UNDERGRADUATE,
       style_profile: [3, 3, 3, 3, 3],
       personality_profile: [3, 3, 3, 3],
@@ -157,6 +160,7 @@ describe('TutorsService Unit Tests', () => {
       review_count: 12,
       verification_status: 'APPROVED',
       email: 'somchai@tutorpair.local',
+      consent_display_cv: true,
       subjects: [
         {
           variant_id: 'var-1',
@@ -223,6 +227,27 @@ describe('TutorsService Unit Tests', () => {
     } finally {
       tutorsRepository.findDetailedProfile = origFindDetailed;
       tutorsRepository.getStudentConfirmedMatchWithTutor = origGetConfirmed;
+    }
+  });
+
+  it('does not expose a CV to students without explicit tutor consent', async () => {
+    const originalFind = tutorsRepository.findDetailedProfile;
+    const originalMatch = tutorsRepository.getStudentConfirmedMatchWithTutor;
+    tutorsRepository.findDetailedProfile = async () => ({
+      user_id: 'tutor-uuid', first_name: 'Somchai', last_name: 'Jaidee',
+      phone_number: '0812345678', line_id: null, description: null,
+      tutor_type: TutorType.FREELANCE, style_profile: [3, 3, 3, 3, 3],
+      personality_profile: [3, 3, 3, 3], average_rating: '0.00',
+      review_count: 0, verification_status: 'APPROVED', email: 'tutor@example.com',
+      consent_display_cv: false, subjects: [], cv_file_key: 'tutors/tutor-uuid/cv-file.pdf',
+    } as any);
+    tutorsRepository.getStudentConfirmedMatchWithTutor = async () => null;
+    try {
+      const result = await tutorsService.getPublicTutorDetails('tutor-uuid', 'student-uuid', 'STUDENT');
+      assert.equal(result.cv_url, null);
+    } finally {
+      tutorsRepository.findDetailedProfile = originalFind;
+      tutorsRepository.getStudentConfirmedMatchWithTutor = originalMatch;
     }
   });
 });

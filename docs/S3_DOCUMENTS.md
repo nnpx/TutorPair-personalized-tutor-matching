@@ -79,8 +79,9 @@ Tutor (Browser)              React App              Express (ECS)           Amaz
       │                          │  { fileKey, documentType, fileSizeKb,       │
       │                          │    variantId }                               │
       │                          │───────────────────────▶│                     │
-      │                          │                        │  7. INSERT INTO     │
-      │                          │                        │  documents (...)    │
+      │                          │                        │  7. Verify key and  │
+      │                          │                        │  S3 object size;    │
+      │                          │                        │  insert metadata    │
       │                          │◀───────────────────────│                     │
       │                          │  201 Created           │                     │
       │◀─────────────────────────│                        │                     │
@@ -89,7 +90,7 @@ Tutor (Browser)              React App              Express (ECS)           Amaz
 
 **Backend endpoints involved:**
 - `POST /api/documents/presigned-upload` → validates, returns `{ uploadUrl, fileKey }`
-- `POST /api/documents/confirm` → stores metadata in PostgreSQL `documents` table
+- `POST /api/documents/confirm` → in production, checks the tutor-owned key and S3 object size with `HeadObject`, then stores the verified size under a locked tutor quota check
 
 ---
 
@@ -134,12 +135,10 @@ Admin (Browser)              React App              Express (ECS)           Amaz
 
 **When this happens:**
 - Student views a tutor's profile from the Top 3 results and clicks to view the CV.
-- This is only shown if the tutor has given consent (`consent_display_cv = true` — to be enforced in service logic).
+- The tutor controls `consent_display_cv` in their profile. It defaults to false; students receive a CV URL only for approved tutors who have opted in. Admins and the document owner retain verification access.
 
 **Sequence:** Same as Use Case 2 but:
-- The endpoint is `GET /api/tutors/{tutorId}/cv-url`
-- The middleware checks `requireRole(['STUDENT'])` instead of `['ADMIN']`
-- The service checks that the tutor's `verification_status = 'APPROVED'` before generating the URL
+- The current endpoint is `GET /api/tutors/{tutorId}` for authenticated users; its `cv_url` field is null unless the tutor is approved and has opted in (or the caller is the owner or an admin).
 
 ---
 

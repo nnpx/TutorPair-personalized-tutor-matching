@@ -258,7 +258,7 @@ async function seed() {
       personalityProfile: number[];
       averageRating: string;
       reviewCount: number;
-      // Admin-queue fixtures: default is an APPROVED tutor created now.
+      // Optional values are used only by local admin queue fixtures.
       status?: VerificationStatus;
       rejectionReason?: string;
       createdAt?: Date;
@@ -1115,6 +1115,15 @@ async function seed() {
         slots.map((s) => ({ user_id: user.id, day_of_week: s.day, start_time: s.start, end_time: s.end })),
       );
     }
+    await upsertSeedStudent('mock-student-id', 'student@tutorpair.local', {
+      first_name: 'Demo', last_name: 'Student', phone_number: '0881110000', line_id: null,
+      grade_level: 'G10', tutor_type_pref: 'ANY', budget_max: '700.00',
+      style_profile: [3, 3, 3, 3, 3], personality_profile: [3, 3, 3, 3],
+    }, [
+      { day: DayOfWeek.MONDAY, start: '17:00', end: '19:00' },
+      { day: DayOfWeek.SATURDAY, start: '13:00', end: '17:00' },
+      { day: DayOfWeek.SUNDAY, start: '13:00', end: '17:00' },
+    ]);
     await upsertSeedStudent('seed-student-mina', 'mina.primary@tutorpair.local', {
       first_name: 'Mina', last_name: 'Kaewjai', phone_number: '0881110001', line_id: 'mina_parent',
       grade_level: 'G4', tutor_type_pref: 'ANY', budget_max: '500.00',

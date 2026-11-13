@@ -46,6 +46,7 @@ export const tutorsRepository = {
         phone_number: input.phone_number,
         line_id: input.line_id ?? null,
         description: input.description ?? null,
+        consent_display_cv: input.consent_display_cv ?? false,
         tutor_type: input.tutor_type,
         style_profile: input.style_profile,
         personality_profile: input.personality_profile,
@@ -64,6 +65,7 @@ export const tutorsRepository = {
     if (input.phone_number !== undefined) updateValues.phone_number = input.phone_number;
     if (input.line_id !== undefined) updateValues.line_id = input.line_id;
     if (input.description !== undefined) updateValues.description = input.description;
+    if (input.consent_display_cv !== undefined) updateValues.consent_display_cv = input.consent_display_cv;
     if (input.tutor_type !== undefined) updateValues.tutor_type = input.tutor_type;
     if (input.style_profile !== undefined) updateValues.style_profile = input.style_profile;
     if (input.personality_profile !== undefined)
@@ -228,6 +230,7 @@ export const tutorsRepository = {
         phone_number: tutors.phone_number,
         line_id: tutors.line_id,
         description: tutors.description,
+        consent_display_cv: tutors.consent_display_cv,
         tutor_type: tutors.tutor_type,
         style_profile: tutors.style_profile,
         personality_profile: tutors.personality_profile,

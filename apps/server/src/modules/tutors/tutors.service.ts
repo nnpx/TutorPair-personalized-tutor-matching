@@ -28,6 +28,7 @@ function formatTutorProfile(tutor: Tutor) {
     phone_number: tutor.phone_number,
     line_id: tutor.line_id,
     description: tutor.description,
+    consent_display_cv: tutor.consent_display_cv,
     tutor_type: tutor.tutor_type,
     style_profile: tutor.style_profile,
     personality_profile: tutor.personality_profile,
@@ -201,7 +202,8 @@ export const tutorsService = {
       }
     }
 
-    const cvUrl = details.cv_file_key
+    const mayViewCv = isOwner || isAdmin || (details.verification_status === 'APPROVED' && details.consent_display_cv === true);
+    const cvUrl = mayViewCv && details.cv_file_key
       ? await documentsService.generatePresignedViewUrl(details.cv_file_key, 3600)
       : null;
 

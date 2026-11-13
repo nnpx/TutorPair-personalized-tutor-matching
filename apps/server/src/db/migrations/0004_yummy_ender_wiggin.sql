@@ -1,0 +1,1 @@
+ALTER TABLE "tutors" ADD COLUMN "consent_display_cv" boolean DEFAULT false NOT NULL;

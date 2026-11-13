@@ -58,6 +58,7 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
       phone_number: initialData?.phone_number ?? '',
       line_id: initialData?.line_id ?? '',
       description: initialData?.description ?? '',
+      consent_display_cv: initialData?.consent_display_cv ?? false,
       tutor_type: initialData?.tutor_type ?? TutorType.UNDERGRADUATE,
       style_profile: initialData?.style_profile ?? [3, 3, 3, 3, 3],
       personality_profile: initialData?.personality_profile ?? [3, 3, 3, 3],
@@ -73,6 +74,7 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
         phone_number: initialData.phone_number,
         line_id: initialData.line_id ?? '',
         description: initialData.description ?? '',
+        consent_display_cv: initialData.consent_display_cv ?? false,
         tutor_type: initialData.tutor_type,
         style_profile: initialData.style_profile,
         personality_profile: initialData.personality_profile,
@@ -115,6 +117,7 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
           phone_number: data.phone_number,
           line_id: data.line_id || null,
           description: data.description,
+          consent_display_cv: data.consent_display_cv,
           style_profile: data.style_profile,
           personality_profile: data.personality_profile,
         });
@@ -402,6 +405,12 @@ export const TutorProfileForm: React.FC<TutorProfileFormProps> = ({
             </span>
           )}
         </div>
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', padding: '1rem', backgroundColor: 'var(--color-secondary-tint)', borderRadius: 'var(--radius-md)', cursor: 'pointer' }}>
+          <input type="checkbox" {...register('consent_display_cv')} style={{ marginTop: '0.2rem' }} />
+          <span style={{ fontSize: '0.875rem', lineHeight: 1.5, color: 'var(--fg-main)' }}>
+            I agree to show my CV to students viewing my approved tutor profile. I can turn this off later. Admins can still review my documents for verification.
+          </span>
+        </label>
       </Card>
 
       {/* 2. Teaching Style & Personality Sliders */}
