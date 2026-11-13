@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { Card, Button, Alert, Modal } from '../../components/ui';
+import { useNavigate } from 'react-router-dom';
+import { Card, Button, Alert, Modal, BackLink } from '../../components/ui';
 import { InputField, SelectField } from '../../components/forms';
 import { useAuthStore } from '../../store/auth.store';
 import {
@@ -17,8 +17,6 @@ import {
   Sliders,
   Calendar,
   Save,
-  CheckCircle2,
-  ArrowLeft,
   AlertTriangle,
 } from 'lucide-react';
 
@@ -398,26 +396,7 @@ export const StudentProfilePage: React.FC = () => {
     <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' }}>
       {/* Option 1: Back to Matching Hub Button */}
       <div>
-        <Link
-          to="/student/matching"
-          onClick={handleBackToHub}
-          style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.4rem',
-            fontSize: '0.875rem',
-            fontWeight: 700,
-            color: '#4b5563',
-            textDecoration: 'none',
-            padding: '0.45rem 0.875rem',
-            borderRadius: 'var(--radius-md)',
-            backgroundColor: '#ffffff',
-            border: '2px solid var(--color-border)',
-            transition: 'all 0.15s ease',
-          }}
-        >
-          <ArrowLeft size={16} strokeWidth={2.4} /> Back to Matching Hub
-        </Link>
+        <BackLink to="/student/matching" onClick={handleBackToHub}>Back to Matching Hub</BackLink>
       </div>
 
       {/* Header */}
@@ -488,14 +467,6 @@ export const StudentProfilePage: React.FC = () => {
       {errorMessage && (
         <Alert variant="error">
           <strong>Error:</strong> {errorMessage}
-        </Alert>
-      )}
-      {successMessage && (
-        <Alert variant="success">
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <CheckCircle2 size={18} strokeWidth={2.4} />
-            <span>{successMessage}</span>
-          </div>
         </Alert>
       )}
 
@@ -671,9 +642,20 @@ export const StudentProfilePage: React.FC = () => {
                 paddingTop: '1.5rem',
                 borderTop: '2px solid var(--color-border)',
                 display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'flex-end',
+                gap: '1rem',
+                flexWrap: 'wrap',
               }}
             >
+              {successMessage && (
+                <Alert
+                  variant="success"
+                  style={{ padding: '0.625rem 1rem', margin: 0 }}
+                >
+                  {successMessage}
+                </Alert>
+              )}
               <Button
                 type="submit"
                 variant="primary"
@@ -684,6 +666,7 @@ export const StudentProfilePage: React.FC = () => {
                   gap: '0.5rem',
                   fontWeight: 800,
                   padding: '0.75rem 2rem',
+                  flexShrink: 0,
                 }}
               >
                 <Save size={18} strokeWidth={2.4} />
@@ -751,9 +734,20 @@ export const StudentProfilePage: React.FC = () => {
                 paddingTop: '1.5rem',
                 borderTop: '2px solid var(--color-border)',
                 display: 'flex',
+                alignItems: 'center',
                 justifyContent: 'flex-end',
+                gap: '1rem',
+                flexWrap: 'wrap',
               }}
             >
+              {successMessage && (
+                <Alert
+                  variant="success"
+                  style={{ padding: '0.625rem 1rem', margin: 0 }}
+                >
+                  {successMessage}
+                </Alert>
+              )}
               <Button
                 type="submit"
                 variant="primary"
@@ -764,10 +758,11 @@ export const StudentProfilePage: React.FC = () => {
                   gap: '0.5rem',
                   fontWeight: 800,
                   padding: '0.75rem 2rem',
+                  flexShrink: 0,
                 }}
               >
                 <Save size={18} strokeWidth={2.4} />
-                {isSaving ? 'Saving Changes...' : 'Save Sliders'}
+                {isSaving ? 'Saving Changes...' : 'Save Preferences'}
               </Button>
             </div>
           </Card>

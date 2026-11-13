@@ -11,12 +11,18 @@ import {
   Compass,
   FileCheck,
   GraduationCap,
+  LogOut,
   ShieldCheck,
   Sparkles,
   Star,
+  User,
 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { Modal } from '../../components/ui';
+import apiClient from '../../services/api-client';
+import { endAuthSession } from '../../services/auth-session';
+import { queryClient } from '../../services/query-client';
 import { useAuthStore } from '../../store/auth.store';
 
 const NAV_ITEMS = [
@@ -133,6 +139,16 @@ const SAMPLE_STYLE_DIMENSIONS = [
 
 export const LandingPage: React.FC = () => {
   const { user } = useAuthStore();
+  const location = useLocation();
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [roleNoticeModal, setRoleNoticeModal] = useState<{
+    open: boolean;
+    targetRole: 'STUDENT' | 'TUTOR';
+  }>({ open: false, targetRole: 'STUDENT' });
+
+  const isStudent = user?.role === UserRole.STUDENT;
+  const isTutor = user?.role === UserRole.TUTOR;
 
   const getDashboardPath = () => {
     if (!user) return '/login';
@@ -140,6 +156,22 @@ export const LandingPage: React.FC = () => {
     if (user.role === UserRole.TUTOR) return '/tutor/profile';
     if (user.role === UserRole.ADMIN) return '/admin/verifications';
     return '/';
+  };
+
+  const handleLogoutConfirm = async () => {
+    setIsLoggingOut(true);
+    try {
+      await apiClient.post('/api/auth/logout');
+    } catch {
+      // Ignore network errors
+    } finally {
+      setIsLoggingOut(false);
+      setIsLogoutModalOpen(false);
+      setRoleNoticeModal({ open: false, targetRole: 'STUDENT' });
+      queryClient.clear();
+      queryClient.removeQueries();
+      await endAuthSession();
+    }
   };
 
   // Interactive state for 3-Step Selection Demonstration
@@ -160,6 +192,19 @@ export const LandingPage: React.FC = () => {
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
+
+  useEffect(() => {
+    if (location.hash) {
+      setActiveNavHash(location.hash);
+      const timer = setTimeout(() => {
+        const el = document.querySelector(location.hash);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [location.hash]);
 
   // Interactive state for 5 Learning Style dimensions demo
   const [sampleSliders, setSampleSliders] = useState<number[]>([4, 2, 2, 3, 4]);
@@ -238,19 +283,91 @@ export const LandingPage: React.FC = () => {
             {/* Action CTAs */}
             <div className="landing-header-ctas">
               {user ? (
-                <Link
-                  to={getDashboardPath()}
-                  className="flat-btn flat-btn-primary flat-btn-sm"
-                  style={{
-                    fontWeight: 700,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <span>Go to Dashboard</span>
-                </Link>
+                <>
+                  <Link
+                    to={getDashboardPath()}
+                    title="Go to Dashboard"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      padding: '0.375rem 0.75rem',
+                      backgroundColor: 'var(--color-muted)',
+                      border: '1.5px solid var(--color-border)',
+                      borderRadius: 'var(--radius-md)',
+                      textDecoration: 'none',
+                      color: 'var(--fg-main)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        width: '1.75rem',
+                        height: '1.75rem',
+                        borderRadius: 'var(--radius-full)',
+                        backgroundColor: isTutor
+                          ? 'var(--color-secondary)'
+                          : 'var(--color-primary)',
+                        color: 'var(--color-white)',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      <User size={14} strokeWidth={2.5} />
+                    </span>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        lineHeight: 1.15,
+                        textAlign: 'left',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.8125rem',
+                          fontWeight: 700,
+                          color: 'var(--fg-main)',
+                          maxWidth: '160px',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {user.email}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '0.6875rem',
+                          fontWeight: 800,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em',
+                          color: isTutor
+                            ? 'var(--color-secondary)'
+                            : 'var(--color-primary)',
+                        }}
+                      >
+                        {user.role} • Dashboard →
+                      </span>
+                    </div>
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => setIsLogoutModalOpen(true)}
+                    className="flat-btn flat-btn-secondary flat-btn-sm"
+                    style={{
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.375rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <LogOut size={15} strokeWidth={2.3} />
+                    <span>Log out</span>
+                  </button>
+                </>
               ) : (
                 <>
                   <Link
@@ -380,40 +497,83 @@ export const LandingPage: React.FC = () => {
               <div
                 style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap' }}
               >
-                <Link
-                  to={
-                    user
-                      ? getDashboardPath()
-                      : '/login?mode=register&role=student'
-                  }
-                  className="flat-btn flat-btn-accent flat-btn-lg"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <Sparkles size={22} strokeWidth={2.5} />
-                  Find Your Top 3 Tutors
-                </Link>
-                <Link
-                  to={
-                    user
-                      ? getDashboardPath()
-                      : '/login?mode=register&role=tutor'
-                  }
-                  className="flat-btn flat-btn-outline-white flat-btn-lg"
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <GraduationCap size={22} strokeWidth={2.5} />
-                  Apply as a Tutor
-                </Link>
+                {isTutor ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRoleNoticeModal({ open: true, targetRole: 'STUDENT' })
+                    }
+                    title="You are signed in as a Tutor. Log out first to use student matching."
+                    className="flat-btn flat-btn-accent flat-btn-lg"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      opacity: 0.45,
+                      cursor: 'not-allowed',
+                    }}
+                  >
+                    <Sparkles size={22} strokeWidth={2.5} />
+                    Find Your Top 3 Tutors
+                  </button>
+                ) : (
+                  <Link
+                    to={
+                      user
+                        ? '/student/matching'
+                        : '/login?mode=register&role=student'
+                    }
+                    className="flat-btn flat-btn-accent flat-btn-lg"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <Sparkles size={22} strokeWidth={2.5} />
+                    Find Your Top 3 Tutors
+                  </Link>
+                )}
+
+                {isStudent ? (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setRoleNoticeModal({ open: true, targetRole: 'TUTOR' })
+                    }
+                    title="You are signed in as a Student. Log out first to apply as a Tutor."
+                    className="flat-btn flat-btn-outline-white flat-btn-lg"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      opacity: 0.45,
+                      cursor: 'not-allowed',
+                    }}
+                  >
+                    <GraduationCap size={22} strokeWidth={2.5} />
+                    Apply as a Tutor
+                  </button>
+                ) : (
+                  <Link
+                    to={
+                      user
+                        ? '/tutor/profile'
+                        : '/login?mode=register&role=tutor'
+                    }
+                    className="flat-btn flat-btn-outline-white flat-btn-lg"
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.75rem',
+                      textDecoration: 'none',
+                    }}
+                  >
+                    <GraduationCap size={22} strokeWidth={2.5} />
+                    Apply as a Tutor
+                  </Link>
+                )}
               </div>
 
               {/* Trust Micro-Badges */}
@@ -738,17 +898,35 @@ export const LandingPage: React.FC = () => {
                       </span>
                     </p>
                   </div>
-                  <Link
-                    to={
-                      user
-                        ? getDashboardPath()
-                        : '/login?mode=register&role=student'
-                    }
-                    className="flat-btn flat-btn-primary flat-btn-sm"
-                    style={{ padding: '0 1.25rem', textDecoration: 'none' }}
-                  >
-                    Match With Tutors →
-                  </Link>
+                  {isTutor ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRoleNoticeModal({ open: true, targetRole: 'STUDENT' })
+                      }
+                      title="You are signed in as a Tutor. Log out first to use student matching."
+                      className="flat-btn flat-btn-primary flat-btn-sm"
+                      style={{
+                        padding: '0 1.25rem',
+                        opacity: 0.45,
+                        cursor: 'not-allowed',
+                      }}
+                    >
+                      Match With Tutors →
+                    </button>
+                  ) : (
+                    <Link
+                      to={
+                        user
+                          ? '/student/matching'
+                          : '/login?mode=register&role=student'
+                      }
+                      className="flat-btn flat-btn-primary flat-btn-sm"
+                      style={{ padding: '0 1.25rem', textDecoration: 'none' }}
+                    >
+                      Match With Tutors →
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
@@ -2401,13 +2579,35 @@ export const LandingPage: React.FC = () => {
                   Ideal for G1–G9 homework &amp; midterm prep
                 </li>
               </ul>
-              <Link
-                to="/login?mode=register&role=student"
-                className="flat-btn flat-btn-secondary"
-                style={{ width: '100%', textDecoration: 'none' }}
-              >
-                Find Undergraduate Tutors
-              </Link>
+              {isTutor ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRoleNoticeModal({ open: true, targetRole: 'STUDENT' })
+                  }
+                  title="You are signed in as a Tutor. Log out first to use student matching."
+                  className="flat-btn flat-btn-secondary"
+                  style={{
+                    width: '100%',
+                    opacity: 0.45,
+                    cursor: 'not-allowed',
+                  }}
+                >
+                  Find Undergraduate Tutors
+                </button>
+              ) : (
+                <Link
+                  to={
+                    user
+                      ? '/student/matching'
+                      : '/login?mode=register&role=student'
+                  }
+                  className="flat-btn flat-btn-secondary"
+                  style={{ width: '100%', textDecoration: 'none' }}
+                >
+                  Find Undergraduate Tutors
+                </Link>
+              )}
             </div>
 
             {/* Tier 2: Freelance */}
@@ -2512,13 +2712,35 @@ export const LandingPage: React.FC = () => {
                   Proven track record with high-school students
                 </li>
               </ul>
-              <Link
-                to="/login?mode=register&role=student"
-                className="flat-btn flat-btn-secondary"
-                style={{ width: '100%', textDecoration: 'none' }}
-              >
-                Find Freelance Tutors
-              </Link>
+              {isTutor ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRoleNoticeModal({ open: true, targetRole: 'STUDENT' })
+                  }
+                  title="You are signed in as a Tutor. Log out first to use student matching."
+                  className="flat-btn flat-btn-secondary"
+                  style={{
+                    width: '100%',
+                    opacity: 0.45,
+                    cursor: 'not-allowed',
+                  }}
+                >
+                  Find Freelance Tutors
+                </button>
+              ) : (
+                <Link
+                  to={
+                    user
+                      ? '/student/matching'
+                      : '/login?mode=register&role=student'
+                  }
+                  className="flat-btn flat-btn-secondary"
+                  style={{ width: '100%', textDecoration: 'none' }}
+                >
+                  Find Freelance Tutors
+                </Link>
+              )}
             </div>
 
             {/* Tier 3: Institutional */}
@@ -2616,13 +2838,35 @@ export const LandingPage: React.FC = () => {
                   Structured milestone reviews
                 </li>
               </ul>
-              <Link
-                to="/login?mode=register&role=student"
-                className="flat-btn flat-btn-secondary"
-                style={{ width: '100%', textDecoration: 'none' }}
-              >
-                Browse Institutional Teachers
-              </Link>
+              {isTutor ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    setRoleNoticeModal({ open: true, targetRole: 'STUDENT' })
+                  }
+                  title="You are signed in as a Tutor. Log out first to use student matching."
+                  className="flat-btn flat-btn-secondary"
+                  style={{
+                    width: '100%',
+                    opacity: 0.45,
+                    cursor: 'not-allowed',
+                  }}
+                >
+                  Browse Institutional Teachers
+                </button>
+              ) : (
+                <Link
+                  to={
+                    user
+                      ? '/student/matching'
+                      : '/login?mode=register&role=student'
+                  }
+                  className="flat-btn flat-btn-secondary"
+                  style={{ width: '100%', textDecoration: 'none' }}
+                >
+                  Browse Institutional Teachers
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -2772,27 +3016,67 @@ export const LandingPage: React.FC = () => {
               flexWrap: 'wrap',
             }}
           >
-            <Link
-              to={
-                user ? getDashboardPath() : '/login?mode=register&role=student'
-              }
-              className="flat-btn flat-btn-lg"
-              style={{
-                backgroundColor: 'var(--color-white)',
-                color: 'var(--color-accent)',
-                fontWeight: 800,
-                textDecoration: 'none',
-              }}
-            >
-              Start Free Matching Now
-            </Link>
-            <Link
-              to={user ? getDashboardPath() : '/login?mode=register&role=tutor'}
-              className="flat-btn flat-btn-outline-white flat-btn-lg"
-              style={{ textDecoration: 'none' }}
-            >
-              Apply as a Tutor
-            </Link>
+            {isTutor ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setRoleNoticeModal({ open: true, targetRole: 'STUDENT' })
+                }
+                title="You are signed in as a Tutor. Log out first to use student matching."
+                className="flat-btn flat-btn-lg"
+                style={{
+                  backgroundColor: 'var(--color-white)',
+                  color: 'var(--color-accent)',
+                  fontWeight: 800,
+                  opacity: 0.45,
+                  cursor: 'not-allowed',
+                }}
+              >
+                Start Free Matching Now
+              </button>
+            ) : (
+              <Link
+                to={
+                  user
+                    ? '/student/matching'
+                    : '/login?mode=register&role=student'
+                }
+                className="flat-btn flat-btn-lg"
+                style={{
+                  backgroundColor: 'var(--color-white)',
+                  color: 'var(--color-accent)',
+                  fontWeight: 800,
+                  textDecoration: 'none',
+                }}
+              >
+                Start Free Matching Now
+              </Link>
+            )}
+            {isStudent ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setRoleNoticeModal({ open: true, targetRole: 'TUTOR' })
+                }
+                title="You are signed in as a Student. Log out first to apply as a Tutor."
+                className="flat-btn flat-btn-outline-white flat-btn-lg"
+                style={{ opacity: 0.45, cursor: 'not-allowed' }}
+              >
+                Apply as a Tutor
+              </button>
+            ) : (
+              <Link
+                to={
+                  user
+                    ? '/tutor/profile'
+                    : '/login?mode=register&role=tutor'
+                }
+                className="flat-btn flat-btn-outline-white flat-btn-lg"
+                style={{ textDecoration: 'none' }}
+              >
+                Apply as a Tutor
+              </Link>
+            )}
           </div>
         </div>
       </section>
@@ -2936,12 +3220,36 @@ export const LandingPage: React.FC = () => {
                   </a>
                 </li>
                 <li>
-                  <Link
-                    to="/login?mode=register&role=student"
-                    style={{ color: 'inherit', textDecoration: 'none' }}
-                  >
-                    Find a Tutor
-                  </Link>
+                  {isTutor ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRoleNoticeModal({ open: true, targetRole: 'STUDENT' })
+                      }
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        font: 'inherit',
+                        color: 'inherit',
+                        opacity: 0.5,
+                        cursor: 'not-allowed',
+                      }}
+                    >
+                      Find a Tutor
+                    </button>
+                  ) : (
+                    <Link
+                      to={
+                        user
+                          ? '/student/matching'
+                          : '/login?mode=register&role=student'
+                      }
+                      style={{ color: 'inherit', textDecoration: 'none' }}
+                    >
+                      Find a Tutor
+                    </Link>
+                  )}
                 </li>
               </ul>
             </div>
@@ -3040,28 +3348,100 @@ export const LandingPage: React.FC = () => {
                 }}
               >
                 <li>
-                  <Link
-                    to="/login?mode=signin&role=student"
-                    style={{ color: 'inherit', textDecoration: 'none' }}
-                  >
-                    Student Sign In
-                  </Link>
+                  {isTutor ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRoleNoticeModal({ open: true, targetRole: 'STUDENT' })
+                      }
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        font: 'inherit',
+                        color: 'inherit',
+                        opacity: 0.5,
+                        cursor: 'not-allowed',
+                      }}
+                    >
+                      Student Sign In
+                    </button>
+                  ) : (
+                    <Link
+                      to={
+                        user
+                          ? '/student/matching'
+                          : '/login?mode=signin&role=student'
+                      }
+                      style={{ color: 'inherit', textDecoration: 'none' }}
+                    >
+                      Student Sign In
+                    </Link>
+                  )}
                 </li>
                 <li>
-                  <Link
-                    to="/login?mode=register&role=tutor"
-                    style={{ color: 'inherit', textDecoration: 'none' }}
-                  >
-                    Apply as Tutor
-                  </Link>
+                  {isStudent ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRoleNoticeModal({ open: true, targetRole: 'TUTOR' })
+                      }
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        font: 'inherit',
+                        color: 'inherit',
+                        opacity: 0.5,
+                        cursor: 'not-allowed',
+                      }}
+                    >
+                      Apply as Tutor
+                    </button>
+                  ) : (
+                    <Link
+                      to={
+                        user
+                          ? '/tutor/profile'
+                          : '/login?mode=register&role=tutor'
+                      }
+                      style={{ color: 'inherit', textDecoration: 'none' }}
+                    >
+                      Apply as Tutor
+                    </Link>
+                  )}
                 </li>
                 <li>
-                  <Link
-                    to="/login?mode=signin&role=tutor"
-                    style={{ color: 'inherit', textDecoration: 'none' }}
-                  >
-                    Tutor Sign In
-                  </Link>
+                  {isStudent ? (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setRoleNoticeModal({ open: true, targetRole: 'TUTOR' })
+                      }
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        padding: 0,
+                        font: 'inherit',
+                        color: 'inherit',
+                        opacity: 0.5,
+                        cursor: 'not-allowed',
+                      }}
+                    >
+                      Tutor Sign In
+                    </button>
+                  ) : (
+                    <Link
+                      to={
+                        user
+                          ? '/tutor/profile'
+                          : '/login?mode=signin&role=tutor'
+                      }
+                      style={{ color: 'inherit', textDecoration: 'none' }}
+                    >
+                      Tutor Sign In
+                    </Link>
+                  )}
                 </li>
                 <li>
                   <a
@@ -3103,6 +3483,55 @@ export const LandingPage: React.FC = () => {
           </div>
         </div>
       </footer>
+
+      {/* Logout Confirmation Modal */}
+      <Modal
+        isOpen={isLogoutModalOpen}
+        onClose={() => setIsLogoutModalOpen(false)}
+        title="Confirm Logout"
+        variant="danger"
+        primaryActionText={isLoggingOut ? 'Logging out...' : 'Log Out'}
+        onPrimaryAction={handleLogoutConfirm}
+        secondaryActionText="Cancel"
+      >
+        <p style={{ margin: 0, fontWeight: 500 }}>
+          Are you sure you want to log out of your{' '}
+          <strong>{user?.role?.toLowerCase()}</strong> account (
+          <strong>{user?.email}</strong>)?
+        </p>
+      </Modal>
+
+      {/* Role Mismatch Notice Modal */}
+      <Modal
+        isOpen={roleNoticeModal.open}
+        onClose={() => setRoleNoticeModal({ open: false, targetRole: 'STUDENT' })}
+        title={
+          roleNoticeModal.targetRole === 'TUTOR'
+            ? 'Signed In as Student'
+            : 'Signed In as Tutor'
+        }
+        primaryActionText={isLoggingOut ? 'Logging out...' : 'Log Out to Switch Role'}
+        onPrimaryAction={handleLogoutConfirm}
+        secondaryActionText="Stay Signed In"
+      >
+        <p style={{ margin: 0, fontWeight: 500, lineHeight: 1.55 }}>
+          {roleNoticeModal.targetRole === 'TUTOR' ? (
+            <>
+              You are currently signed in with a <strong>Student</strong> account (
+              <strong>{user?.email}</strong>). Tutor application and portal buttons
+              are only available for Tutor accounts. Please log out first if you
+              would like to register or sign in as a Tutor.
+            </>
+          ) : (
+            <>
+              You are currently signed in with a <strong>Tutor</strong> account (
+              <strong>{user?.email}</strong>). Student matchmaking buttons are only
+              available for Student/Parent accounts. Please log out first if you
+              would like to register or sign in as a Student.
+            </>
+          )}
+        </p>
+      </Modal>
     </div>
   );
 };

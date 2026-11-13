@@ -10,6 +10,11 @@ export const reviewsController = {
     res.status(201).json(successResponse(result, 'Review submitted successfully'));
   }),
 
+  updateReview: asyncHandler(async (req: AuthRequest, res: Response) => {
+    const result = await reviewsService.updateReview(req.user!.id, req.body);
+    res.status(200).json(successResponse(result, 'Review updated successfully'));
+  }),
+
   getTutorReviews: asyncHandler(async (req: Request, res: Response) => {
     const summary = await reviewsService.getTutorReviews(req.params.tutorId);
     res.status(200).json(successResponse(summary));

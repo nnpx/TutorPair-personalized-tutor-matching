@@ -24,7 +24,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Button, Card } from '../../components/ui';
 import { useAuthStore } from '../../store/auth.store';
-import { useStudentProfile } from '../students/hooks/useStudents';
+import { useStudentAvailability, useStudentProfile } from '../students/hooks/useStudents';
 import { TutorDetailModal } from '../tutors/components/TutorDetailModal';
 import { useMatchHistory } from './hooks/useMatching';
 
@@ -50,6 +50,7 @@ const FAQS = [
 export const MatchingPage: React.FC = () => {
   const { user } = useAuthStore();
   const { data: profile, isLoading } = useStudentProfile();
+  const { data: availability = [], isLoading: isAvailabilityLoading } = useStudentAvailability();
   const { data: matchHistory, isLoading: isHistoryLoading } = useMatchHistory();
 
   // State for inspecting tutor profile & copying LINE ID
@@ -88,7 +89,9 @@ export const MatchingPage: React.FC = () => {
     profile.style_profile &&
     profile.style_profile.length === 5 &&
     profile.personality_profile &&
-    profile.personality_profile.length === 4,
+    profile.personality_profile.length === 4 &&
+    availability &&
+    availability.length > 0,
   );
 
   const isProfileReady = isStep1Done && isStep2Done;
@@ -96,7 +99,7 @@ export const MatchingPage: React.FC = () => {
   // FAQ accordion state
   const [expandedFaq, setExpandedFaq] = useState<number | null>(0);
 
-  if (isLoading) {
+  if (isLoading || isAvailabilityLoading) {
     return (
       <div
         style={{ maxWidth: '960px', margin: '3rem auto', textAlign: 'center' }}
@@ -842,7 +845,10 @@ export const MatchingPage: React.FC = () => {
             </p>
           </div>
 
-          <Link to="/student/onboarding" style={{ textDecoration: 'none' }}>
+          <Link
+            to={isStep1Done ? '/student/onboarding?step=2' : '/student/onboarding'}
+            style={{ textDecoration: 'none' }}
+          >
             <Button
               variant="primary"
               style={{
@@ -855,7 +861,7 @@ export const MatchingPage: React.FC = () => {
                 gap: '0.5rem',
               }}
             >
-              Start Student Onboarding{' '}
+              {isStep1Done ? 'Continue Student Onboarding' : 'Start Student Onboarding'}{' '}
               <ArrowRight size={18} strokeWidth={2.4} />
             </Button>
           </Link>
@@ -1043,8 +1049,8 @@ export const MatchingPage: React.FC = () => {
                   fontWeight: 600,
                 }}
               >
-                <CheckCircle2 size={14} color="#059669" strokeWidth={2.5} /> 9
-                Learning Sliders
+                <CheckCircle2 size={14} color="#059669" strokeWidth={2.5} />{' '}
+                Learning Preferences Complete
               </span>
               <span style={{ color: '#d1d5db' }}>•</span>
               <span
@@ -1056,7 +1062,7 @@ export const MatchingPage: React.FC = () => {
                 }}
               >
                 <CheckCircle2 size={14} color="#059669" strokeWidth={2.5} />{' '}
-                Contact Channels Set
+                Contact Info Added
               </span>
               {profile?.budget_max && (
                 <>
@@ -1545,18 +1551,39 @@ export const MatchingPage: React.FC = () => {
                           style={{
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: '0.375rem',
-                            padding: '0.375rem 0.75rem',
-                            backgroundColor: '#ffffff',
-                            border: '2px solid var(--color-secondary)',
-                            borderRadius: 'var(--radius-md)',
-                            color: 'var(--color-secondary)',
-                            fontWeight: 800,
-                            fontSize: '0.8125rem',
+                            gap: '0.625rem',
+                            flexWrap: 'wrap',
                           }}
                         >
-                          <CheckCircle2 size={14} strokeWidth={2.6} />
-                          Reviewed
+                          <div
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.375rem',
+                              padding: '0.375rem 0.75rem',
+                              backgroundColor: '#ffffff',
+                              border: '2px solid var(--color-secondary)',
+                              borderRadius: 'var(--radius-md)',
+                              color: 'var(--color-secondary)',
+                              fontWeight: 800,
+                              fontSize: '0.8125rem',
+                            }}
+                          >
+                            <CheckCircle2 size={14} strokeWidth={2.6} />
+                            Reviewed
+                          </div>
+                          <Link
+                            to={`/student/review/${tutor.recommendation_id}`}
+                            style={{
+                              color: 'var(--color-primary)',
+                              fontWeight: 800,
+                              fontSize: '0.8125rem',
+                              textDecoration: 'underline',
+                              textUnderlineOffset: '3px',
+                            }}
+                          >
+                            Edit Review
+                          </Link>
                         </div>
                       ) : (
                         <Link

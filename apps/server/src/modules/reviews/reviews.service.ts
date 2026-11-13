@@ -81,6 +81,65 @@ export const reviewsService = {
   },
 
   /**
+   * Updates an existing 4-category review for a confirmed tutor match.
+   */
+  async updateReview(studentId: string, input: CreateReviewInput) {
+    if (!isUuid(input.recommendation_id) || !isUuid(input.tutor_id)) {
+      throw new NotFoundError('Invalid recommendation or tutor ID');
+    }
+
+    const eligible = await reviewsRepository.findEligibleConfirmedRecommendation(
+      studentId,
+      input.recommendation_id
+    );
+
+    if (!eligible) {
+      throw new NotFoundError('Confirmed match recommendation not found');
+    }
+
+    if (eligible.status !== MatchRequestStatus.CONFIRMED || !eligible.is_selected) {
+      throw new ConflictError('You can only review tutors from confirmed matches');
+    }
+
+    if (eligible.tutor_id !== input.tutor_id) {
+      throw new UnprocessableEntityError('tutor_id does not match the recommendation tutor');
+    }
+
+    const existingReview = await reviewsRepository.findReviewByRecommendationId(
+      input.recommendation_id
+    );
+    if (!existingReview) {
+      throw new NotFoundError('Review not found for this tutor match');
+    }
+
+    const overallRating =
+      (input.rating_knowledge +
+        input.rating_preparation +
+        input.rating_clarity +
+        input.rating_punctuality) /
+      4;
+
+    const updated = await reviewsRepository.updateReview({
+      student_id: studentId,
+      tutor_id: input.tutor_id,
+      recommendation_id: input.recommendation_id,
+      rating_knowledge: input.rating_knowledge,
+      rating_preparation: input.rating_preparation,
+      rating_clarity: input.rating_clarity,
+      rating_punctuality: input.rating_punctuality,
+      overall_rating: overallRating,
+      comment: input.comment ?? null,
+    });
+
+    return {
+      review_id: updated.id,
+      tutor_id: updated.tutor_id,
+      overall_rating: Number(updated.overall_rating),
+      created_at: updated.created_at.toISOString(),
+    };
+  },
+
+  /**
    * TP-19: Get all verified reviews and 4-metric score breakdown for a tutor.
    */
   async getTutorReviews(tutorId: string): Promise<TutorReviewsSummaryDto> {
@@ -122,6 +181,15 @@ export const reviewsService = {
       variant_name: details.variant_name,
       already_reviewed: Boolean(details.existing_review_id),
       existing_review_id: details.existing_review_id ?? null,
+      existing_review: details.existing_review_id
+        ? {
+            rating_knowledge: details.existing_rating_knowledge!,
+            rating_preparation: details.existing_rating_preparation!,
+            rating_clarity: details.existing_rating_clarity!,
+            rating_punctuality: details.existing_rating_punctuality!,
+            comment: details.existing_comment ?? null,
+          }
+        : null,
     };
   },
 };

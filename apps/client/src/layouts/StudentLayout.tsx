@@ -4,14 +4,15 @@ import { useAuthStore } from '../store/auth.store';
 import { queryClient } from '../services/query-client';
 import apiClient from '../services/api-client';
 import { endAuthSession } from '../services/auth-session';
-import { useStudentProfile } from '../features/students/hooks/useStudents';
+import { useStudentAvailability, useStudentProfile } from '../features/students/hooks/useStudents';
 import { Sparkles, History, User, LogOut, Lock } from 'lucide-react';
 import { Modal } from '../components/ui';
 
 export const StudentLayout: React.FC = () => {
   const user = useAuthStore((state) => state.user);
   const location = useLocation();
-  const { data: profile } = useStudentProfile();
+  const { data: profile, isLoading: isProfileLoading } = useStudentProfile();
+  const { data: availability = [], isLoading: isAvailabilityLoading } = useStudentAvailability();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -23,11 +24,13 @@ export const StudentLayout: React.FC = () => {
     profile.style_profile &&
     profile.style_profile.length === 5 &&
     profile.personality_profile &&
-    profile.personality_profile.length === 4
+    profile.personality_profile.length === 4 &&
+    availability &&
+    availability.length > 0
   );
 
   // Guard: If onboarding is incomplete, redirect directly from profile to onboarding
-  if (!isProfileComplete && location.pathname === '/student/profile') {
+  if (!isProfileLoading && !isAvailabilityLoading && !isProfileComplete && location.pathname === '/student/profile') {
     return <Navigate to="/student/onboarding" replace />;
   }
 

@@ -808,32 +808,46 @@ export const VerificationSection = forwardRef<VerificationSectionRef, Verificati
       {/* 5. Clean Action Area (Only rendered in standalone mode; hidden in onboarding stepper) */}
       {!inOnboarding && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-          {saveSuccess && (
-            <Alert variant="success">
-              Verification documents updated successfully!
-            </Alert>
-          )}
-
           {feedbackError && (
             <Alert variant="error">
               {feedbackError}
             </Alert>
           )}
 
-          <SaveButton
-            type="button"
-            isLoading={isUploadingAll}
-            disabled={isUploadingAll}
-            onClick={async () => {
-              setFeedbackError(null);
-              setSaveSuccess(false);
-              const res = await handleBatchSubmit();
-              if (res.success) {
-                setSaveSuccess(true);
-              }
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '1rem',
+              flexWrap: 'wrap',
             }}
-            label="Save Document Changes"
-          />
+          >
+            {saveSuccess && (
+              <Alert
+                variant="success"
+                style={{ padding: '0.625rem 1rem', margin: 0 }}
+              >
+                Verification documents updated successfully!
+              </Alert>
+            )}
+            <SaveButton
+              type="button"
+              isLoading={isUploadingAll}
+              disabled={isUploadingAll}
+              fullWidth={false}
+              style={{ padding: '0 2rem', height: '3.25rem', fontSize: '1rem', flexShrink: 0 }}
+              onClick={async () => {
+                setFeedbackError(null);
+                setSaveSuccess(false);
+                const res = await handleBatchSubmit();
+                if (res.success) {
+                  setSaveSuccess(true);
+                }
+              }}
+              label="Save Document Changes"
+            />
+          </div>
         </div>
       )}
     </div>

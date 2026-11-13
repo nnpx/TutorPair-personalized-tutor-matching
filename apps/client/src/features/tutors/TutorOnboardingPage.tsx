@@ -35,8 +35,8 @@ export const TutorOnboardingPage: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const { data: profile, isLoading: loadingProfile } = useTutorProfile();
-  const { data: serverSubjects } = useTutorSubjects();
-  const { data: serverAvailability } = useTutorAvailability();
+  const { data: serverSubjects, isLoading: loadingSubjects, isFetched: isSubjectsFetched } = useTutorSubjects();
+  const { data: serverAvailability, isLoading: loadingAvailability, isFetched: isAvailabilityFetched } = useTutorAvailability();
 
   const setSubjectsMutation = useSetTutorSubjects();
   const setAvailabilityMutation = useSetTutorAvailability();
@@ -54,13 +54,18 @@ export const TutorOnboardingPage: React.FC = () => {
   // Step 3 state: Availability Slots
   const [availabilitySlots, setAvailabilitySlots] = useState<TutorAvailabilitySlotDto[]>([]);
 
-  // Local state to track immediate Step 1 completion before React Query refetches profile
+  // Local state to track immediate step completion before React Query refetches
   const [step1Saved, setStep1Saved] = useState<boolean>(false);
+  const [step2Saved, setStep2Saved] = useState<boolean>(false);
+  const [step3Saved, setStep3Saved] = useState<boolean>(false);
 
-  // Step completion criteria derived from actual server and client state
+  const hasSavedSubjects = Boolean(serverSubjects && serverSubjects.length > 0) || step2Saved;
+  const hasSavedAvailability = Boolean(serverAvailability && serverAvailability.length > 0) || step3Saved;
+
+  // Step completion criteria derived from actual saved server state + non-empty active form state
   const isStep1Done = Boolean(profile) || step1Saved;
-  const isStep2Done = (serverSubjects && serverSubjects.length > 0) || configuredSubjects.length > 0;
-  const isStep3Done = (serverAvailability && serverAvailability.length > 0) || availabilitySlots.length > 0;
+  const isStep2Done = isStep1Done && hasSavedSubjects && configuredSubjects.length > 0;
+  const isStep3Done = isStep2Done && hasSavedAvailability && availabilitySlots.length > 0;
 
   // Gated Progression: Maximum step unlocked
   const maxReachableStep = isStep3Done
@@ -91,41 +96,56 @@ export const TutorOnboardingPage: React.FC = () => {
     setSearchParams({ step: '2' });
   };
 
-  // Guard against direct URL tampering (?step=4 when only step 1 is done)
+  // Sync currentStep with URL ?step= query parameter (supports Browser Back/Forward and guards direct URL tampering)
   useEffect(() => {
-    if (!loadingProfile && currentStep > maxReachableStep) {
-      setCurrentStep(maxReachableStep);
-      setSearchParams({ step: String(maxReachableStep) });
+    if (loadingProfile || loadingSubjects || loadingAvailability) return;
+    const rawStep = parseInt(searchParams.get('step') || '1', 10);
+    const requestedStep = rawStep >= 1 && rawStep <= 4 ? rawStep : 1;
+    const clampedStep = Math.min(requestedStep, maxReachableStep);
+
+    if (currentStep !== clampedStep) {
+      setCurrentStep(clampedStep);
     }
-  }, [loadingProfile, currentStep, maxReachableStep, setSearchParams]);
+    if (searchParams.get('step') !== String(clampedStep)) {
+      setSearchParams({ step: String(clampedStep) }, { replace: true });
+    }
+  }, [loadingProfile, loadingSubjects, loadingAvailability, searchParams, maxReachableStep, currentStep, setSearchParams]);
 
   // Pre-fill previously configured subjects if user returns (once on initial load)
   useEffect(() => {
-    if (serverSubjects && serverSubjects.length > 0 && !hasInitSubjects.current) {
-      hasInitSubjects.current = true;
-      setConfiguredSubjects(
-        serverSubjects.map((s) => ({
-          variant_id: s.variant_id,
-          subject_name: s.subject_name,
-          variant_name: s.variant_name,
-          category: s.category,
-          learning_goal: s.learning_goal,
-          requires_proof: s.requires_proof,
-          hourly_rate: s.hourly_rate ?? 500,
-          grade_levels: s.grade_levels ?? [],
-          teaching_focus: s.teaching_focus ?? '',
-        }))
-      );
+    if (!hasInitSubjects.current) {
+      if (serverSubjects && serverSubjects.length > 0) {
+        hasInitSubjects.current = true;
+        setConfiguredSubjects(
+          serverSubjects.map((s) => ({
+            variant_id: s.variant_id,
+            subject_name: s.subject_name,
+            variant_name: s.variant_name,
+            category: s.category,
+            learning_goal: s.learning_goal,
+            requires_proof: s.requires_proof,
+            hourly_rate: s.hourly_rate ?? 500,
+            grade_levels: s.grade_levels ?? [],
+            teaching_focus: s.teaching_focus ?? '',
+          }))
+        );
+      } else if (isSubjectsFetched) {
+        hasInitSubjects.current = true;
+      }
     }
-  }, [serverSubjects]);
+  }, [serverSubjects, isSubjectsFetched]);
 
   // Pre-fill previously configured availability if user returns (once on initial load)
   useEffect(() => {
-    if (serverAvailability && serverAvailability.length > 0 && !hasInitSlots.current) {
-      hasInitSlots.current = true;
-      setAvailabilitySlots(serverAvailability);
+    if (!hasInitSlots.current) {
+      if (serverAvailability && serverAvailability.length > 0) {
+        hasInitSlots.current = true;
+        setAvailabilitySlots(serverAvailability);
+      } else if (isAvailabilityFetched) {
+        hasInitSlots.current = true;
+      }
     }
-  }, [serverAvailability]);
+  }, [serverAvailability, isAvailabilityFetched]);
 
   // Handle Step 2: Save Subjects & Continue to Step 3
   const handleSaveSubjectsAndContinue = async () => {
@@ -145,7 +165,9 @@ export const TutorOnboardingPage: React.FC = () => {
           teaching_focus: s.teaching_focus ? s.teaching_focus : null,
         })),
       });
-      setStep(3);
+      setStep2Saved(true);
+      setCurrentStep(3);
+      setSearchParams({ step: '3' });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save subjects.';
       setErrorMsg(msg);
@@ -167,7 +189,9 @@ export const TutorOnboardingPage: React.FC = () => {
       await setAvailabilityMutation.mutateAsync({
         availability: availabilitySlots,
       });
-      setStep(4);
+      setStep3Saved(true);
+      setCurrentStep(4);
+      setSearchParams({ step: '4' });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to save availability schedule.';
       setErrorMsg(msg);
@@ -389,7 +413,13 @@ export const TutorOnboardingPage: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <SubjectSelector
             value={configuredSubjects}
-            onChange={(newSubs) => setConfiguredSubjects(newSubs)}
+            onChange={(newSubs) => {
+              hasInitSubjects.current = true;
+              setConfiguredSubjects(newSubs);
+              if (newSubs.length > 0 && errorMsg) {
+                setErrorMsg(null);
+              }
+            }}
             showSaveButton={false}
           />
 
@@ -441,7 +471,13 @@ export const TutorOnboardingPage: React.FC = () => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
           <AvailabilityGrid
             value={availabilitySlots}
-            onChange={(newSlots) => setAvailabilitySlots(newSlots)}
+            onChange={(newSlots) => {
+              hasInitSlots.current = true;
+              setAvailabilitySlots(newSlots);
+              if (newSlots.length > 0 && errorMsg) {
+                setErrorMsg(null);
+              }
+            }}
             showSaveButton={false}
           />
 

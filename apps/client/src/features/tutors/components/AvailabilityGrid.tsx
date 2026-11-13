@@ -31,7 +31,7 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
   onChange,
   showSaveButton = true,
 }) => {
-  const { data: serverSlots = [] } = useTutorAvailability();
+  const { data: serverSlots = [], isFetched } = useTutorAvailability();
   const setAvailabilityMutation = useSetTutorAvailability();
 
   const [internalSlots, setInternalSlots] = useState<TutorAvailabilitySlotDto[]>([]);
@@ -39,6 +39,7 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
   const hasInitSlots = useRef(false);
 
   const updateSlots = (newSlots: TutorAvailabilitySlotDto[]) => {
+    hasInitSlots.current = true;
     if (value === undefined) {
       setInternalSlots(newSlots);
     }
@@ -54,11 +55,13 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
 
   // Sync slots from server if not controlled by parent (once on initial load)
   useEffect(() => {
-    if (value === undefined && serverSlots && serverSlots.length > 0 && !hasInitSlots.current) {
+    if (value === undefined && isFetched && !hasInitSlots.current) {
       hasInitSlots.current = true;
-      setInternalSlots(serverSlots);
+      if (serverSlots && serverSlots.length > 0) {
+        setInternalSlots(serverSlots);
+      }
     }
-  }, [serverSlots, value]);
+  }, [serverSlots, isFetched, value]);
 
   const getDurationMinutes = (start: string, end: string): number => {
     if (!start || !end) return 0;
@@ -395,25 +398,39 @@ export const AvailabilityGrid: React.FC<AvailabilityGridProps> = ({
       {/* Save Button at the Bottom */}
       {showSaveButton && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '0.5rem' }}>
-          {saveSuccess && (
-            <Alert variant="success">
-              Weekly availability schedule saved successfully!
-            </Alert>
-          )}
-
           {saveError && (
             <Alert variant="error">
               {saveError}
             </Alert>
           )}
 
-          <SaveButton
-            type="button"
-            onClick={handleSave}
-            disabled={setAvailabilityMutation.isPending}
-            isLoading={setAvailabilityMutation.isPending}
-            label="Save Schedule Changes"
-          />
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            {saveSuccess && (
+              <Alert
+                variant="success"
+                style={{ padding: '0.625rem 1rem', margin: 0 }}
+              >
+                Weekly availability schedule saved successfully!
+              </Alert>
+            )}
+            <SaveButton
+              type="button"
+              onClick={handleSave}
+              disabled={setAvailabilityMutation.isPending}
+              isLoading={setAvailabilityMutation.isPending}
+              fullWidth={false}
+              style={{ padding: '0 2rem', height: '3.25rem', fontSize: '1rem', flexShrink: 0 }}
+              label="Save Schedule Changes"
+            />
+          </div>
         </div>
       )}
     </div>
