@@ -32,6 +32,7 @@ export const TutorProfileSchema = z.object({
     }),
   line_id: z.string().max(100).optional().nullable(),
   description: z.string().max(2000).optional().nullable(),
+  consent_display_cv: z.boolean().optional(),
   tutor_type: z.nativeEnum(TutorType),
   // 5 sliders for teaching style
   style_profile: z.array(SliderValueSchema).length(5, 'Style profile requires exactly 5 ratings'),

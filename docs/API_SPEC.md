@@ -2521,7 +2521,7 @@ sequenceDiagram
 
 - **Use Case:**
   - **Step 3 of Document Upload:** Invoked once S3 returns HTTP 200 to confirm that the file landed in S3.
-  - Records the document in the PostgreSQL `documents` table and links it to the tutor's user ID.
+  - In production, checks the tutor-owned key and verifies the object size with S3 `HeadObject` before recording metadata. The 100 MB tutor quota is checked again inside a database transaction.
 - **Route Guards & Middleware:**
   - `authenticate`
   - `requireRole([UserRole.TUTOR])`
@@ -2531,7 +2531,7 @@ sequenceDiagram
 
 ```json
 {
-  "file_key": "tutors/8a3d5f30-8041-454d-b636-f0dfbb98305c/degree_transcript.pdf",
+  "file_key": "tutors/8a3d5f30-8041-454d-b636-f0dfbb98305c/transcript-22222222-2222-4222-8222-222222222222.pdf",
   "file_size_kb": 1420,
   "document_type": "DEGREE_TRANSCRIPT",
   "variant_id": null

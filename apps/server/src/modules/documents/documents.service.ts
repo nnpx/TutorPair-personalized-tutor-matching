@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import path from 'node:path';
-import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { env } from '../../config/env.js';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../common/errors/http-errors.js';
@@ -13,6 +13,28 @@ import {
 
 const MAX_FILE_SIZE_KB = 10 * 1024; // 10MB
 const MAX_TOTAL_STORAGE_KB = 100 * 1024; // 100MB
+
+export const documentObjectStore = {
+  async head(fileKey: string) {
+    return new S3Client({ region: env.AWS_REGION }).send(new HeadObjectCommand({
+      Bucket: env.S3_BUCKET_NAME,
+      Key: fileKey,
+    }));
+  },
+};
+
+function matchesGeneratedKeyPattern(tutorId: string, input: ConfirmUploadInput): boolean {
+  const prefix = `tutors/${tutorId}/`;
+  if (!input.file_key.startsWith(prefix)) return false;
+  const suffix = input.file_key.slice(prefix.length);
+  const uuidAndExtension = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.(pdf|png|jpg|jpeg)';
+  if (input.document_type === DocumentType.CV) return new RegExp(`^cv-${uuidAndExtension}$`, 'i').test(suffix) && !input.variant_id;
+  if (input.document_type === DocumentType.DEGREE_TRANSCRIPT) return new RegExp(`^transcript-${uuidAndExtension}$`, 'i').test(suffix) && !input.variant_id;
+  if (input.document_type === DocumentType.SUBJECT_QUALIFICATION && input.variant_id) {
+    return new RegExp(`^subject-proof/${input.variant_id}-${uuidAndExtension}$`, 'i').test(suffix);
+  }
+  return false;
+}
 
 export const documentsService = {
   async generatePresignedUploadUrl(tutorId: string, input: PresignedUploadRequestInput) {
@@ -65,13 +87,38 @@ export const documentsService = {
       throw new BadRequestError('variant_id is required for SUBJECT_QUALIFICATION document type');
     }
 
-    const doc = await documentsRepository.createDocument({
+    if (!matchesGeneratedKeyPattern(tutorId, input)) {
+      throw new BadRequestError('Document key does not match this tutor and document type');
+    }
+
+    let verifiedSizeKb = input.file_size_kb;
+    if (env.NODE_ENV === 'production') {
+      let object;
+      try {
+        object = await documentObjectStore.head(input.file_key);
+      } catch (error) {
+        if ((error as { name?: string }).name === 'NotFound' || (error as { $metadata?: { httpStatusCode?: number } }).$metadata?.httpStatusCode === 404) {
+          throw new BadRequestError('Uploaded document was not found in S3');
+        }
+        throw error;
+      }
+      const bytes = object.ContentLength;
+      if (!Number.isSafeInteger(bytes) || bytes! <= 0 || bytes! > MAX_FILE_SIZE_KB * 1024) {
+        throw new BadRequestError('Uploaded document must be between 1 byte and 10MB');
+      }
+      verifiedSizeKb = Math.ceil(bytes! / 1024);
+      if (verifiedSizeKb !== input.file_size_kb) {
+        throw new BadRequestError('Uploaded document size does not match the declared size');
+      }
+    }
+
+    const doc = await documentsRepository.createDocumentWithinQuota({
       tutor_id: tutorId,
       document_type: input.document_type,
       variant_id: input.variant_id,
       file_key: input.file_key,
-      file_size_kb: input.file_size_kb,
-    });
+      file_size_kb: verifiedSizeKb,
+    }, MAX_TOTAL_STORAGE_KB);
 
     return { documentId: doc.id };
   },

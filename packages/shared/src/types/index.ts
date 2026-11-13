@@ -47,6 +47,7 @@ export interface TutorProfileDto {
   phone_number: string;
   line_id?: string | null;
   description: string | null;
+  consent_display_cv: boolean;
   tutor_type: TutorType;
   style_profile: number[];
   personality_profile: number[];

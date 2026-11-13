@@ -1,4 +1,4 @@
-import { pgTable, uuid, varchar, text, decimal, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, varchar, text, decimal, integer, boolean } from 'drizzle-orm/pg-core';
 import { users } from './users.schema.js';
 import { tutorTypeEnum, verificationStatusEnum } from './enums.schema.js';
 
@@ -11,6 +11,7 @@ export const tutors = pgTable('tutors', {
   phone_number: varchar('phone_number', { length: 20 }).notNull(),
   line_id: varchar('line_id', { length: 100 }),
   description: text('description'),
+  consent_display_cv: boolean('consent_display_cv').default(false).notNull(),
   tutor_type: tutorTypeEnum('tutor_type').notNull(),
   style_profile: integer('style_profile').array().notNull(),
   personality_profile: integer('personality_profile').array().notNull(),

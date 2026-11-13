@@ -1,11 +1,54 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { documentsService } from './documents.service.js';
+import { documentsService, documentObjectStore } from './documents.service.js';
 import { documentsRepository } from './documents.repository.js';
+import { env } from '../../config/env.js';
 import { DocumentType } from '@tutorpair/shared';
 import { BadRequestError, NotFoundError, ForbiddenError } from '../../common/errors/http-errors.js';
 
 describe('DocumentsService Unit Tests', () => {
+  const tutorId = '11111111-1111-4111-8111-111111111111';
+  const fileKey = `tutors/${tutorId}/cv-22222222-2222-4222-8222-222222222222.pdf`;
+
+  it('rejects a different tutor key before saving document metadata', async () => {
+    await assert.rejects(() => documentsService.confirmUpload(tutorId, {
+      file_key: fileKey.replace(tutorId, '33333333-3333-4333-8333-333333333333'),
+      file_size_kb: 1,
+      document_type: DocumentType.CV,
+    }), BadRequestError);
+  });
+
+  it('uses the S3 object size and rejects a mismatched claim', async () => {
+    const originalMode = env.NODE_ENV;
+    const originalHead = documentObjectStore.head;
+    const originalCreate = documentsRepository.createDocumentWithinQuota;
+    let savedSize: number | null = null;
+    (env as { NODE_ENV: string }).NODE_ENV = 'production';
+    documentObjectStore.head = async () => ({ ContentLength: 1500 }) as any;
+    documentsRepository.createDocumentWithinQuota = async (data) => {
+      savedSize = data.file_size_kb;
+      return { id: 'verified-document' } as any;
+    };
+    try {
+      await assert.rejects(() => documentsService.confirmUpload(tutorId, {
+        file_key: fileKey,
+        file_size_kb: 1,
+        document_type: DocumentType.CV,
+      }), BadRequestError);
+      assert.equal(savedSize, null);
+      const result = await documentsService.confirmUpload(tutorId, {
+        file_key: fileKey,
+        file_size_kb: 2,
+        document_type: DocumentType.CV,
+      });
+      assert.equal(result.documentId, 'verified-document');
+      assert.equal(savedSize, 2);
+    } finally {
+      (env as { NODE_ENV: string }).NODE_ENV = originalMode;
+      documentObjectStore.head = originalHead;
+      documentsRepository.createDocumentWithinQuota = originalCreate;
+    }
+  });
   it('should throw BadRequestError if upload file exceeds 10MB', async () => {
     await assert.rejects(
       async () => {
