@@ -55,10 +55,10 @@ test.describe('1. User Management System', () => {
     await expect(page).toHaveURL(/\/student/);
     await expect(page.getByRole('link', { name: 'Find Tutors' }).first()).toBeVisible();
 
-    // 2. Sign in as Tutor -> Navigates to Tutor Profile
+    // 2. Sign in as Tutor -> Navigates to Tutor Dashboard / Profile
     await loginAs(page, 'TUTOR');
     await expect(page).toHaveURL(/\/tutor/);
-    await expect(page.locator('h1, h2, h3').filter({ hasText: /tutor|profile|offerings/i }).first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'My Profile' }).or(page.locator('text=Tutor Portal')).first()).toBeVisible();
 
     // 3. Sign in as Admin -> Navigates to Admin Verifications
     await loginAs(page, 'ADMIN');

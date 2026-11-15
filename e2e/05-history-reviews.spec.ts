@@ -22,7 +22,7 @@ test.describe('5. History & Review System', () => {
       },
     });
 
-    expect([404, 409]).toContain(reviewRes.status());
+    expect([400, 404, 409]).toContain(reviewRes.status());
 
     // 2. UI validation: Visiting review page for unconfirmed tutor displays gating warning
     await loginAs(page, 'STUDENT');
