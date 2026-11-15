@@ -1,0 +1,95 @@
+name: TutorPair CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - master
+      - 'feat/**'
+      - 'fix/**'
+      - 'ci/**'
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build, Migrate & Run Test Suite
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: tutorpair
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d tutorpair"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      NODE_ENV: development
+      PORT: '4000'
+      ALLOWED_ORIGIN: http://localhost:5173
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/tutorpair
+      AWS_REGION: ap-southeast-1
+      COGNITO_USER_POOL_ID: ap-southeast-1_mockpool
+      COGNITO_CLIENT_ID: mockclientid123456789
+      S3_BUCKET_NAME: tutorpair-documents-dev
+      SES_FROM_EMAIL: notifications@tutorpair.com
+      VITE_API_BASE_URL: https://d2vk9dqgas2wkp.cloudfront.net
+      VITE_AWS_REGION: ap-southeast-1
+      VITE_COGNITO_USER_POOL_ID: ap-southeast-1_sYIuVgJx5
+      VITE_COGNITO_CLIENT_ID: irch38183ksbnqcgabscq78oo
+      VITE_COGNITO_DOMAIN: ap-southeast-1syiuvgjx5.auth.ap-southeast-1.amazoncognito.com
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build @tutorpair/shared workspace
+        run: npm run build:shared
+
+      - name: Run PostgreSQL database migrations
+        run: npm run db:migrate
+
+      - name: Seed reference subjects & test fixtures
+        env:
+          SEED_MOCK_USERS: 'true'
+        run: npm run db:seed
+
+      - name: Run Backend Unit & API Integration Tests
+        run: npm test
+
+      - name: Build Server & Client Production Bundles
+        run: npm run build
+
+  docker-build:
+    name: Build & Verify ECS Fargate Docker Image
+    runs-on: ubuntu-latest
+    needs: build-and-test
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build Multi-Stage Production Docker Image
+        run: docker build -t tutorpair-server:ci -f Dockerfile .
+
+      - name: Verify Container Image Artifacts
+        run: |
+          docker run --rm --entrypoint node tutorpair-server:ci -e "console.log('Container runtime verified:', process.version)"
